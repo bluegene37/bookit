@@ -46,6 +46,19 @@ class NeumorphicContainer extends StatelessWidget {
           : NeumorphicTheme.getRaisedShadows(context),
     );
 
+    // Gene - Nov, 03, 2026: Wrapped child in transparent Material to prevent DecoratedBox ink/ListTile background assertions
+    Widget content = AnimatedContainer(
+      duration: const Duration(milliseconds: 150),
+      curve: Curves.easeInOut,
+      width: width,
+      height: height,
+      padding: padding,
+      margin: margin,
+      decoration: decoration,
+      child: child != null ? Material(type: MaterialType.transparency, child: child!) : null,
+    );
+    /*
+    // Gene - Nov, 03, 2026: Previous implementation without transparent Material wrapper
     Widget content = AnimatedContainer(
       duration: const Duration(milliseconds: 150),
       curve: Curves.easeInOut,
@@ -56,6 +69,7 @@ class NeumorphicContainer extends StatelessWidget {
       decoration: decoration,
       child: child,
     );
+    */
 
     if (onTap != null) {
       return GestureDetector(

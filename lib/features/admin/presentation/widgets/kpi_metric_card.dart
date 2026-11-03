@@ -24,6 +24,67 @@ class KpiMetricCard extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final color = accentColor ?? (isDark ? NeumorphicColors.tealLight : NeumorphicColors.tealPrimary);
 
+    // Gene - Nov, 03, 2026: Added Expanded to label and FittedBox to value to prevent RenderFlex overflow on mobile screens
+    return NeumorphicContainer(
+      borderRadius: 18.0,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Text(
+                  label,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: isDark ? NeumorphicColors.darkTextSecondary : NeumorphicColors.lightTextSecondary,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 6),
+              NeumorphicContainer(
+                isCircle: true,
+                width: 32,
+                height: 32,
+                child: Icon(icon, size: 16, color: color),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              value,
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.5,
+                color: isDark ? NeumorphicColors.darkTextPrimary : NeumorphicColors.lightTextPrimary,
+              ),
+            ),
+          ),
+          if (subtitle != null) ...[
+            const SizedBox(height: 2),
+            Text(
+              subtitle!,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 10, color: isDark ? Colors.white38 : Colors.black38),
+            ),
+          ],
+        ],
+      ),
+    );
+    /*
+    // Gene - Nov, 03, 2026: Previous unconstrained Row layout causing RenderFlex overflow
     return NeumorphicContainer(
       borderRadius: 20.0,
       padding: const EdgeInsets.all(18),
@@ -70,5 +131,6 @@ class KpiMetricCard extends StatelessWidget {
         ],
       ),
     );
+    */
   }
 }

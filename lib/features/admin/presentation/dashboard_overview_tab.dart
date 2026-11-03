@@ -46,7 +46,51 @@ class DashboardOverviewTab extends ConsumerWidget {
           ),
           const SizedBox(height: 24),
 
-          // KPI Cards Grid
+          // Gene - Nov, 03, 2026: Adjusted mobile childAspectRatio and spacing to ensure ample room for KPI cards
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final isWide = constraints.maxWidth > 700;
+              return GridView.count(
+                crossAxisCount: isWide ? 4 : 2,
+                crossAxisSpacing: isWide ? 16 : 12,
+                mainAxisSpacing: isWide ? 16 : 12,
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                childAspectRatio: isWide ? 1.4 : 1.12,
+                children: [
+                  KpiMetricCard(
+                    label: "Today's Agenda",
+                    value: '${confirmedBookings.length}',
+                    icon: Icons.calendar_today,
+                    subtitle: 'Confirmed visits',
+                  ),
+                  KpiMetricCard(
+                    label: 'Pending Approval',
+                    value: '${pendingBookings.length}',
+                    icon: Icons.pending_actions,
+                    accentColor: NeumorphicColors.warning,
+                    subtitle: 'Needs action',
+                  ),
+                  KpiMetricCard(
+                    label: 'Total Patients',
+                    value: '${bookings.length + 42}',
+                    icon: Icons.people_outline,
+                    accentColor: NeumorphicColors.cyanLight,
+                    subtitle: 'Active profiles',
+                  ),
+                  KpiMetricCard(
+                    label: 'Clinic Rating',
+                    value: '${business.ratingAvg.toStringAsFixed(1)} ★',
+                    icon: Icons.star_outline,
+                    accentColor: Colors.amber,
+                    subtitle: '${business.ratingCount} reviews',
+                  ),
+                ],
+              );
+            },
+          ),
+          /*
+          // Gene - Nov, 03, 2026: Previous GridView configuration
           LayoutBuilder(
             builder: (context, constraints) {
               final isWide = constraints.maxWidth > 700;
@@ -89,6 +133,7 @@ class DashboardOverviewTab extends ConsumerWidget {
               );
             },
           ),
+          */
           const SizedBox(height: 32),
 
           // Pending Requests Queue

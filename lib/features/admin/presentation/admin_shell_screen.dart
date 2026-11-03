@@ -44,7 +44,123 @@ class _AdminShellScreenState extends ConsumerState<AdminShellScreen> {
           orElse: () => businesses.first,
         );
 
+        // Gene - Nov, 03, 2026: Made AppBar responsive for mobile form factors to eliminate RenderFlex 429px overflow
+        final isMobile = MediaQuery.sizeOf(context).width < 750;
+
         return Scaffold(
+          appBar: AppBar(
+            title: isMobile
+                ? Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      NeumorphicContainer(
+                        isCircle: true,
+                        width: 32,
+                        height: 32,
+                        child: Icon(Icons.admin_panel_settings, size: 18, color: accent),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Admin',
+                        style: TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w800,
+                          color: isDark ? NeumorphicColors.darkTextPrimary : NeumorphicColors.lightTextPrimary,
+                        ),
+                      ),
+                    ],
+                  )
+                : Row(
+                    children: [
+                      NeumorphicContainer(
+                        isCircle: true,
+                        width: 36,
+                        height: 36,
+                        child: Icon(Icons.admin_panel_settings, size: 20, color: accent),
+                      ),
+                      const SizedBox(width: 10),
+                      Text(
+                        'BookIt Admin',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                          color: isDark ? NeumorphicColors.darkTextPrimary : NeumorphicColors.lightTextPrimary,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      // Clinic Selector Dropdown
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        decoration: BoxDecoration(
+                          color: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.05),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: DropdownButton<String>(
+                          value: _selectedBusinessId,
+                          underline: const SizedBox(),
+                          icon: const Icon(Icons.arrow_drop_down, size: 18),
+                          items: businesses.map((b) {
+                            return DropdownMenuItem(
+                              value: b.id,
+                              child: Text(
+                                '${b.name} (${b.category})',
+                                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                              ),
+                            );
+                          }).toList(),
+                          onChanged: (val) {
+                            if (val != null) setState(() => _selectedBusinessId = val);
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+            actions: [
+              if (isMobile) ...[
+                // Mobile Clinic Selector Popup
+                PopupMenuButton<String>(
+                  icon: Icon(Icons.business, color: accent, size: 20),
+                  tooltip: 'Switch Clinic',
+                  onSelected: (val) => setState(() => _selectedBusinessId = val),
+                  itemBuilder: (context) => businesses.map((b) {
+                    return PopupMenuItem(
+                      value: b.id,
+                      child: Text(
+                        '${b.name} (${b.category})',
+                        style: TextStyle(
+                          fontWeight: b.id == _selectedBusinessId ? FontWeight.bold : FontWeight.normal,
+                          color: b.id == _selectedBusinessId ? accent : null,
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+                // Switch back to Client App (compact icon on mobile)
+                IconButton(
+                  icon: const Icon(Icons.storefront_outlined),
+                  tooltip: 'Client App View',
+                  onPressed: () {
+                    ref.read(authProvider.notifier).toggleRole();
+                    context.go('/');
+                  },
+                ),
+              ] else ...[
+                // Switch back to Client App (desktop button)
+                TextButton.icon(
+                  icon: const Icon(Icons.storefront_outlined, size: 16),
+                  label: const Text('Client App View'),
+                  style: TextButton.styleFrom(foregroundColor: accent),
+                  onPressed: () {
+                    ref.read(authProvider.notifier).toggleRole();
+                    context.go('/');
+                  },
+                ),
+                const SizedBox(width: 14),
+              ],
+            ],
+          ),
+          /*
+          // Gene - Nov, 03, 2026: Previous non-responsive AppBar causing 429px overflow on mobile
           appBar: AppBar(
             title: Row(
               children: [
@@ -64,7 +180,6 @@ class _AdminShellScreenState extends ConsumerState<AdminShellScreen> {
                   ),
                 ),
                 const SizedBox(width: 16),
-                // Clinic Selector Dropdown
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12),
                   decoration: BoxDecoration(
@@ -92,7 +207,6 @@ class _AdminShellScreenState extends ConsumerState<AdminShellScreen> {
               ],
             ),
             actions: [
-              // Switch back to Client App
               TextButton.icon(
                 icon: const Icon(Icons.storefront_outlined, size: 16),
                 label: const Text('Client App View'),
@@ -105,6 +219,7 @@ class _AdminShellScreenState extends ConsumerState<AdminShellScreen> {
               const SizedBox(width: 14),
             ],
           ),
+          */
           body: LayoutBuilder(
             builder: (context, constraints) {
               final isDesktop = constraints.maxWidth >= 850;

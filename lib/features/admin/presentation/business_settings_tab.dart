@@ -195,7 +195,24 @@ class _BusinessSettingsTabState extends ConsumerState<BusinessSettingsTab> {
             const SizedBox(height: 24),
           ],
 
-          // Approval Policy
+          // Gene - Nov, 03, 2026: Wrapped SwitchListTile in Material widget to resolve ListTile DecoratedBox assertion
+          NeumorphicContainer(
+            borderRadius: 18.0,
+            padding: const EdgeInsets.all(16),
+            child: Material(
+              type: MaterialType.transparency,
+              child: SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Require Manual Approval for Bookings', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+                subtitle: const Text('If enabled, bookings stay in "Pending" status until accepted by staff.', style: TextStyle(fontSize: 12)),
+                value: _requiresApproval,
+                activeThumbColor: accent,
+                onChanged: (val) => setState(() => _requiresApproval = val),
+              ),
+            ),
+          ),
+          /*
+          // Gene - Nov, 03, 2026: Previous SwitchListTile without explicit Material wrapper
           NeumorphicContainer(
             borderRadius: 18.0,
             padding: const EdgeInsets.all(16),
@@ -208,6 +225,7 @@ class _BusinessSettingsTabState extends ConsumerState<BusinessSettingsTab> {
               onChanged: (val) => setState(() => _requiresApproval = val),
             ),
           ),
+          */
           const SizedBox(height: 24),
 
           // Clinic Details
