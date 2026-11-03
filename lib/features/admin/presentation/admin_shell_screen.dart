@@ -28,9 +28,16 @@ class _AdminShellScreenState extends ConsumerState<AdminShellScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final businessesAsync = ref.watch(businessListProvider);
+    // Gene - Nov, 03, 2026: Check authentication before rendering Admin Web Dashboard
+    final authState = ref.watch(authProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final accent = isDark ? NeumorphicColors.tealLight : NeumorphicColors.tealPrimary;
+
+    if (authState.user == null) {
+      return _buildAdminAuthGate(context, isDark, accent);
+    }
+
+    final businessesAsync = ref.watch(businessListProvider);
 
     return businessesAsync.when(
       loading: () => const Scaffold(body: Center(child: CircularProgressIndicator())),
@@ -278,7 +285,116 @@ class _AdminShellScreenState extends ConsumerState<AdminShellScreen> {
           Container(width: 1, height: 32, color: isDark ? Colors.white12 : Colors.black12),
           const SizedBox(width: 16),
 
-          // Admin Profile Avatar
+          // Gene - Nov, 03, 2026: Interactive Admin Profile Menu with Sign Out & Navigation
+          PopupMenuButton<String>(
+            tooltip: 'Account Menu',
+            offset: const Offset(0, 48),
+            color: isDark ? NeumorphicColors.darkSurface : NeumorphicColors.lightSurface,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+              side: BorderSide(
+                color: isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.1),
+              ),
+            ),
+            onSelected: (action) {
+              if (action == 'profile') {
+                context.push('/profile');
+              } else if (action == 'client_view') {
+                context.go('/');
+              } else if (action == 'sign_out') {
+                ref.read(authProvider.notifier).signOut();
+                context.go('/login?redirect=/admin');
+              }
+            },
+            itemBuilder: (ctx) => [
+              PopupMenuItem(
+                enabled: false,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      currentUser?.fullName ?? 'Dr. Alexander Vance',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        color: isDark ? NeumorphicColors.darkTextPrimary : NeumorphicColors.lightTextPrimary,
+                      ),
+                    ),
+                    Text(
+                      currentUser?.email ?? 'admin@bookit.dev',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: isDark ? NeumorphicColors.darkTextSecondary : NeumorphicColors.lightTextSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const PopupMenuDivider(),
+              const PopupMenuItem(
+                value: 'profile',
+                child: Row(
+                  children: [
+                    Icon(Icons.person_outline, size: 18),
+                    SizedBox(width: 10),
+                    Text('Profile & Settings'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'client_view',
+                child: Row(
+                  children: [
+                    Icon(Icons.phone_android_rounded, size: 18),
+                    SizedBox(width: 10),
+                    Text('Switch to Client View'),
+                  ],
+                ),
+              ),
+              const PopupMenuDivider(),
+              const PopupMenuItem(
+                value: 'sign_out',
+                child: Row(
+                  children: [
+                    Icon(Icons.logout_rounded, size: 18, color: NeumorphicColors.error),
+                    SizedBox(width: 10),
+                    Text('Sign Out', style: TextStyle(color: NeumorphicColors.error)),
+                  ],
+                ),
+              ),
+            ],
+            child: MouseRegion(
+              cursor: SystemMouseCursors.click,
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 18,
+                    backgroundColor: accent.withValues(alpha: 0.2),
+                    child: Icon(Icons.person, size: 20, color: accent),
+                  ),
+                  const SizedBox(width: 10),
+                  Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        currentUser?.fullName ?? 'Dr. Alexander Vance',
+                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+                      ),
+                      Text(
+                        'Administrator ▾',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: isDark ? NeumorphicColors.darkTextSecondary : NeumorphicColors.lightTextSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+          /*
+          // Gene - Nov, 03, 2026: Previous static profile avatar without popup menu
           Row(
             children: [
               CircleAvatar(
@@ -291,21 +407,13 @@ class _AdminShellScreenState extends ConsumerState<AdminShellScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    currentUser?.fullName ?? 'Dr. Alexander Vance',
-                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
-                  ),
-                  Text(
-                    'Administrator',
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: isDark ? NeumorphicColors.darkTextSecondary : NeumorphicColors.lightTextSecondary,
-                    ),
-                  ),
+                  Text(currentUser?.fullName ?? 'Dr. Alexander Vance'),
+                  Text('Administrator'),
                 ],
               ),
             ],
           ),
+          */
         ],
       ),
     );
@@ -338,6 +446,68 @@ class _AdminShellScreenState extends ConsumerState<AdminShellScreen> {
           _buildSidebarSectionHeader('TEMPLATE & ENGINE', isDark),
           const SizedBox(height: 6),
           _buildSidebarItem(4, 'Template & Settings', Icons.tune_rounded, accent, isDark),
+
+          // Gene - Nov, 03, 2026: Added Session & Quick Navigation to Sidebar
+          const SizedBox(height: 20),
+          _buildSidebarSectionHeader('SESSION', isDark),
+          const SizedBox(height: 6),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 3),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: () => context.go('/'),
+                borderRadius: BorderRadius.circular(12),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  child: Row(
+                    children: [
+                      Icon(Icons.phone_android_rounded, size: 18, color: isDark ? Colors.white60 : Colors.black54),
+                      const SizedBox(width: 12),
+                      Text(
+                        'Client App View',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                          color: isDark ? Colors.white70 : Colors.black87,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 3),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: () {
+                  ref.read(authProvider.notifier).signOut();
+                  context.go('/login?redirect=/admin');
+                },
+                borderRadius: BorderRadius.circular(12),
+                child: const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  child: Row(
+                    children: [
+                      Icon(Icons.logout_rounded, size: 18, color: NeumorphicColors.error),
+                      SizedBox(width: 12),
+                      Text(
+                        'Sign Out',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: NeumorphicColors.error,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
 
           const Spacer(),
 
@@ -435,6 +605,82 @@ class _AdminShellScreenState extends ConsumerState<AdminShellScreen> {
                     decoration: BoxDecoration(color: accent, shape: BoxShape.circle),
                   ),
               ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Gene - Nov, 03, 2026: Web Admin Authentication Gate for unauthenticated or logged-out users
+  Widget _buildAdminAuthGate(BuildContext context, bool isDark, Color accent) {
+    return Scaffold(
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 460),
+            child: NeumorphicContainer(
+              padding: const EdgeInsets.all(36),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  NeumorphicContainer(
+                    isCircle: true,
+                    width: 76,
+                    height: 76,
+                    child: Icon(Icons.admin_panel_settings_rounded, size: 40, color: accent),
+                  ),
+                  const SizedBox(height: 20),
+                  Text(
+                    'BookIt Web Admin Portal',
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w800,
+                      color: isDark ? NeumorphicColors.darkTextPrimary : NeumorphicColors.lightTextPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Please sign in with clinic administrator credentials to access practice management.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: isDark ? NeumorphicColors.darkTextSecondary : NeumorphicColors.lightTextSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: 28),
+                  ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: accent,
+                      foregroundColor: Colors.white,
+                      minimumSize: const Size.fromHeight(48),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    icon: const Icon(Icons.lock_open_rounded),
+                    label: const Text('Sign In to Practice Portal', style: TextStyle(fontWeight: FontWeight.w700)),
+                    onPressed: () => context.go('/login?redirect=/admin'),
+                  ),
+                  const SizedBox(height: 12),
+                  OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size.fromHeight(48),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    icon: const Icon(Icons.flash_on_rounded),
+                    label: const Text('Quick Sign In as Demo Admin'),
+                    onPressed: () {
+                      ref.read(authProvider.notifier).loginAsDemoAdmin();
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  TextButton.icon(
+                    icon: const Icon(Icons.arrow_back, size: 16),
+                    label: const Text('Return to Client Booking Portal'),
+                    onPressed: () => context.go('/'),
+                  ),
+                ],
+              ),
             ),
           ),
         ),

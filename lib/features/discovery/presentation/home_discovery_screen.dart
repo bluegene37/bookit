@@ -1,4 +1,4 @@
-// Gene - Nov, 03, 2026: Refactored HomeDiscoveryScreen to be 100% Client-only for Android & iOS with mobile BottomNavigationBar
+// Gene - Nov, 03, 2026: Refactored HomeDiscoveryScreen with Client Profile navigation and 4-tab mobile BottomNavigationBar
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -10,12 +10,15 @@ import '../../../core/widgets/neumorphic_text_field.dart';
 import '../../../core/widgets/neumorphic_chip.dart';
 import '../../../services/business_service.dart';
 import '../../../services/notification_service.dart';
+import '../../../services/auth_service.dart';
 
 class HomeDiscoveryScreen extends ConsumerWidget {
   const HomeDiscoveryScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Gene - Nov, 03, 2026: Watch authProvider for profile icon and state reactivity
+    final authState = ref.watch(authProvider);
     final businessesAsync = ref.watch(businessListProvider);
     final selectedCategory = ref.watch(selectedCategoryProvider);
     final unreadCount = ref.watch(unreadNotificationCountProvider);
@@ -117,6 +120,21 @@ class HomeDiscoveryScreen extends ConsumerWidget {
                           ),
                         ],
                       ],
+                    ),
+
+                    // Gene - Nov, 03, 2026: Profile icon button in top discovery bar
+                    IconButton(
+                      tooltip: 'My Profile',
+                      icon: CircleAvatar(
+                        radius: 14,
+                        backgroundColor: accent.withValues(alpha: 0.18),
+                        child: Icon(
+                          authState.isAuthenticated ? Icons.person : Icons.person_outline,
+                          size: 18,
+                          color: accent,
+                        ),
+                      ),
+                      onPressed: () => context.push('/profile'),
                     ),
                   ],
                 ),
@@ -354,7 +372,7 @@ class HomeDiscoveryScreen extends ConsumerWidget {
           ],
         ),
       ),
-      // Gene - Nov, 03, 2026: Added client BottomNavigationBar for Android and iOS mobile navigation
+      // Gene - Nov, 03, 2026: 4-destination mobile BottomNavigationBar with Profile & Auth support
       bottomNavigationBar: NavigationBar(
         selectedIndex: 0,
         indicatorColor: accent.withValues(alpha: 0.18),
@@ -363,6 +381,8 @@ class HomeDiscoveryScreen extends ConsumerWidget {
             context.push('/my-bookings');
           } else if (index == 2) {
             context.push('/notifications');
+          } else if (index == 3) {
+            context.push('/profile');
           }
         },
         destinations: [
@@ -399,9 +419,24 @@ class HomeDiscoveryScreen extends ConsumerWidget {
             selectedIcon: Icon(Icons.notifications, color: accent),
             label: 'Alerts',
           ),
+          NavigationDestination(
+            icon: const Icon(Icons.person_outline),
+            selectedIcon: Icon(Icons.person, color: accent),
+            label: 'Profile',
+          ),
         ],
       ),
     );
+    /*
+    // Gene - Nov, 03, 2026: Previous 3-destination navigation bar
+    return Scaffold(
+      body: SafeArea(...),
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: 0,
+        destinations: [Explore, Appointments, Alerts],
+      ),
+    );
+    */
     /*
     // Gene - Nov, 03, 2026: Previous Scaffold without client BottomNavigationBar
     return Scaffold(
