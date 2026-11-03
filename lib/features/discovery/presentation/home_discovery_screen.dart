@@ -1,13 +1,14 @@
-// Gene - Nov, 03, 2026: Discovery and Search Hub for Dental, Medical, and Universal businesses
+// Gene - Nov, 03, 2026: Refactored HomeDiscoveryScreen to be 100% Client-only for Android & iOS with mobile BottomNavigationBar
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/neumorphic_colors.dart';
+import '../../../core/theme/theme_mode_provider.dart';
 import '../../../core/widgets/neumorphic_container.dart';
 import '../../../core/widgets/neumorphic_text_field.dart';
 import '../../../core/widgets/neumorphic_chip.dart';
 import '../../../services/business_service.dart';
-import '../../../services/auth_service.dart';
 import '../../../services/notification_service.dart';
 
 class HomeDiscoveryScreen extends ConsumerWidget {
@@ -18,7 +19,7 @@ class HomeDiscoveryScreen extends ConsumerWidget {
     final businessesAsync = ref.watch(businessListProvider);
     final selectedCategory = ref.watch(selectedCategoryProvider);
     final unreadCount = ref.watch(unreadNotificationCountProvider);
-    final authState = ref.watch(authProvider);
+    // final themeMode = ref.watch(themeModeProvider);
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final accent = isDark ? NeumorphicColors.tealLight : NeumorphicColors.tealPrimary;
@@ -29,7 +30,7 @@ class HomeDiscoveryScreen extends ConsumerWidget {
       body: SafeArea(
         child: CustomScrollView(
           slivers: [
-            // App Bar with Logo, Role Switcher, and Notifications
+            // App Bar with Brand Logo, Theme Toggle, and Notifications (Client Only)
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
@@ -40,36 +41,21 @@ class HomeDiscoveryScreen extends ConsumerWidget {
                       isCircle: true,
                       width: 44,
                       height: 44,
-                      child: Icon(Icons.calendar_month_rounded, color: accent, size: 22),
+                      child: Icon(Icons.health_and_safety_rounded, color: accent, size: 24),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Row(
-                            children: [
-                              Text(
-                                'BookIt',
-                                style: TextStyle(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.w800,
-                                  color: isDark ? NeumorphicColors.darkTextPrimary : NeumorphicColors.lightTextPrimary,
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: accent.withValues(alpha: 0.15),
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: Text(
-                                  authState.isBusinessOwner ? 'OWNER VIEW' : 'CLIENT VIEW',
-                                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: accent),
-                                ),
-                              ),
-                            ],
+                          Text(
+                            'BookIt',
+                            style: TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: -0.5,
+                              color: isDark ? NeumorphicColors.darkTextPrimary : NeumorphicColors.lightTextPrimary,
+                            ),
                           ),
                           Text(
                             'Find clinics, doctors & services',
@@ -82,19 +68,26 @@ class HomeDiscoveryScreen extends ConsumerWidget {
                       ),
                     ),
 
-                    // Role Switcher Button
+                    // Web Only: Link to Admin Portal
+                    if (kIsWeb) ...[
+                      TextButton.icon(
+                        icon: const Icon(Icons.admin_panel_settings_outlined, size: 16),
+                        label: const Text('Admin Portal'),
+                        style: TextButton.styleFrom(foregroundColor: accent),
+                        onPressed: () => context.go('/admin'),
+                      ),
+                      const SizedBox(width: 4),
+                    ],
+
+                    // Theme Toggle Button (Light/Dark Mode)
                     IconButton(
-                      tooltip: 'Toggle Owner / Client Role',
+                      tooltip: isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode',
                       icon: Icon(
-                        authState.isBusinessOwner ? Icons.admin_panel_settings : Icons.person_outline,
-                        color: accent,
+                        isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
+                        color: isDark ? Colors.amber : NeumorphicColors.lightTextSecondary,
                       ),
                       onPressed: () {
-                        ref.read(authProvider.notifier).toggleRole();
-                        final newIsOwner = !authState.isBusinessOwner;
-                        if (newIsOwner) {
-                          context.go('/admin');
-                        }
+                        ref.read(themeModeProvider.notifier).toggleTheme();
                       },
                     ),
 
@@ -361,6 +354,59 @@ class HomeDiscoveryScreen extends ConsumerWidget {
           ],
         ),
       ),
+      // Gene - Nov, 03, 2026: Added client BottomNavigationBar for Android and iOS mobile navigation
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: 0,
+        indicatorColor: accent.withValues(alpha: 0.18),
+        onDestinationSelected: (index) {
+          if (index == 1) {
+            context.push('/my-bookings');
+          } else if (index == 2) {
+            context.push('/notifications');
+          }
+        },
+        destinations: [
+          NavigationDestination(
+            icon: const Icon(Icons.explore_outlined),
+            selectedIcon: Icon(Icons.explore, color: accent),
+            label: 'Explore',
+          ),
+          NavigationDestination(
+            icon: const Icon(Icons.calendar_month_outlined),
+            selectedIcon: Icon(Icons.calendar_month, color: accent),
+            label: 'Appointments',
+          ),
+          NavigationDestination(
+            icon: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                const Icon(Icons.notifications_outlined),
+                if (unreadCount > 0)
+                  Positioned(
+                    top: -2,
+                    right: -2,
+                    child: Container(
+                      width: 8,
+                      height: 8,
+                      decoration: const BoxDecoration(
+                        color: NeumorphicColors.error,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            selectedIcon: Icon(Icons.notifications, color: accent),
+            label: 'Alerts',
+          ),
+        ],
+      ),
     );
+    /*
+    // Gene - Nov, 03, 2026: Previous Scaffold without client BottomNavigationBar
+    return Scaffold(
+      body: SafeArea(...),
+    );
+    */
   }
 }
