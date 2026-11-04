@@ -8,6 +8,10 @@ import '../../../core/widgets/neumorphic_chip.dart';
 import '../../../core/widgets/status_badge.dart';
 import '../../../services/booking_service.dart';
 import '../../../models/booking.dart';
+// Gene - Nov, 05, 2026: Added dialog imports for rescheduling and leaving customer reviews
+import 'widgets/reschedule_dialog.dart';
+import 'widgets/review_dialog.dart';
+import '../../../core/widgets/demo_persona_switcher.dart';
 
 class ClientBookingsScreen extends ConsumerStatefulWidget {
   const ClientBookingsScreen({super.key});
@@ -70,6 +74,7 @@ class _ClientBookingsScreenState extends ConsumerState<ClientBookingsScreen> {
     final bookings = ref.watch(clientBookingsProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final accent = isDark ? NeumorphicColors.tealLight : NeumorphicColors.tealPrimary;
+    final textPrimary = isDark ? NeumorphicColors.darkTextPrimary : NeumorphicColors.lightTextPrimary;
 
     final upcoming = bookings.where((b) => b.status == 'confirmed' || b.status == 'pending').toList();
     final past = bookings.where((b) => b.status == 'completed' || b.status == 'cancelled' || b.status == 'rejected').toList();
@@ -82,6 +87,14 @@ class _ClientBookingsScreenState extends ConsumerState<ClientBookingsScreen> {
           icon: const Icon(Icons.arrow_back_ios_new, size: 18),
           onPressed: () => context.go('/'),
         ),
+        // Gene - Nov, 05, 2026: Quick Demo Persona Switcher action in AppBar
+        actions: [
+          IconButton(
+            tooltip: 'Switch Demo Persona',
+            icon: Icon(Icons.switch_account_outlined, color: accent),
+            onPressed: () => DemoPersonaSwitcherDialog.show(context),
+          ),
+        ],
       ),
       body: SafeArea(
         child: Column(
@@ -212,12 +225,55 @@ class _ClientBookingsScreenState extends ConsumerState<ClientBookingsScreen> {
                                         color: accent,
                                       ),
                                     ),
+                                    /*
+                                    // Gene - Nov, 03, 2026: Single Cancel button for upcoming visits
                                     if (booking.status == 'confirmed' || booking.status == 'pending') ...[
                                       TextButton(
                                         onPressed: () => _showCancelDialog(context, booking),
                                         child: const Text('Cancel', style: TextStyle(color: NeumorphicColors.error, fontSize: 13)),
                                       ),
                                     ],
+                                    */
+
+                                    // Gene - Nov, 05, 2026: Interactive Reschedule, Cancel, and Customer Review actions
+                                    Wrap(
+                                      spacing: 8,
+                                      runSpacing: 6,
+                                      crossAxisAlignment: WrapCrossAlignment.center,
+                                      children: [
+                                        if (booking.status == 'confirmed' || booking.status == 'pending') ...[
+                                          OutlinedButton.icon(
+                                            icon: const Icon(Icons.edit_calendar_rounded, size: 14),
+                                            label: const Text('Reschedule', style: TextStyle(fontSize: 12)),
+                                            style: OutlinedButton.styleFrom(
+                                              foregroundColor: accent,
+                                              side: BorderSide(color: accent.withValues(alpha: 0.4)),
+                                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                            ),
+                                            onPressed: () => RescheduleBookingDialog.show(context, booking),
+                                          ),
+                                          TextButton(
+                                            onPressed: () => _showCancelDialog(context, booking),
+                                            child: const Text('Cancel', style: TextStyle(color: NeumorphicColors.error, fontSize: 13)),
+                                          ),
+                                        ],
+                                        if (booking.status == 'completed') ...[
+                                          ElevatedButton.icon(
+                                            icon: const Icon(Icons.star_rate_rounded, size: 15, color: Colors.amber),
+                                            label: const Text('Leave a Review', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: isDark ? NeumorphicColors.darkHighlight : Colors.white,
+                                              foregroundColor: textPrimary,
+                                              elevation: 2,
+                                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                            ),
+                                            onPressed: () => ReviewSubmissionDialog.show(context, booking),
+                                          ),
+                                        ],
+                                      ],
+                                    ),
                                   ],
                                 ),
                               ],

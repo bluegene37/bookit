@@ -181,6 +181,7 @@ class Business {
   }
   */
 
+  /*
   // Gene - Nov, 04, 2026: Updated fromJson parsing template_id and ui_config snapshot
   factory Business.fromJson(Map<String, dynamic> json) {
     return Business(
@@ -189,6 +190,82 @@ class Business {
       name: json['name'] as String,
       slug: json['slug'] as String,
       category: json['category'] as String,
+      bookingModel: BookingModelType.fromString(json['booking_model'] as String? ?? 'slot_based'),
+      description: json['description'] as String?,
+      address: json['address'] as String?,
+      city: json['city'] as String?,
+      latitude: (json['latitude'] as num?)?.toDouble(),
+      longitude: (json['longitude'] as num?)?.toDouble(),
+      contactPhone: json['contact_phone'] as String?,
+      contactEmail: json['contact_email'] as String?,
+      bannerUrl: json['banner_url'] as String?,
+      logoUrl: json['logo_url'] as String?,
+      settings: json['settings'] != null
+          ? Map<String, dynamic>.from(json['settings'] as Map)
+          : const {},
+      ratingAvg: (json['rating_avg'] as num?)?.toDouble() ?? 0.0,
+      ratingCount: (json['rating_count'] as num?)?.toInt() ?? 0,
+      isActive: json['is_active'] as bool? ?? true,
+      stripeAccountId: json['stripe_account_id'] as String?,
+      stripeChargesEnabled: json['stripe_charges_enabled'] as bool? ?? false,
+      platformFeePercent: (json['platform_fee_percent'] as num?)?.toDouble() ?? 2.50,
+      platformFeeFixed: (json['platform_fee_fixed'] as num?)?.toDouble() ?? 0.30,
+      templateId: json['template_id'] as String?,
+      uiConfig: json['ui_config'] != null
+          ? Map<String, dynamic>.from(json['ui_config'] as Map)
+          : const {},
+    );
+  }
+  */
+
+  // Gene - Nov, 05, 2026: Defensive fallback factory preventing crashes on null or missing business data
+  factory Business.fallback({
+    String id = '00000000-0000-0000-0000-000000000000',
+    String name = 'Sample Practice / Studio',
+    String category = 'Healthcare & Clinics',
+    BookingModelType bookingModel = BookingModelType.slotBased,
+  }) {
+    return Business(
+      id: id,
+      ownerId: '00000000-0000-0000-0000-000000000001',
+      name: name,
+      slug: 'sample-practice',
+      category: category,
+      bookingModel: bookingModel,
+      description: 'A modern, professional booking partner ready for appointments and sessions.',
+      address: '100 Market Street, Suite 500',
+      city: 'San Francisco',
+      contactPhone: '+1 (555) 019-2834',
+      contactEmail: 'contact@bookit.dev',
+      bannerUrl: 'https://images.unsplash.com/photo-1629909613654-28e377c37b09?auto=format&fit=crop&w=1200&q=80',
+      ratingAvg: 5.0,
+      ratingCount: 1,
+      isActive: true,
+      settings: const {
+        'slot_interval_minutes': 30,
+        'buffer_minutes': 10,
+        'requires_approval': false,
+        'working_hours': {
+          'monday': {'open': '09:00', 'close': '17:00', 'is_open': true},
+          'tuesday': {'open': '09:00', 'close': '17:00', 'is_open': true},
+          'wednesday': {'open': '09:00', 'close': '17:00', 'is_open': true},
+          'thursday': {'open': '09:00', 'close': '17:00', 'is_open': true},
+          'friday': {'open': '09:00', 'close': '17:00', 'is_open': true},
+          'saturday': {'open': '10:00', 'close': '15:00', 'is_open': false},
+          'sunday': {'open': '00:00', 'close': '00:00', 'is_open': false},
+        },
+      },
+    );
+  }
+
+  // Gene - Nov, 05, 2026: Hardened fromJson with strict null-safety and default fallbacks for unassigned fields
+  factory Business.fromJson(Map<String, dynamic> json) {
+    return Business(
+      id: json['id'] as String? ?? '00000000-0000-0000-0000-000000000000',
+      ownerId: json['owner_id'] as String? ?? '00000000-0000-0000-0000-000000000001',
+      name: json['name'] as String? ?? 'Sample Practice / Studio',
+      slug: json['slug'] as String? ?? 'sample-practice',
+      category: json['category'] as String? ?? 'Healthcare & Clinics',
       bookingModel: BookingModelType.fromString(json['booking_model'] as String? ?? 'slot_based'),
       description: json['description'] as String?,
       address: json['address'] as String?,

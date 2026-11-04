@@ -7,6 +7,8 @@ import '../../../core/theme/theme_mode_provider.dart';
 import '../../../core/widgets/neumorphic_container.dart';
 import '../../../core/widgets/neumorphic_button.dart';
 import '../../../services/auth_service.dart';
+// Gene - Nov, 05, 2026: Added demo_persona_switcher import
+import '../../../core/widgets/demo_persona_switcher.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -231,6 +233,20 @@ class ProfileScreen extends ConsumerWidget {
                             ),
                           ],
                         ),
+                      ),
+                      const SizedBox(height: 12),
+                      // Gene - Nov, 05, 2026: Open comprehensive Demo Persona Switcher modal
+                      OutlinedButton.icon(
+                        icon: const Icon(Icons.switch_account_rounded, size: 16),
+                        label: const Text('Open Persona Switcher & Reset Store'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: accent,
+                          side: BorderSide(color: accent.withValues(alpha: 0.4)),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          minimumSize: const Size(double.infinity, 44),
+                        ),
+                        onPressed: () => DemoPersonaSwitcherDialog.show(context),
                       ),
                     ],
                   ),

@@ -6,6 +6,8 @@ import '../../../core/theme/neumorphic_colors.dart';
 import '../../../core/widgets/neumorphic_container.dart';
 import '../../../core/widgets/neumorphic_button.dart';
 import '../../../services/business_service.dart';
+// Gene - Nov, 05, 2026: Added safe_network_image import
+import '../../../core/widgets/safe_network_image.dart';
 
 class BusinessDetailScreen extends ConsumerWidget {
   final String businessId;
@@ -50,10 +52,19 @@ class BusinessDetailScreen extends ConsumerWidget {
                       ),
                     ),
                     flexibleSpace: FlexibleSpaceBar(
+                      /*
+                      // Gene - Nov, 03, 2026: Raw Image.network
                       background: Image.network(
                         business.bannerUrl ?? 'https://images.unsplash.com/photo-1629909613654-28e377c37b09?w=800',
                         fit: BoxFit.cover,
                         errorBuilder: (context, error, stackTrace) => Container(color: Colors.grey),
+                      ),
+                      */
+                      // Gene - Nov, 05, 2026: SafeNetworkImage rendering with fallback icon
+                      background: SafeNetworkImage(
+                        imageUrl: business.bannerUrl,
+                        fit: BoxFit.cover,
+                        fallbackIcon: Icons.local_hospital_rounded,
                       ),
                     ),
                   ),

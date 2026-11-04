@@ -2,6 +2,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/user_profile.dart';
 import 'supabase_service.dart';
+// Gene - Nov, 05, 2026: Added DemoData import for multi-persona switching and testing
+import '../core/constants/demo_data.dart';
 
 class AuthState {
   final UserProfile? user;
@@ -52,7 +54,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
         }
       }
 
-      // Demo/Mock Fallback Accounts
+      /*
+      // Gene - Nov, 03, 2026: Simple mock fallback role parsing
       final role = (email.contains('admin') || email.contains('doctor') || email == 'admin@bookit.dev')
           ? 'business_owner'
           : 'client';
@@ -64,6 +67,37 @@ class AuthNotifier extends StateNotifier<AuthState> {
           fullName: email == 'admin@bookit.dev'
               ? 'Dr. Alexander Vance'
               : (email.split('@').first[0].toUpperCase() + email.split('@').first.substring(1)),
+          role: role,
+          createdAt: DateTime.now(),
+        ),
+      );
+      return true;
+      */
+
+      // Gene - Nov, 05, 2026: Multi-Persona testing credentials fallback mapping
+      if (email == 'admin@bookit.dev') {
+        state = AuthState(user: DemoData.demoAdmin);
+        return true;
+      } else if (email == 'retreat@bookit.dev') {
+        state = AuthState(user: DemoData.demoRetreatOwner);
+        return true;
+      } else if (email == 'staff@bookit.dev') {
+        state = AuthState(user: DemoData.demoStaff);
+        return true;
+      } else if (email == 'client@bookit.dev') {
+        state = AuthState(user: DemoData.demoClient);
+        return true;
+      }
+
+      final role = (email.contains('admin') || email.contains('doctor') || email.contains('owner'))
+          ? 'business_owner'
+          : 'client';
+
+      state = AuthState(
+        user: UserProfile(
+          id: 'user-${email.hashCode}',
+          email: email,
+          fullName: email.split('@').first[0].toUpperCase() + email.split('@').first.substring(1),
           role: role,
           createdAt: DateTime.now(),
         ),
@@ -148,20 +182,31 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   // Gene - Nov, 03, 2026: Quick Demo Account login for instant evaluation
   void loginAsDemoClient() {
-    state = AuthState(
-      user: UserProfile(
-        id: '00000000-0000-0000-0000-000000000003',
-        email: 'client@bookit.dev',
-        fullName: 'Michael Chen',
-        role: 'client',
-        phone: '+1 (555) 345-6789',
-        createdAt: DateTime.now(),
-      ),
-    );
+    state = AuthState(user: DemoData.demoClient);
   }
 
   void loginAsDemoAdmin() {
-    state = AuthState(user: SupabaseService.mockCurrentUser);
+    state = AuthState(user: DemoData.demoAdmin);
+  }
+
+  // Gene - Nov, 05, 2026: Additional demo persona shortcuts for recovery stays and staff specialists
+  void loginAsDemoRetreatOwner() {
+    state = AuthState(user: DemoData.demoRetreatOwner);
+  }
+
+  void loginAsDemoStaff() {
+    state = AuthState(user: DemoData.demoStaff);
+  }
+
+  // Gene - Nov, 05, 2026: Direct persona switching for testing
+  void switchPersona(UserProfile profile) {
+    state = AuthState(user: profile);
+  }
+
+  // Gene - Nov, 05, 2026: Reset in-memory demo datasets back to clean initial state
+  void resetDemoData() {
+    SupabaseService.resetToDefaultData();
+    state = AuthState(user: DemoData.demoAdmin, successMessage: 'Demo data reset to default successfully!');
   }
 
   void toggleRole() {

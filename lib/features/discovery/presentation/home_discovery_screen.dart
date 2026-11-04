@@ -11,6 +11,9 @@ import '../../../core/widgets/neumorphic_chip.dart';
 import '../../../services/business_service.dart';
 import '../../../services/notification_service.dart';
 import '../../../services/auth_service.dart';
+// Gene - Nov, 05, 2026: Added demo_persona_switcher and safe_network_image imports
+import '../../../core/widgets/demo_persona_switcher.dart';
+import '../../../core/widgets/safe_network_image.dart';
 
 class HomeDiscoveryScreen extends ConsumerWidget {
   const HomeDiscoveryScreen({super.key});
@@ -89,6 +92,7 @@ class HomeDiscoveryScreen extends ConsumerWidget {
                       const SizedBox(width: 4),
                     ],
                     */
+                    /*
                     // Gene - Nov, 04, 2026: Responsive Admin Portal button (compact icon on mobile, full label on wide screens)
                     if (kIsWeb) ...[
                       if (MediaQuery.of(context).size.width < 600)
@@ -107,6 +111,33 @@ class HomeDiscoveryScreen extends ConsumerWidget {
                         const SizedBox(width: 4),
                       ],
                     ],
+                    */
+
+                    // Gene - Nov, 05, 2026: Universal cross-platform Admin Portal entrypoint for business owners and testers
+                    if (authState.isBusinessOwner || kIsWeb) ...[
+                      if (MediaQuery.of(context).size.width < 600)
+                        IconButton(
+                          tooltip: 'Admin Portal',
+                          icon: Icon(Icons.admin_panel_settings_outlined, color: accent),
+                          onPressed: () => context.go('/admin'),
+                        )
+                      else ...[
+                        TextButton.icon(
+                          icon: const Icon(Icons.admin_panel_settings_outlined, size: 16),
+                          label: const Text('Admin Portal'),
+                          style: TextButton.styleFrom(foregroundColor: accent),
+                          onPressed: () => context.go('/admin'),
+                        ),
+                        const SizedBox(width: 4),
+                      ],
+                    ],
+
+                    // Gene - Nov, 05, 2026: Quick Demo Persona Switcher dialog trigger
+                    IconButton(
+                      tooltip: 'Switch Demo Persona',
+                      icon: Icon(Icons.switch_account_outlined, color: accent),
+                      onPressed: () => DemoPersonaSwitcherDialog.show(context),
+                    ),
 
                     // Theme Toggle Button (Light/Dark Mode)
                     IconButton(
@@ -298,6 +329,8 @@ class HomeDiscoveryScreen extends ConsumerWidget {
                                     borderRadius: BorderRadius.circular(16),
                                     child: Stack(
                                       children: [
+                                        /*
+                                        // Gene - Nov, 03, 2026: Raw Image.network
                                         Image.network(
                                           business.bannerUrl ?? 'https://images.unsplash.com/photo-1629909613654-28e377c37b09?w=800',
                                           height: 150,
@@ -308,6 +341,15 @@ class HomeDiscoveryScreen extends ConsumerWidget {
                                             color: Colors.grey.shade400,
                                             child: const Icon(Icons.local_hospital, size: 40),
                                           ),
+                                        ),
+                                        */
+                                        // Gene - Nov, 05, 2026: SafeNetworkImage with fallback icon
+                                        SafeNetworkImage(
+                                          imageUrl: business.bannerUrl,
+                                          height: 150,
+                                          width: double.infinity,
+                                          fit: BoxFit.cover,
+                                          fallbackIcon: Icons.local_hospital_rounded,
                                         ),
                                         Positioned(
                                           top: 12,

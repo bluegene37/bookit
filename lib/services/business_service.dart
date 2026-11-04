@@ -79,6 +79,8 @@ class BusinessService {
     return false;
   }
 
+  /*
+  // Gene - Nov, 03, 2026: Original getBusinessById
   Future<Business?> getBusinessById(String id) async {
     final client = SupabaseService.client;
     if (client != null) {
@@ -90,6 +92,24 @@ class BusinessService {
     return SupabaseService.mockBusinesses.firstWhere(
       (b) => b.id == id,
       orElse: () => SupabaseService.mockBusinesses.first,
+    );
+  }
+  */
+
+  // Gene - Nov, 05, 2026: Defensive getBusinessById with safe fallback to prevent StateError on empty collections
+  Future<Business?> getBusinessById(String id) async {
+    final client = SupabaseService.client;
+    if (client != null) {
+      try {
+        final data = await client.from('businesses').select().eq('id', id).single();
+        return Business.fromJson(data);
+      } catch (_) {}
+    }
+    return SupabaseService.mockBusinesses.firstWhere(
+      (b) => b.id == id,
+      orElse: () => SupabaseService.mockBusinesses.isNotEmpty
+          ? SupabaseService.mockBusinesses.first
+          : Business.fallback(id: id),
     );
   }
 
@@ -190,6 +210,7 @@ class BusinessService {
     return business;
   }
 
+  /*
   // Gene - Nov, 04, 2026: Synchronize customer reviews from Supabase reviews table
   Future<List<Review>> getReviews(String businessId) async {
     final client = SupabaseService.client;
@@ -216,6 +237,74 @@ class BusinessService {
       } catch (_) {}
     }
     return false;
+  }
+  */
+
+  // Gene - Nov, 05, 2026: Customer reviews with dynamic in-memory store fallback and rating recalculation
+  Future<List<Review>> getReviews(String businessId) async {
+    final client = SupabaseService.client;
+    if (client != null) {
+      try {
+        final data = await client
+            .from('reviews')
+            .select('*, profiles:client_id (full_name)')
+            .eq('business_id', businessId)
+            .order('created_at', ascending: false);
+        return (data as List).map((r) => Review.fromJson(r)).toList();
+      } catch (_) {}
+    }
+    return SupabaseService.mockReviews.where((r) => r.businessId == businessId).toList();
+  }
+
+  // Gene - Nov, 05, 2026: Submit customer review and immediately recalculate rating_avg and rating_count
+  Future<bool> createReview(Review review) async {
+    final client = SupabaseService.client;
+    if (client != null) {
+      try {
+        await client.from('reviews').insert(review.toJson());
+        return true;
+      } catch (_) {}
+    }
+
+    // In-Memory store update
+    SupabaseService.mockReviews.insert(0, review);
+
+    // Dynamic rating recalculation on targeted business
+    final bizIndex = SupabaseService.mockBusinesses.indexWhere((b) => b.id == review.businessId);
+    if (bizIndex != -1) {
+      final biz = SupabaseService.mockBusinesses[bizIndex];
+      final currentTotal = biz.ratingAvg * biz.ratingCount;
+      final newCount = biz.ratingCount + 1;
+      final newAvg = double.parse(((currentTotal + review.rating) / newCount).toStringAsFixed(2));
+      SupabaseService.mockBusinesses[bizIndex] = Business(
+        id: biz.id,
+        ownerId: biz.ownerId,
+        name: biz.name,
+        slug: biz.slug,
+        category: biz.category,
+        bookingModel: biz.bookingModel,
+        description: biz.description,
+        address: biz.address,
+        city: biz.city,
+        latitude: biz.latitude,
+        longitude: biz.longitude,
+        contactPhone: biz.contactPhone,
+        contactEmail: biz.contactEmail,
+        bannerUrl: biz.bannerUrl,
+        logoUrl: biz.logoUrl,
+        settings: biz.settings,
+        ratingAvg: newAvg,
+        ratingCount: newCount,
+        isActive: biz.isActive,
+        stripeAccountId: biz.stripeAccountId,
+        stripeChargesEnabled: biz.stripeChargesEnabled,
+        platformFeePercent: biz.platformFeePercent,
+        platformFeeFixed: biz.platformFeeFixed,
+        templateId: biz.templateId,
+        uiConfig: biz.uiConfig,
+      );
+    }
+    return true;
   }
 }
 

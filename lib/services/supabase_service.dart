@@ -14,6 +14,9 @@ import '../models/notification_item.dart';
 // Gene - Nov, 04, 2026: Added BusinessCategory and BusinessTemplate imports for template mock data
 import '../models/business_category.dart';
 import '../models/business_template.dart';
+// Gene - Nov, 05, 2026: Added demo_data and review imports for dynamic seeding and reset
+import '../core/constants/demo_data.dart';
+import '../models/review.dart';
 
 class SupabaseService {
   static SupabaseClient? get client {
@@ -44,8 +47,45 @@ class SupabaseService {
     }
   }
 
-  // --- Seed Mock Data for Local Testing ---
-  static final List<Business> mockBusinesses = [
+  // Gene - Nov, 05, 2026: Connected centralized DemoData datasets across all 6 business sweet spots with reset capability
+  static final List<Business> mockBusinesses = List.from(DemoData.freshBusinesses);
+  static final List<BusinessStaff> mockStaff = List.from(DemoData.freshStaff);
+  static final List<ServiceItem> mockServices = List.from(DemoData.freshServices);
+  static final List<Booking> mockBookings = List.from(DemoData.freshBookings);
+  static UserProfile mockCurrentUser = DemoData.demoAdmin;
+  static final List<Payment> mockPayments = List.from(DemoData.freshPayments);
+  static final List<NotificationItem> mockNotifications = List.from(DemoData.freshNotifications);
+  static final List<Review> mockReviews = List.from(DemoData.freshReviews);
+
+  // Gene - Nov, 05, 2026: Reset all in-memory mock datasets to clean fresh seed state
+  static void resetToDefaultData() {
+    mockBusinesses.clear();
+    mockBusinesses.addAll(DemoData.freshBusinesses);
+
+    mockStaff.clear();
+    mockStaff.addAll(DemoData.freshStaff);
+
+    mockServices.clear();
+    mockServices.addAll(DemoData.freshServices);
+
+    mockBookings.clear();
+    mockBookings.addAll(DemoData.freshBookings);
+
+    mockPayments.clear();
+    mockPayments.addAll(DemoData.freshPayments);
+
+    mockNotifications.clear();
+    mockNotifications.addAll(DemoData.freshNotifications);
+
+    mockReviews.clear();
+    mockReviews.addAll(DemoData.freshReviews);
+
+    mockCurrentUser = DemoData.demoAdmin;
+  }
+
+  /*
+  // Gene - Nov, 03, 2026: Initial hardcoded static mock lists preserved for history
+  static final List<Business> _initialMockBusinesses = [
     Business(
       id: '11111111-1111-1111-1111-111111111111',
       ownerId: '00000000-0000-0000-0000-000000000001',
@@ -121,7 +161,7 @@ class SupabaseService {
     ),
   ];
 
-  static final List<BusinessStaff> mockStaff = [
+  static final List<BusinessStaff> _initialMockStaff = [
     const BusinessStaff(
       id: '44444444-4444-4444-4444-444444444441',
       businessId: '11111111-1111-1111-1111-111111111111',
@@ -148,7 +188,7 @@ class SupabaseService {
     ),
   ];
 
-  static final List<ServiceItem> mockServices = [
+  static final List<ServiceItem> _initialMockServices = [
     const ServiceItem(
       id: '55555555-5555-5555-5555-555555555551',
       businessId: '11111111-1111-1111-1111-111111111111',
@@ -183,7 +223,7 @@ class SupabaseService {
     ),
   ];
 
-  static final List<Booking> mockBookings = [
+  static final List<Booking> _initialMockBookings = [
     Booking(
       id: 'bk-sample-1',
       businessId: '11111111-1111-1111-1111-111111111111',
@@ -220,7 +260,7 @@ class SupabaseService {
     ),
   ];
 
-  static UserProfile mockCurrentUser = UserProfile(
+  static UserProfile _initialMockCurrentUser = UserProfile(
     id: '00000000-0000-0000-0000-000000000001',
     email: 'admin@bookit.dev',
     fullName: 'Dr. Alexander Vance',
@@ -229,8 +269,7 @@ class SupabaseService {
     createdAt: DateTime.now(),
   );
 
-  // Gene - Nov, 04, 2026: Seed mock payments for offline and testing mode
-  static final List<Payment> mockPayments = [
+  static final List<Payment> _initialMockPayments = [
     Payment(
       id: 'pay-sample-1',
       bookingId: 'bk-sample-1',
@@ -249,8 +288,8 @@ class SupabaseService {
     ),
   ];
 
-  // Gene - Nov, 04, 2026: Seed mock notifications list for offline mock events
-  static final List<NotificationItem> mockNotifications = [];
+  static final List<NotificationItem> _initialMockNotifications = [];
+  */
 
   // Gene - Nov, 04, 2026: Seed mock business categories across the 6 sweet spots
   static final List<BusinessCategory> mockCategories = [

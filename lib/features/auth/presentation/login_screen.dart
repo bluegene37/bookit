@@ -220,6 +220,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     ),
                   ),
                   const SizedBox(height: 12),
+                  /*
+                  // Gene - Nov, 03, 2026: Original 2-button demo sign-in row
                   Row(
                     children: [
                       Expanded(
@@ -258,6 +260,96 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             context.go('/admin');
                           },
                         ),
+                      ),
+                    ],
+                  ),
+                  */
+
+                  // Gene - Nov, 05, 2026: Expanded 4-persona demo buttons matrix (Patient, Admin, Retreat, Staff)
+                  Column(
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              icon: const Icon(Icons.person, size: 15),
+                              label: const Text('Patient Demo', style: TextStyle(fontSize: 11)),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: isDark ? Colors.white70 : Colors.black87,
+                                side: BorderSide(color: isDark ? Colors.white24 : Colors.black12),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                padding: const EdgeInsets.symmetric(vertical: 11),
+                              ),
+                              onPressed: () {
+                                _emailController.text = 'client@bookit.dev';
+                                _passwordController.text = 'password123';
+                                ref.read(authProvider.notifier).loginAsDemoClient();
+                                context.go('/');
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              icon: const Icon(Icons.admin_panel_settings, size: 15),
+                              label: const Text('Admin Demo', style: TextStyle(fontSize: 11)),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: accent,
+                                side: BorderSide(color: accent.withValues(alpha: 0.5)),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                padding: const EdgeInsets.symmetric(vertical: 11),
+                              ),
+                              onPressed: () {
+                                _emailController.text = 'admin@bookit.dev';
+                                _passwordController.text = 'password123';
+                                ref.read(authProvider.notifier).loginAsDemoAdmin();
+                                context.go('/admin');
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              icon: const Icon(Icons.hotel_rounded, size: 15),
+                              label: const Text('Retreat Demo', style: TextStyle(fontSize: 11)),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: isDark ? Colors.tealAccent : Colors.teal.shade700,
+                                side: BorderSide(color: Colors.teal.withValues(alpha: 0.3)),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                padding: const EdgeInsets.symmetric(vertical: 11),
+                              ),
+                              onPressed: () {
+                                _emailController.text = 'retreat@bookit.dev';
+                                _passwordController.text = 'password123';
+                                ref.read(authProvider.notifier).loginAsDemoRetreatOwner();
+                                context.go('/admin');
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              icon: const Icon(Icons.badge_rounded, size: 15),
+                              label: const Text('Staff Demo', style: TextStyle(fontSize: 11)),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: isDark ? Colors.lightBlueAccent : Colors.blue.shade700,
+                                side: BorderSide(color: Colors.blue.withValues(alpha: 0.3)),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                padding: const EdgeInsets.symmetric(vertical: 11),
+                              ),
+                              onPressed: () {
+                                _emailController.text = 'staff@bookit.dev';
+                                _passwordController.text = 'password123';
+                                ref.read(authProvider.notifier).loginAsDemoStaff();
+                                context.go('/');
+                              },
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),

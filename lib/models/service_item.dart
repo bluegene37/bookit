@@ -70,12 +70,53 @@ class ServiceItem {
   }
   */
 
+  /*
   // Gene - Nov, 04, 2026: Updated fromJson parsing payment policy and deposit settings
   factory ServiceItem.fromJson(Map<String, dynamic> json) {
     return ServiceItem(
       id: json['id'] as String,
       businessId: json['business_id'] as String,
       name: json['name'] as String,
+      description: json['description'] as String?,
+      durationMinutes: (json['duration_minutes'] as num?)?.toInt() ?? 30,
+      price: (json['price'] as num?)?.toDouble() ?? 0.0,
+      currency: json['currency'] as String? ?? 'USD',
+      isActive: json['is_active'] as bool? ?? true,
+      paymentPolicy: json['payment_policy'] as String? ?? 'full_upfront',
+      depositType: json['deposit_type'] as String? ?? 'percentage',
+      depositAmount: (json['deposit_amount'] as num?)?.toDouble() ?? 20.00,
+    );
+  }
+  */
+
+  // Gene - Nov, 05, 2026: Defensive fallback factory for missing service items
+  factory ServiceItem.fallback({
+    String id = 'srv-fallback-0',
+    String businessId = '00000000-0000-0000-0000-000000000000',
+    String name = 'Standard Consultation',
+    double price = 50.0,
+  }) {
+    return ServiceItem(
+      id: id,
+      businessId: businessId,
+      name: name,
+      description: 'Standard session and clinical consultation.',
+      durationMinutes: 30,
+      price: price,
+      currency: 'USD',
+      isActive: true,
+      paymentPolicy: 'pay_at_venue',
+      depositType: 'percentage',
+      depositAmount: 0.0,
+    );
+  }
+
+  // Gene - Nov, 05, 2026: Hardened fromJson with strict null-safety and default fallbacks
+  factory ServiceItem.fromJson(Map<String, dynamic> json) {
+    return ServiceItem(
+      id: json['id'] as String? ?? 'srv-fallback-0',
+      businessId: json['business_id'] as String? ?? '00000000-0000-0000-0000-000000000000',
+      name: json['name'] as String? ?? 'Standard Consultation',
       description: json['description'] as String?,
       durationMinutes: (json['duration_minutes'] as num?)?.toInt() ?? 30,
       price: (json['price'] as num?)?.toDouble() ?? 0.0,

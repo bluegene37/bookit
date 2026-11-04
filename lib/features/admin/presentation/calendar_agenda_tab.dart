@@ -173,6 +173,74 @@ class _CalendarAgendaTabState extends ConsumerState<CalendarAgendaTab> {
                           ],
                         ),
                       ),
+                      // Gene - Nov, 05, 2026: Admin inline booking state transitions (Approve, Decline, Complete, No-Show)
+                      if (b.status == 'pending') ...[
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.check_circle_outline, color: NeumorphicColors.success),
+                              tooltip: 'Approve',
+                              onPressed: () {
+                                ref.read(bookingsProvider.notifier).updateBookingStatus(b.id, 'confirmed');
+                              },
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.cancel_outlined, color: NeumorphicColors.error),
+                              tooltip: 'Decline',
+                              onPressed: () {
+                                ref.read(bookingsProvider.notifier).updateBookingStatus(b.id, 'rejected');
+                              },
+                            ),
+                          ],
+                        ),
+                      ] else if (b.status == 'confirmed') ...[
+                        PopupMenuButton<String>(
+                          icon: Icon(Icons.more_vert, size: 18, color: isDark ? Colors.white70 : Colors.black54),
+                          tooltip: 'Manage Booking',
+                          onSelected: (val) {
+                            if (val == 'complete') {
+                              ref.read(bookingsProvider.notifier).updateBookingStatus(b.id, 'completed');
+                            } else if (val == 'no_show') {
+                              ref.read(bookingsProvider.notifier).updateBookingStatus(b.id, 'rejected');
+                            } else if (val == 'cancel') {
+                              ref.read(bookingsProvider.notifier).cancelBooking(b.id, 'Admin cancelled');
+                            }
+                          },
+                          itemBuilder: (ctx) => [
+                            const PopupMenuItem(
+                              value: 'complete',
+                              child: Row(
+                                children: [
+                                  Icon(Icons.check_rounded, size: 16, color: NeumorphicColors.success),
+                                  SizedBox(width: 8),
+                                  Text('Mark Completed', style: TextStyle(fontSize: 13)),
+                                ],
+                              ),
+                            ),
+                            const PopupMenuItem(
+                              value: 'no_show',
+                              child: Row(
+                                children: [
+                                  Icon(Icons.person_off_rounded, size: 16, color: NeumorphicColors.warning),
+                                  SizedBox(width: 8),
+                                  Text('Mark No-Show', style: TextStyle(fontSize: 13)),
+                                ],
+                              ),
+                            ),
+                            const PopupMenuItem(
+                              value: 'cancel',
+                              child: Row(
+                                children: [
+                                  Icon(Icons.cancel_outlined, size: 16, color: NeumorphicColors.error),
+                                  SizedBox(width: 8),
+                                  Text('Cancel Visit', style: TextStyle(fontSize: 13)),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ],
                   ),
                 ),

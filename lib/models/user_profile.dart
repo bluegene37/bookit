@@ -21,6 +21,8 @@ class UserProfile {
   bool get isBusinessOwner => role == 'business_owner' || role == 'admin';
   bool get isAdmin => role == 'admin';
 
+  /*
+  // Gene - Nov, 03, 2026: Original UserProfile fromJson
   factory UserProfile.fromJson(Map<String, dynamic> json) {
     return UserProfile(
       id: json['id'] as String,
@@ -31,6 +33,39 @@ class UserProfile {
       avatarUrl: json['avatar_url'] as String?,
       createdAt: json['created_at'] != null
           ? DateTime.parse(json['created_at'] as String)
+          : DateTime.now(),
+    );
+  }
+  */
+
+  // Gene - Nov, 05, 2026: Defensive fallback factory for default user
+  factory UserProfile.fallback({
+    String id = '00000000-0000-0000-0000-000000000001',
+    String email = 'admin@bookit.dev',
+    String fullName = 'Dr. Alexander Vance',
+    String role = 'business_owner',
+  }) {
+    return UserProfile(
+      id: id,
+      email: email,
+      fullName: fullName,
+      role: role,
+      phone: '+1 (555) 234-5678',
+      createdAt: DateTime.now(),
+    );
+  }
+
+  // Gene - Nov, 05, 2026: Hardened fromJson with strict null-safety and default fallbacks
+  factory UserProfile.fromJson(Map<String, dynamic> json) {
+    return UserProfile(
+      id: json['id'] as String? ?? '00000000-0000-0000-0000-000000000001',
+      email: json['email'] as String? ?? 'client@bookit.dev',
+      fullName: json['full_name'] as String? ?? 'Valued User',
+      role: json['role'] as String? ?? 'client',
+      phone: json['phone'] as String?,
+      avatarUrl: json['avatar_url'] as String?,
+      createdAt: json['created_at'] != null
+          ? (DateTime.tryParse(json['created_at'].toString()) ?? DateTime.now())
           : DateTime.now(),
     );
   }

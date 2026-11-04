@@ -56,15 +56,23 @@ final appRouter = GoRouter(
       path: '/notifications',
       builder: (context, state) => const NotificationsScreen(),
     ),
+    /*
+    // Gene - Nov, 03, 2026: Enforce mobile devices (Android/iOS) client-only redirect
     GoRoute(
       path: '/admin',
       redirect: (context, state) {
-        // Enforce: Mobile devices (Android/iOS) must be Client-only!
         if (!kIsWeb) {
           return '/';
         }
         return null;
       },
+      builder: (context, state) => const AdminShellScreen(),
+    ),
+    */
+
+    // Gene - Nov, 05, 2026: Enabled universal cross-platform access to /admin so business owners can manage practices on Mobile, Tablet, Desktop, and Web
+    GoRoute(
+      path: '/admin',
       builder: (context, state) => const AdminShellScreen(),
     ),
   ],

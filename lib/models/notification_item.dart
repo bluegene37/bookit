@@ -22,6 +22,8 @@ class NotificationItem {
     required this.createdAt,
   });
 
+  /*
+  // Gene - Nov, 03, 2026: Original NotificationItem fromJson
   factory NotificationItem.fromJson(Map<String, dynamic> json) {
     return NotificationItem(
       id: json['id'] as String,
@@ -34,6 +36,42 @@ class NotificationItem {
       isRead: json['is_read'] as bool? ?? false,
       createdAt: json['created_at'] != null
           ? DateTime.parse(json['created_at'] as String)
+          : DateTime.now(),
+    );
+  }
+  */
+
+  // Gene - Nov, 05, 2026: Defensive fallback factory for missing notification records
+  factory NotificationItem.fallback({
+    String id = 'notif-fallback-0',
+    String userId = '00000000-0000-0000-0000-000000000003',
+    String title = 'Notification',
+    String body = 'You have a new update.',
+  }) {
+    return NotificationItem(
+      id: id,
+      userId: userId,
+      title: title,
+      body: body,
+      type: 'info',
+      isRead: false,
+      createdAt: DateTime.now(),
+    );
+  }
+
+  // Gene - Nov, 05, 2026: Hardened fromJson with strict null-safety and default fallbacks
+  factory NotificationItem.fromJson(Map<String, dynamic> json) {
+    return NotificationItem(
+      id: json['id'] as String? ?? 'notif-fallback-0',
+      userId: json['user_id'] as String? ?? '00000000-0000-0000-0000-000000000003',
+      businessId: json['business_id'] as String?,
+      bookingId: json['booking_id'] as String?,
+      title: json['title'] as String? ?? 'Notification',
+      body: json['body'] as String? ?? '',
+      type: json['type'] as String? ?? 'info',
+      isRead: json['is_read'] as bool? ?? false,
+      createdAt: json['created_at'] != null
+          ? (DateTime.tryParse(json['created_at'].toString()) ?? DateTime.now())
           : DateTime.now(),
     );
   }

@@ -18,6 +18,8 @@ import 'staff_manager_tab.dart';
 import 'tabs/payments_invoices_tab.dart';
 // Gene - Nov, 04, 2026: Added AdminOnboardingWizard import for business template registration
 import 'widgets/admin_onboarding_wizard.dart';
+// Gene - Nov, 05, 2026: Added demo_persona_switcher import
+import '../../../core/widgets/demo_persona_switcher.dart';
 
 class AdminShellScreen extends ConsumerStatefulWidget {
   const AdminShellScreen({super.key});
@@ -251,6 +253,12 @@ class _AdminShellScreenState extends ConsumerState<AdminShellScreen> {
                       }
                     });
                   },
+                ),
+                // Gene - Nov, 05, 2026: Mobile AppBar Demo Persona Switcher action
+                IconButton(
+                  tooltip: 'Switch Demo Persona',
+                  icon: Icon(Icons.switch_account_outlined, color: accent),
+                  onPressed: () => DemoPersonaSwitcherDialog.show(context),
                 ),
                 IconButton(
                   tooltip: isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode',
@@ -516,6 +524,14 @@ class _AdminShellScreenState extends ConsumerState<AdminShellScreen> {
             ),
           ),
           const SizedBox(width: 16),
+
+          // Gene - Nov, 05, 2026: Desktop TopBar Demo Persona Switcher action
+          IconButton(
+            tooltip: 'Switch Demo Persona',
+            icon: Icon(Icons.switch_account_outlined, color: accent),
+            onPressed: () => DemoPersonaSwitcherDialog.show(context),
+          ),
+          const SizedBox(width: 4),
 
           // Theme Toggle Button
           IconButton(
