@@ -170,8 +170,19 @@ class UniversalBookingScreen extends ConsumerWidget {
                                 );
                             }
 
+                          /*
+                          // Gene - Nov, 03, 2026: Previous ClientIntakeStep without business template binding
                           case 2:
                             return ClientIntakeStep(
+                              service: wizardState.selectedService,
+                              initialNotes: wizardState.clientNotes,
+                              onNotesChanged: wizardNotifier.updateNotes,
+                            );
+                          */
+                          // Gene - Nov, 04, 2026: Passed business instance for dynamic template intake fields
+                          case 2:
+                            return ClientIntakeStep(
+                              business: business,
                               service: wizardState.selectedService,
                               initialNotes: wizardState.clientNotes,
                               onNotesChanged: wizardNotifier.updateNotes,

@@ -50,7 +50,8 @@ class SlotTimePickerStep extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 1. Doctor / Staff Selector (if staff is available)
+          /*
+          // Gene - Nov, 03, 2026: Hardcoded staff selector
           if (staffList.isNotEmpty) ...[
             Text(
               'Select Specialist or Doctor',
@@ -68,6 +69,46 @@ class SlotTimePickerStep extends StatelessWidget {
                 children: [
                   NeumorphicChip(
                     label: 'Any Specialist',
+                    isSelected: selectedStaff == null,
+                    onTap: () => onStaffSelected(null),
+                  ),
+                  const SizedBox(width: 10),
+                  ...staffList.map((st) {
+                    final isSelected = selectedStaff?.id == st.id;
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 10),
+                      child: NeumorphicChip(
+                        label: st.name,
+                        subtitle: st.specialty,
+                        isSelected: isSelected,
+                        onTap: () => onStaffSelected(st),
+                      ),
+                    );
+                  }),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
+          ],
+          */
+          // Gene - Nov, 04, 2026: Dynamic resource selector driven by business template ui_config
+          if (business.showStaffSelection && staffList.isNotEmpty) ...[
+            Text(
+              'Select ${business.resourceLabel}',
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+                color: isDark ? NeumorphicColors.darkTextPrimary : NeumorphicColors.lightTextPrimary,
+              ),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              height: 48,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                children: [
+                  NeumorphicChip(
+                    label: 'Any ${business.resourceLabel}',
                     isSelected: selectedStaff == null,
                     onTap: () => onStaffSelected(null),
                   ),

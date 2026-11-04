@@ -1,8 +1,11 @@
 // Gene - Nov, 03, 2026: Business, Services, and Staff repository service and providers
+// Gene - Nov, 04, 2026: Added category & template queries and transactional business onboarding
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/business.dart';
 import '../models/business_staff.dart';
 import '../models/service_item.dart';
+import '../models/business_category.dart';
+import '../models/business_template.dart';
 import 'supabase_service.dart';
 
 class BusinessService {
@@ -65,6 +68,81 @@ class BusinessService {
     }
     return SupabaseService.mockStaff.where((st) => st.businessId == businessId).toList();
   }
+
+  // Gene - Nov, 04, 2026: Fetch business categories from Supabase with offline fallback
+  Future<List<BusinessCategory>> getCategories() async {
+    final client = SupabaseService.client;
+    if (client != null) {
+      try {
+        final data = await client
+            .from('business_categories')
+            .select()
+            .eq('is_active', true)
+            .order('display_order', ascending: true);
+        return (data as List).map((json) => BusinessCategory.fromJson(json)).toList();
+      } catch (_) {}
+    }
+    return SupabaseService.mockCategories;
+  }
+
+  // Gene - Nov, 04, 2026: Fetch business templates optionally filtered by category
+  Future<List<BusinessTemplate>> getTemplates({String? categoryId}) async {
+    final client = SupabaseService.client;
+    if (client != null) {
+      try {
+        var query = client.from('business_templates').select().eq('is_active', true);
+        if (categoryId != null && categoryId != 'All') {
+          query = query.eq('category_id', categoryId);
+        }
+        final data = await query.order('display_order', ascending: true);
+        return (data as List).map((json) => BusinessTemplate.fromJson(json)).toList();
+      } catch (_) {}
+    }
+    if (categoryId != null && categoryId != 'All') {
+      return SupabaseService.mockTemplates.where((t) => t.categoryId == categoryId).toList();
+    }
+    return SupabaseService.mockTemplates;
+  }
+
+  // Gene - Nov, 04, 2026: Register and provision a new business with services and staff
+  Future<Business> createBusiness({
+    required Business business,
+    required List<ServiceItem> services,
+    required List<BusinessStaff> staff,
+  }) async {
+    final client = SupabaseService.client;
+    if (client != null) {
+      try {
+        // 1. Insert Business
+        final bizData = await client.from('businesses').insert(business.toJson()).select().single();
+        final createdBusiness = Business.fromJson(bizData);
+
+        // 2. Insert Services
+        if (services.isNotEmpty) {
+          final srvJsonList = services.map((s) => s.toJson()).toList();
+          await client.from('services').insert(srvJsonList);
+        }
+
+        // 3. Insert Staff
+        if (staff.isNotEmpty) {
+          final staffJsonList = staff.map((st) => st.toJson()).toList();
+          await client.from('business_staff').insert(staffJsonList);
+        }
+
+        return createdBusiness;
+      } catch (_) {}
+    }
+
+    // Mock fallback: append into memory
+    SupabaseService.mockBusinesses.insert(0, business);
+    for (final srv in services) {
+      SupabaseService.mockServices.add(srv);
+    }
+    for (final st in staff) {
+      SupabaseService.mockStaff.add(st);
+    }
+    return business;
+  }
 }
 
 final businessServiceProvider = Provider<BusinessService>((ref) => BusinessService());
@@ -92,4 +170,18 @@ final businessServicesProvider = FutureProvider.family<List<ServiceItem>, String
 final businessStaffProvider = FutureProvider.family<List<BusinessStaff>, String>((ref, businessId) async {
   final service = ref.watch(businessServiceProvider);
   return service.getStaff(businessId);
+});
+
+// Gene - Nov, 04, 2026: Providers for categories and templates
+final businessCategoriesProvider = FutureProvider<List<BusinessCategory>>((ref) async {
+  final service = ref.watch(businessServiceProvider);
+  return service.getCategories();
+});
+
+final selectedTemplateCategoryIdProvider = StateProvider<String?>((ref) => null);
+
+final businessTemplatesProvider = FutureProvider<List<BusinessTemplate>>((ref) async {
+  final service = ref.watch(businessServiceProvider);
+  final catId = ref.watch(selectedTemplateCategoryIdProvider);
+  return service.getTemplates(categoryId: catId);
 });

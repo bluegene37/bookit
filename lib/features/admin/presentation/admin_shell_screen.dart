@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/neumorphic_colors.dart';
 import '../../../core/theme/theme_mode_provider.dart';
 import '../../../core/widgets/neumorphic_container.dart';
+import '../../../core/widgets/neumorphic_button.dart';
 import '../../../services/business_service.dart';
 import '../../../services/auth_service.dart';
 import '../../../services/notification_service.dart';
@@ -15,6 +16,8 @@ import 'business_settings_tab.dart';
 import 'services_manager_tab.dart';
 import 'staff_manager_tab.dart';
 import 'tabs/payments_invoices_tab.dart';
+// Gene - Nov, 04, 2026: Added AdminOnboardingWizard import for business template registration
+import 'widgets/admin_onboarding_wizard.dart';
 
 class AdminShellScreen extends ConsumerStatefulWidget {
   const AdminShellScreen({super.key});
@@ -99,8 +102,15 @@ class _AdminShellScreenState extends ConsumerState<AdminShellScreen> {
       loading: () => const Scaffold(body: Center(child: CircularProgressIndicator())),
       error: (e, _) => Scaffold(body: Center(child: Text('Error loading business: $e'))),
       data: (businesses) {
+        /*
+        // Gene - Nov, 03, 2026: Previous plain text empty state
         if (businesses.isEmpty) {
           return const Scaffold(body: Center(child: Text('No business profiles found.')));
+        }
+        */
+        // Gene - Nov, 04, 2026: Interactive Onboarding Zero-State triggering business registration wizard
+        if (businesses.isEmpty) {
+          return _buildZeroStateScreen(context, isDark, accent);
         }
 
         _selectedBusinessId ??= businesses.first.id;
@@ -276,6 +286,37 @@ class _AdminShellScreenState extends ConsumerState<AdminShellScreen> {
                   onChanged: (val) {
                     if (val != null) setState(() => _selectedBusinessId = val);
                   },
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(width: 12),
+          // Gene - Nov, 04, 2026: Added '+ Add Business' button launching AdminOnboardingWizard
+          NeumorphicButton(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            onPressed: () {
+              showDialog<String>(
+                context: context,
+                builder: (_) => const AdminOnboardingWizard(),
+              ).then((newId) {
+                if (newId != null && mounted) {
+                  setState(() => _selectedBusinessId = newId);
+                }
+              });
+            },
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.add_circle_outline_rounded, size: 16, color: accent),
+                const SizedBox(width: 6),
+                Text(
+                  'Add Business',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: isDark ? NeumorphicColors.darkTextPrimary : NeumorphicColors.lightTextPrimary,
+                  ),
                 ),
               ],
             ),
@@ -693,6 +734,84 @@ class _AdminShellScreenState extends ConsumerState<AdminShellScreen> {
                     decoration: BoxDecoration(color: accent, shape: BoxShape.circle),
                   ),
               ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Gene - Nov, 04, 2026: Admin zero-state welcome screen when no businesses are registered
+  Widget _buildZeroStateScreen(BuildContext context, bool isDark, Color accent) {
+    return Scaffold(
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 540),
+            child: NeumorphicContainer(
+              padding: const EdgeInsets.all(36),
+              borderRadius: 24,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  NeumorphicContainer(
+                    isCircle: true,
+                    width: 80,
+                    height: 80,
+                    child: Icon(Icons.storefront_rounded, size: 40, color: accent),
+                  ),
+                  const SizedBox(height: 24),
+                  Text(
+                    'Welcome to BookIt Workspace',
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w800,
+                      color: isDark ? NeumorphicColors.darkTextPrimary : NeumorphicColors.lightTextPrimary,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'You do not have any registered businesses yet. Choose from our curated industry templates to launch your practice, clinic, or studio in minutes.',
+                    style: TextStyle(
+                      fontSize: 13,
+                      height: 1.5,
+                      color: isDark ? NeumorphicColors.darkTextSecondary : NeumorphicColors.lightTextSecondary,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 28),
+                  NeumorphicButton(
+                    padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
+                    onPressed: () {
+                      showDialog<String>(
+                        context: context,
+                        builder: (_) => const AdminOnboardingWizard(),
+                      ).then((newId) {
+                        if (newId != null && mounted) {
+                          setState(() => _selectedBusinessId = newId);
+                        }
+                      });
+                    },
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.add_business_rounded, color: accent, size: 20),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Register Your Business',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: accent,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
