@@ -22,6 +22,39 @@ class TimeSlot {
 class SlotCalculator {
   SlotCalculator._();
 
+  // Gene - Nov, 04, 2026: Enhanced slot availability to check 15-minute reservation hold on awaiting_payment
+  static bool isSlotOccupied({
+    required DateTime slotStart,
+    required DateTime slotEnd,
+    required List<Booking> bookings,
+    String? staffId,
+  }) {
+    final now = DateTime.now();
+    for (final b in bookings) {
+      if (staffId != null && b.staffId != null && b.staffId != staffId) {
+        continue;
+      }
+
+      // Ignore cancelled or rejected bookings
+      if (b.status == 'cancelled' || b.status == 'rejected') continue;
+
+      // Check awaiting_payment expiration
+      if (b.status == 'awaiting_payment') {
+        if (b.holdExpiresAt == null || b.holdExpiresAt!.isBefore(now)) {
+          continue; // Expired lock, slot is free
+        }
+      }
+
+      if (b.startTime != null && b.endTime != null) {
+        // Overlap check: start1 < end2 && end1 > start2
+        if (slotStart.isBefore(b.endTime!) && slotEnd.isAfter(b.startTime!)) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
   static List<TimeSlot> calculateAvailableSlots({
     required Business business,
     required DateTime date,
@@ -58,6 +91,7 @@ class SlotCalculator {
         current.add(Duration(minutes: interval)).isAtSameMomentAs(dayEnd)) {
       final slotEnd = current.add(Duration(minutes: interval));
 
+      /*
       // Check conflict with active bookings
       final hasConflict = existingBookings.any((booking) {
         if (booking.status == 'cancelled' || booking.status == 'rejected') {
@@ -74,6 +108,15 @@ class SlotCalculator {
         // Overlap: slotStart < bookingEnd AND slotEnd > bookingStart
         return current.isBefore(booking.endTime!) && slotEnd.isAfter(booking.startTime!);
       });
+      */
+
+      // Gene - Nov, 04, 2026: Delegate conflict check to isSlotOccupied for awaiting_payment lock handling
+      final hasConflict = isSlotOccupied(
+        slotStart: current,
+        slotEnd: slotEnd,
+        bookings: existingBookings,
+        staffId: filterStaffId,
+      );
 
       slots.add(TimeSlot(
         startTime: current,
@@ -101,6 +144,7 @@ class SlotCalculator {
     while (current.add(Duration(minutes: interval)).isBefore(dayEnd) ||
         current.add(Duration(minutes: interval)).isAtSameMomentAs(dayEnd)) {
       final slotEnd = current.add(Duration(minutes: interval));
+      /*
       final hasConflict = existingBookings.any((b) =>
           b.status != 'cancelled' &&
           b.status != 'rejected' &&
@@ -109,6 +153,15 @@ class SlotCalculator {
           b.endTime != null &&
           current.isBefore(b.endTime!) &&
           slotEnd.isAfter(b.startTime!));
+      */
+
+      // Gene - Nov, 04, 2026: Delegate conflict check to isSlotOccupied for awaiting_payment lock handling
+      final hasConflict = isSlotOccupied(
+        slotStart: current,
+        slotEnd: slotEnd,
+        bookings: existingBookings,
+        staffId: filterStaffId,
+      );
 
       slots.add(TimeSlot(
         startTime: current,

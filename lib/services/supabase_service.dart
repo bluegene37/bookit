@@ -1,5 +1,6 @@
 // Gene - Nov, 03, 2026: Supabase Service wrapper with seamless offline/mock fallback for immediate local testing
 import 'package:flutter/foundation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../core/constants/supabase_config.dart';
 import '../models/business.dart';
@@ -7,6 +8,9 @@ import '../models/business_staff.dart';
 import '../models/service_item.dart';
 import '../models/booking.dart';
 import '../models/user_profile.dart';
+import '../models/payment.dart';
+// Gene - Nov, 04, 2026: Added notification_item import for mockNotifications
+import '../models/notification_item.dart';
 
 class SupabaseService {
   static SupabaseClient? get client {
@@ -221,4 +225,39 @@ class SupabaseService {
     phone: '+1 (555) 234-5678',
     createdAt: DateTime.now(),
   );
+
+  // Gene - Nov, 04, 2026: Seed mock payments for offline and testing mode
+  static final List<Payment> mockPayments = [
+    Payment(
+      id: 'pay-sample-1',
+      bookingId: 'bk-sample-1',
+      businessId: '11111111-1111-1111-1111-111111111111',
+      clientId: '00000000-0000-0000-0000-000000000003',
+      stripeSessionId: 'cs_test_mock_1',
+      stripePaymentIntentId: 'pi_test_mock_1',
+      grossAmount: 120.00,
+      applicationFeeAmount: 3.30,
+      stripeFeeAmount: 3.78,
+      netAmount: 112.92,
+      currency: 'usd',
+      paymentStatus: 'succeeded',
+      receiptUrl: 'https://pay.stripe.com/receipts/mock-1',
+      createdAt: DateTime.now().subtract(const Duration(days: 1)),
+    ),
+  ];
+
+  // Gene - Nov, 04, 2026: Seed mock notifications list for offline mock events
+  static final List<NotificationItem> mockNotifications = [];
 }
+
+// Gene - Nov, 04, 2026: Added supabaseClientProvider for Riverpod dependency injection
+final supabaseClientProvider = Provider<SupabaseClient>((ref) {
+  final client = SupabaseService.client;
+  if (client != null) {
+    return client;
+  }
+  return SupabaseClient(
+    SupabaseConfig.supabaseUrl,
+    SupabaseConfig.supabaseAnonKey,
+  );
+});

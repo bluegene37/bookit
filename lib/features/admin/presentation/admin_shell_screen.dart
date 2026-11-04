@@ -14,9 +14,65 @@ import 'calendar_agenda_tab.dart';
 import 'business_settings_tab.dart';
 import 'services_manager_tab.dart';
 import 'staff_manager_tab.dart';
+import 'tabs/payments_invoices_tab.dart';
 
 class AdminShellScreen extends ConsumerStatefulWidget {
   const AdminShellScreen({super.key});
+
+  // Gene - Nov, 04, 2026: Added Payments & Invoices tab navigation and service payment policy configuration
+  static const List<NavigationRailDestination> railDestinations = [
+    NavigationRailDestination(
+      icon: Icon(Icons.dashboard_rounded),
+      label: Text('Overview'),
+    ),
+    NavigationRailDestination(
+      icon: Icon(Icons.calendar_month_rounded),
+      label: Text('Calendar'),
+    ),
+    NavigationRailDestination(
+      icon: Icon(Icons.medical_services_rounded),
+      label: Text('Services'),
+    ),
+    NavigationRailDestination(
+      icon: Icon(Icons.people_alt_rounded),
+      label: Text('Staff'),
+    ),
+    NavigationRailDestination(
+      icon: Icon(Icons.receipt_long_rounded),
+      label: Text('Payments'),
+    ),
+    NavigationRailDestination(
+      icon: Icon(Icons.tune_rounded),
+      label: Text('Settings'),
+    ),
+  ];
+
+  static const List<BottomNavigationBarItem> bottomNavItems = [
+    BottomNavigationBarItem(
+      icon: Icon(Icons.dashboard_rounded),
+      label: 'Overview',
+    ),
+    BottomNavigationBarItem(
+      icon: Icon(Icons.calendar_month_rounded),
+      label: 'Calendar',
+    ),
+    BottomNavigationBarItem(
+      icon: Icon(Icons.medical_services_rounded),
+      label: 'Services',
+    ),
+    BottomNavigationBarItem(
+      icon: Icon(Icons.people_alt_rounded),
+      label: 'Staff',
+    ),
+    BottomNavigationBarItem(
+      icon: Icon(Icons.receipt_long_rounded),
+      label: 'Payments',
+    ),
+    BottomNavigationBarItem(
+      icon: Icon(Icons.tune_rounded),
+      label: 'Settings',
+    ),
+  ];
 
   @override
   ConsumerState<AdminShellScreen> createState() => _AdminShellScreenState();
@@ -70,6 +126,8 @@ class _AdminShellScreenState extends ConsumerState<AdminShellScreen> {
                     Expanded(
                       child: Container(
                         color: isDark ? NeumorphicColors.darkCanvas : NeumorphicColors.lightCanvas,
+                        /*
+                        // Gene - Nov, 03, 2026: Previous 5-tab stack without payments
                         child: IndexedStack(
                           index: _selectedTabIndex,
                           children: [
@@ -77,6 +135,19 @@ class _AdminShellScreenState extends ConsumerState<AdminShellScreen> {
                             CalendarAgendaTab(business: selectedBusiness),
                             ServicesManagerTab(business: selectedBusiness),
                             StaffManagerTab(business: selectedBusiness),
+                            BusinessSettingsTab(business: selectedBusiness),
+                          ],
+                        ),
+                        */
+                        // Gene - Nov, 04, 2026: Added Payments & Invoices tab navigation and service payment policy configuration
+                        child: IndexedStack(
+                          index: _selectedTabIndex,
+                          children: [
+                            DashboardOverviewTab(business: selectedBusiness),
+                            CalendarAgendaTab(business: selectedBusiness),
+                            ServicesManagerTab(business: selectedBusiness),
+                            StaffManagerTab(business: selectedBusiness),
+                            PaymentsInvoicesTab(business: selectedBusiness),
                             BusinessSettingsTab(business: selectedBusiness),
                           ],
                         ),
@@ -435,6 +506,8 @@ class _AdminShellScreenState extends ConsumerState<AdminShellScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const SizedBox(height: 20),
+          /*
+          // Gene - Nov, 03, 2026: Previous sidebar navigation without payments tab
           _buildSidebarSectionHeader('CLINIC WORKSPACE', isDark),
           const SizedBox(height: 6),
           _buildSidebarItem(0, 'Dashboard Overview', Icons.dashboard_rounded, accent, isDark),
@@ -446,6 +519,21 @@ class _AdminShellScreenState extends ConsumerState<AdminShellScreen> {
           _buildSidebarSectionHeader('TEMPLATE & ENGINE', isDark),
           const SizedBox(height: 6),
           _buildSidebarItem(4, 'Template & Settings', Icons.tune_rounded, accent, isDark),
+          */
+
+          // Gene - Nov, 04, 2026: Added Payments & Invoices tab navigation and service payment policy configuration
+          _buildSidebarSectionHeader('CLINIC WORKSPACE', isDark),
+          const SizedBox(height: 6),
+          _buildSidebarItem(0, 'Dashboard Overview', Icons.dashboard_rounded, accent, isDark),
+          _buildSidebarItem(1, 'Appointments Calendar', Icons.calendar_month_rounded, accent, isDark),
+          _buildSidebarItem(2, 'Services & Pricing', Icons.medical_services_rounded, accent, isDark),
+          _buildSidebarItem(3, 'Doctors & Specialists', Icons.people_alt_rounded, accent, isDark),
+          _buildSidebarItem(4, 'Payments & Invoices', Icons.receipt_long_rounded, accent, isDark),
+
+          const SizedBox(height: 24),
+          _buildSidebarSectionHeader('TEMPLATE & ENGINE', isDark),
+          const SizedBox(height: 6),
+          _buildSidebarItem(5, 'Template & Settings', Icons.tune_rounded, accent, isDark),
 
           // Gene - Nov, 03, 2026: Added Session & Quick Navigation to Sidebar
           const SizedBox(height: 20),

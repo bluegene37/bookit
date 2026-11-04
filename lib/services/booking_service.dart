@@ -6,6 +6,7 @@ import 'supabase_service.dart';
 class BookingNotifier extends StateNotifier<List<Booking>> {
   BookingNotifier() : super(List.from(SupabaseService.mockBookings));
 
+  /*
   Future<void> createBooking(Booking booking) async {
     final client = SupabaseService.client;
     if (client != null) {
@@ -19,6 +20,97 @@ class BookingNotifier extends StateNotifier<List<Booking>> {
 
     // Local mock state update
     state = [booking, ...state];
+  }
+  */
+
+  /*
+  // Gene - Nov, 04, 2026: Updated createBooking to set status 'awaiting_payment', hold_expires_at, and payment_status for Stripe checkout
+  Future<Booking> createBooking(Booking booking) async {
+    final holdExpiresAt = DateTime.now().add(const Duration(minutes: 15));
+    final pendingBooking = booking.copyWith(
+      status: 'awaiting_payment',
+      holdExpiresAt: booking.holdExpiresAt ?? holdExpiresAt,
+      paymentStatus: 'unpaid',
+      amountDue: booking.amountDue > 0 ? booking.amountDue : booking.totalPrice,
+      amountPaid: 0.0,
+    );
+
+    final client = SupabaseService.client;
+    if (client != null) {
+      try {
+        final res = await client.from('bookings').insert(pendingBooking.toJson()).select().single();
+        final newBooking = Booking.fromJson(res);
+        state = [newBooking, ...state];
+        return newBooking;
+      } catch (_) {}
+    }
+
+    // Local mock state update
+    state = [pendingBooking, ...state];
+    return pendingBooking;
+  }
+  */
+
+  // Gene - Nov, 04, 2026: Updated createBooking to preserve confirmed status without hold timer for pay_at_venue services
+  Future<Booking> createBooking(Booking booking) async {
+    final isConfirmed = booking.status == 'confirmed';
+    final holdExpiresAt = isConfirmed ? null : (booking.holdExpiresAt ?? DateTime.now().add(const Duration(minutes: 15)));
+
+    final bookingToInsert = booking.copyWith(
+      status: isConfirmed ? 'confirmed' : 'awaiting_payment',
+      holdExpiresAt: holdExpiresAt,
+      paymentStatus: booking.paymentStatus.isNotEmpty ? booking.paymentStatus : 'unpaid',
+      amountDue: booking.amountDue > 0 ? booking.amountDue : booking.totalPrice,
+      amountPaid: booking.amountPaid,
+    );
+
+    final client = SupabaseService.client;
+    if (client != null) {
+      try {
+        final res = await client.from('bookings').insert(bookingToInsert.toJson()).select().single();
+        final newBooking = Booking.fromJson(res);
+        state = [newBooking, ...state];
+        return newBooking;
+      } catch (_) {}
+    }
+
+    // Local mock state update
+    state = [bookingToInsert, ...state];
+    return bookingToInsert;
+  }
+
+  // Gene - Nov, 04, 2026: Added updateBookingPayment to update payment status and financial amounts
+  Future<void> updateBookingPayment({
+    required String bookingId,
+    required String paymentStatus,
+    required double amountPaid,
+    required double amountDue,
+  }) async {
+    final client = SupabaseService.client;
+    if (client != null) {
+      try {
+        await client.from('bookings').update({
+          'status': 'confirmed',
+          'payment_status': paymentStatus,
+          'amount_paid': amountPaid,
+          'amount_due': amountDue,
+          'hold_expires_at': null,
+        }).eq('id', bookingId);
+      } catch (_) {}
+    }
+
+    state = state.map((b) {
+      if (b.id == bookingId) {
+        return b.copyWith(
+          status: 'confirmed',
+          paymentStatus: paymentStatus,
+          amountPaid: amountPaid,
+          amountDue: amountDue,
+          holdExpiresAt: null,
+        );
+      }
+      return b;
+    }).toList();
   }
 
   Future<void> updateBookingStatus(String bookingId, String newStatus) async {

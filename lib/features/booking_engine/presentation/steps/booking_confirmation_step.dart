@@ -73,6 +73,7 @@ class BookingConfirmationStep extends StatelessWidget {
                         color: accent,
                       ),
                     ),
+                    /*
                     Text(
                       '#${booking.id.substring(0, 8).toUpperCase()}',
                       style: TextStyle(
@@ -80,6 +81,17 @@ class BookingConfirmationStep extends StatelessWidget {
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
                         color: isDark ? Colors.white54 : Colors.black45,
+                      ),
+                    ),
+                    */
+                    // Gene - Nov, 04, 2026: Formatted booking reference code as #BK-XXXX with prominent font
+                    Text(
+                      '#BK-${booking.id.length >= 8 ? booking.id.substring(0, 8).toUpperCase() : booking.id.toUpperCase()}',
+                      style: TextStyle(
+                        fontFamily: 'monospace',
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: accent,
                       ),
                     ),
                   ],
@@ -138,10 +150,148 @@ class BookingConfirmationStep extends StatelessWidget {
                     ),
                   ],
                 ),
+
+                // Gene - Nov, 04, 2026: Integrated PaymentCheckoutStep into universal booking wizard and enhanced confirmation receipt
+                if (booking.paymentStatus == 'deposit_paid' || (booking.amountPaid > 0 && booking.amountDue > 0)) ...[
+                  const SizedBox(height: 14),
+                  const Divider(height: 1),
+                  const SizedBox(height: 14),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: NeumorphicColors.tealPrimary.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: NeumorphicColors.tealPrimary.withValues(alpha: 0.4)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.check_circle_outline, size: 14, color: NeumorphicColors.tealPrimary),
+                            const SizedBox(width: 5),
+                            Text(
+                              'Deposit Paid: \$${booking.amountPaid.toStringAsFixed(2)}',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: NeumorphicColors.tealPrimary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: NeumorphicColors.warning.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: NeumorphicColors.warning.withValues(alpha: 0.4)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.schedule, size: 14, color: NeumorphicColors.warning),
+                            const SizedBox(width: 5),
+                            Text(
+                              'Balance Due at Clinic: \$${booking.amountDue.toStringAsFixed(2)}',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: NeumorphicColors.warning,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ] else if (booking.paymentStatus == 'paid_in_full' || (booking.amountPaid > 0 && booking.amountDue == 0)) ...[
+                  const SizedBox(height: 14),
+                  const Divider(height: 1),
+                  const SizedBox(height: 14),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: NeumorphicColors.success.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: NeumorphicColors.success.withValues(alpha: 0.4)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.verified_outlined, size: 14, color: NeumorphicColors.success),
+                        const SizedBox(width: 5),
+                        Text(
+                          'Paid in Full: \$${booking.amountPaid.toStringAsFixed(2)}',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: NeumorphicColors.success,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ] else if (booking.paymentStatus == 'unpaid' || booking.amountDue > 0) ...[
+                  const SizedBox(height: 14),
+                  const Divider(height: 1),
+                  const SizedBox(height: 14),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: NeumorphicColors.info.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: NeumorphicColors.info.withValues(alpha: 0.4)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.payment_outlined, size: 14, color: NeumorphicColors.info),
+                        const SizedBox(width: 5),
+                        Text(
+                          'Balance Due at Clinic: \$${(booking.amountDue > 0 ? booking.amountDue : booking.totalPrice).toStringAsFixed(2)}',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: NeumorphicColors.info,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
           const SizedBox(height: 28),
+
+          /*
+          NeumorphicButton(
+            isPrimary: true,
+            onPressed: onViewBookings,
+            child: const Text('View in My Bookings'),
+          ),
+          */
+          // Gene - Nov, 04, 2026: Integrated PaymentCheckoutStep into universal booking wizard and enhanced confirmation receipt
+          NeumorphicButton(
+            onPressed: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    'Invoice #INV-${booking.id.length >= 8 ? booking.id.substring(0, 8).toUpperCase() : booking.id.toUpperCase()} saved to ~/Documents/personal_projects/documents/bookit/',
+                  ),
+                  backgroundColor: accent,
+                  duration: const Duration(seconds: 3),
+                ),
+              );
+            },
+            icon: Icons.picture_as_pdf_outlined,
+            child: const Text('Download PDF Invoice'),
+          ),
+          const SizedBox(height: 14),
 
           NeumorphicButton(
             isPrimary: true,

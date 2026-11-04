@@ -15,6 +15,8 @@ import 'steps/date_range_picker_step.dart';
 import 'steps/daily_picker_step.dart';
 import 'steps/client_intake_step.dart';
 import 'steps/booking_confirmation_step.dart';
+import 'steps/payment_checkout_step.dart';
+import '../../../../services/payment_service.dart';
 
 class UniversalBookingScreen extends ConsumerWidget {
   final String businessId;
@@ -46,6 +48,7 @@ class UniversalBookingScreen extends ConsumerWidget {
         final staff = staffAsync.value ?? [];
 
         return Scaffold(
+          /*
           appBar: AppBar(
             title: Text(
               wizardState.currentStep == 3 ? 'Confirmed' : 'Book at ${business.name}',
@@ -62,9 +65,28 @@ class UniversalBookingScreen extends ConsumerWidget {
               },
             ),
           ),
+          */
+          // Gene - Nov, 04, 2026: Integrated PaymentCheckoutStep into universal booking wizard and enhanced confirmation receipt
+          appBar: AppBar(
+            title: Text(
+              wizardState.currentStep == 4 ? 'Confirmed' : 'Book at ${business.name}',
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+            ),
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back_ios_new, size: 18),
+              onPressed: () {
+                if (wizardState.currentStep > 0 && wizardState.currentStep < 4) {
+                  wizardNotifier.prevStep();
+                } else {
+                  context.pop();
+                }
+              },
+            ),
+          ),
           body: SafeArea(
             child: Column(
               children: [
+                /*
                 // Step Progress Indicator (Steps 0, 1, 2)
                 if (wizardState.currentStep < 3) ...[
                   Padding(
@@ -76,6 +98,24 @@ class UniversalBookingScreen extends ConsumerWidget {
                         _buildStepNode(context, step: 1, currentStep: wizardState.currentStep, label: 'Schedule'),
                         _buildStepLine(context, isActive: wizardState.currentStep > 1),
                         _buildStepNode(context, step: 2, currentStep: wizardState.currentStep, label: 'Details'),
+                      ],
+                    ),
+                  ),
+                ],
+                */
+                // Gene - Nov, 04, 2026: Integrated PaymentCheckoutStep into universal booking wizard and enhanced confirmation receipt
+                if (wizardState.currentStep < 4) ...[
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                    child: Row(
+                      children: [
+                        _buildStepNode(context, step: 0, currentStep: wizardState.currentStep, label: 'Service'),
+                        _buildStepLine(context, isActive: wizardState.currentStep > 0),
+                        _buildStepNode(context, step: 1, currentStep: wizardState.currentStep, label: 'Schedule'),
+                        _buildStepLine(context, isActive: wizardState.currentStep > 1),
+                        _buildStepNode(context, step: 2, currentStep: wizardState.currentStep, label: 'Intake'),
+                        _buildStepLine(context, isActive: wizardState.currentStep > 2),
+                        _buildStepNode(context, step: 3, currentStep: wizardState.currentStep, label: 'Payment'),
                       ],
                     ),
                   ),
@@ -137,7 +177,35 @@ class UniversalBookingScreen extends ConsumerWidget {
                               onNotesChanged: wizardNotifier.updateNotes,
                             );
 
+                          /*
                           case 3:
+                          default:
+                            if (wizardState.completedBooking != null) {
+                              return BookingConfirmationStep(
+                                booking: wizardState.completedBooking!,
+                                onViewBookings: () {
+                                  context.go('/my-bookings');
+                                },
+                              );
+                            }
+                            return const Center(child: Text('Booking finalized'));
+                          */
+                          // Gene - Nov, 04, 2026: Added Step 3 as Payment Review Step and moved Confirmation to Step 4
+                          case 3:
+                            return PaymentCheckoutStep(
+                              service: wizardState.selectedService,
+                              totalPrice: wizardState.calculateTotalPrice(),
+                              dueToday: wizardState.dueTodayAmount,
+                              dueAtVenue: wizardState.dueAtVenueAmount,
+                              practitionerName: wizardState.selectedStaff?.name,
+                              isLoading: wizardState.isSubmitting,
+                              onProceed: () async {
+                                final paymentService = ref.read(paymentServiceProvider);
+                                await wizardNotifier.proceedToPaymentAndConfirm(paymentService);
+                              },
+                            );
+
+                          case 4:
                           default:
                             if (wizardState.completedBooking != null) {
                               return BookingConfirmationStep(
@@ -154,6 +222,7 @@ class UniversalBookingScreen extends ConsumerWidget {
                   ),
                 ),
 
+                /*
                 // Bottom Action Bar (Steps 0, 1, 2)
                 if (wizardState.currentStep < 3) ...[
                   Container(
@@ -187,6 +256,44 @@ class UniversalBookingScreen extends ConsumerWidget {
                             child: Text(
                               wizardState.currentStep == 2
                                   ? 'Confirm & Pay (${business.bookingModel == BookingModelType.dateRange ? '\$${wizardState.calculateTotalPrice().toStringAsFixed(0)}' : wizardState.selectedService?.formattedPrice ?? ''})'
+                                  : 'Continue',
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+                */
+                // Gene - Nov, 04, 2026: Updated Bottom Action Bar to advance from Step 2 to Step 3 payment review
+                if (wizardState.currentStep < 3) ...[
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                    child: Row(
+                      children: [
+                        if (wizardState.currentStep > 0) ...[
+                          Expanded(
+                            flex: 1,
+                            child: NeumorphicButton(
+                              onPressed: wizardNotifier.prevStep,
+                              child: const Text('Back'),
+                            ),
+                          ),
+                          const SizedBox(width: 14),
+                        ],
+                        Expanded(
+                          flex: 2,
+                          child: NeumorphicButton(
+                            isPrimary: true,
+                            isLoading: wizardState.isSubmitting,
+                            onPressed: wizardState.canProceed(business.bookingModel)
+                                ? () {
+                                    wizardNotifier.nextStep();
+                                  }
+                                : null,
+                            child: Text(
+                              wizardState.currentStep == 2
+                                  ? 'Review & Pay (${business.bookingModel == BookingModelType.dateRange ? '\$${wizardState.calculateTotalPrice().toStringAsFixed(0)}' : wizardState.selectedService?.formattedPrice ?? ''})'
                                   : 'Continue',
                             ),
                           ),

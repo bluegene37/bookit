@@ -80,3 +80,6 @@ task.md
 *.env.*
 *.local
 
+# Gene - Nov, 04, 2026: Ignore Supabase CLI temporary files
+supabase/.temp/
+

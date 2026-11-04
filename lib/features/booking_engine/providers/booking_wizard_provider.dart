@@ -8,6 +8,7 @@ import '../../../models/booking.dart';
 import '../domain/slot_calculator.dart';
 import '../../../services/booking_service.dart';
 import '../../../services/auth_service.dart';
+import '../../../services/payment_service.dart';
 
 class BookingWizardState {
   final int currentStep;
@@ -44,6 +45,23 @@ class BookingWizardState {
     return selectedService!.price;
   }
 
+  // Gene - Nov, 04, 2026: Added deposit and balance calculations to wizard state
+  double get dueTodayAmount {
+    if (selectedService == null) return 0.0;
+    return selectedService!.calculateDepositAmount();
+  }
+
+  double get dueAtVenueAmount {
+    final total = calculateTotalPrice();
+    final dueToday = dueTodayAmount;
+    final balance = total - dueToday;
+    return balance > 0 ? balance : 0.0;
+  }
+
+  bool get isDepositOnly => selectedService?.paymentPolicy == 'deposit';
+  bool get isPayAtVenue => selectedService?.paymentPolicy == 'pay_at_venue';
+
+  /*
   bool canProceed(BookingModelType modelType) {
     switch (currentStep) {
       case 0: // Select Service
@@ -57,6 +75,29 @@ class BookingWizardState {
           return true; // daily: selectedDate is always set
         }
       case 2: // Intake notes
+        return true;
+      default:
+        return false;
+    }
+  }
+  */
+
+  // Gene - Nov, 04, 2026: Updated canProceed to support Step 3 payment review step
+  bool canProceed(BookingModelType modelType) {
+    switch (currentStep) {
+      case 0: // Select Service
+        return selectedService != null;
+      case 1: // Scheduling Step
+        if (modelType == BookingModelType.slotBased) {
+          return selectedSlot != null;
+        } else if (modelType == BookingModelType.dateRange) {
+          return dateRangeStart != null && dateRangeEnd != null && dateRangeEnd!.isAfter(dateRangeStart!);
+        } else {
+          return true; // daily: selectedDate is always set
+        }
+      case 2: // Intake notes
+        return true;
+      case 3: // Payment review
         return true;
       default:
         return false;
@@ -133,6 +174,7 @@ class BookingWizardNotifier extends StateNotifier<BookingWizardState> {
     }
   }
 
+  /*
   Future<bool> confirmBooking() async {
     state = state.copyWith(isSubmitting: true);
     try {
@@ -167,6 +209,122 @@ class BookingWizardNotifier extends StateNotifier<BookingWizardState> {
 
       await ref.read(bookingsProvider.notifier).createBooking(booking);
       state = state.copyWith(isSubmitting: false, completedBooking: booking, currentStep: 3);
+      return true;
+    } catch (_) {
+      state = state.copyWith(isSubmitting: false);
+      return false;
+    }
+  }
+  */
+
+  // Gene - Nov, 04, 2026: Updated confirmBooking and added proceedToPaymentAndConfirm to advance to Step 4 (Confirmed Receipt)
+  Future<bool> confirmBooking() async {
+    state = state.copyWith(isSubmitting: true);
+    try {
+      final user = ref.read(authProvider).user;
+      final clientId = user?.id ?? 'guest-client-${const Uuid().v4()}';
+      final clientName = user?.fullName ?? 'Patient';
+
+      final booking = Booking(
+        id: const Uuid().v4(),
+        businessId: business.id,
+        clientId: clientId,
+        serviceId: state.selectedService?.id,
+        staffId: state.selectedStaff?.id,
+        bookingModel: business.bookingModel.toDbString(),
+        startTime: state.selectedSlot?.startTime,
+        endTime: state.selectedSlot?.endTime,
+        dateFrom: business.bookingModel == BookingModelType.slotBased
+            ? null
+            : (state.dateRangeStart ?? state.selectedDate),
+        dateTo: business.bookingModel == BookingModelType.dateRange
+            ? state.dateRangeEnd
+            : null,
+        status: business.requiresApproval ? 'pending' : 'confirmed',
+        totalPrice: state.calculateTotalPrice(),
+        clientNotes: state.clientNotes,
+        createdAt: DateTime.now(),
+        businessName: business.name,
+        serviceName: state.selectedService?.name,
+        staffName: state.selectedStaff?.name,
+        clientName: clientName,
+      );
+
+      final created = await ref.read(bookingsProvider.notifier).createBooking(booking);
+      state = state.copyWith(isSubmitting: false, completedBooking: created, currentStep: 4);
+      return true;
+    } catch (_) {
+      state = state.copyWith(isSubmitting: false);
+      return false;
+    }
+  }
+
+  // Gene - Nov, 04, 2026: Added proceedToPaymentAndConfirm to coordinate slot creation, Stripe checkout initiation, and final receipt display
+  Future<bool> proceedToPaymentAndConfirm(PaymentService paymentService) async {
+    state = state.copyWith(isSubmitting: true);
+    try {
+      final user = ref.read(authProvider).user;
+      final clientId = user?.id ?? 'guest-client-${const Uuid().v4()}';
+      final clientName = user?.fullName ?? 'Patient';
+
+      final bookingId = const Uuid().v4();
+      final total = state.calculateTotalPrice();
+      final deposit = state.dueTodayAmount;
+      final isPayAtVenue = state.isPayAtVenue || deposit == 0.0;
+
+      final booking = Booking(
+        id: bookingId,
+        businessId: business.id,
+        clientId: clientId,
+        serviceId: state.selectedService?.id,
+        staffId: state.selectedStaff?.id,
+        bookingModel: business.bookingModel.toDbString(),
+        startTime: state.selectedSlot?.startTime,
+        endTime: state.selectedSlot?.endTime,
+        dateFrom: business.bookingModel == BookingModelType.slotBased
+            ? null
+            : (state.dateRangeStart ?? state.selectedDate),
+        dateTo: business.bookingModel == BookingModelType.dateRange
+            ? state.dateRangeEnd
+            : null,
+        status: isPayAtVenue ? (business.requiresApproval ? 'pending' : 'confirmed') : 'awaiting_payment',
+        totalPrice: total,
+        clientNotes: state.clientNotes,
+        createdAt: DateTime.now(),
+        businessName: business.name,
+        serviceName: state.selectedService?.name,
+        staffName: state.selectedStaff?.name,
+        clientName: clientName,
+        paymentStatus: isPayAtVenue ? 'unpaid' : 'awaiting_payment',
+        amountPaid: 0.0,
+        amountDue: total,
+      );
+
+      final created = await ref.read(bookingsProvider.notifier).createBooking(booking);
+
+      if (isPayAtVenue) {
+        state = state.copyWith(isSubmitting: false, completedBooking: created, currentStep: 4);
+        return true;
+      }
+
+      await paymentService.initiateCheckout(
+        bookingId: bookingId,
+        returnUrl: 'bookit://booking-success?id=$bookingId',
+        cancelUrl: 'bookit://booking-cancel?id=$bookingId',
+        onSuccess: (isMock) {
+          final updatedList = ref.read(bookingsProvider);
+          final updated = updatedList.firstWhere(
+            (b) => b.id == bookingId,
+            orElse: () => created.copyWith(
+              status: 'confirmed',
+              paymentStatus: deposit < total ? 'deposit_paid' : 'paid_in_full',
+              amountPaid: deposit,
+              amountDue: total - deposit,
+            ),
+          );
+          state = state.copyWith(isSubmitting: false, completedBooking: updated, currentStep: 4);
+        },
+      );
       return true;
     } catch (_) {
       state = state.copyWith(isSubmitting: false);
