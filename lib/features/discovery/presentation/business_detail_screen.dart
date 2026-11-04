@@ -144,8 +144,22 @@ class BusinessDetailScreen extends ConsumerWidget {
 
                           // Staff / Doctors Roster
                           if (staff.isNotEmpty) ...[
+                            /*
+                            // Gene - Nov, 03, 2026: Hardcoded staff header
                             Text(
                               'Specialists & Staff',
+                              style: TextStyle(
+                                fontSize: 17,
+                                fontWeight: FontWeight.w700,
+                                color: isDark ? NeumorphicColors.darkTextPrimary : NeumorphicColors.lightTextPrimary,
+                              ),
+                            ),
+                            */
+                            // Gene - Nov, 04, 2026: Dynamic resource header based on template uiConfig
+                            Text(
+                              business.showStaffSelection
+                                  ? 'Our ${business.resourceLabel}s'
+                                  : 'Available ${business.resourceLabel}s',
                               style: TextStyle(
                                 fontSize: 17,
                                 fontWeight: FontWeight.w700,
@@ -202,8 +216,20 @@ class BusinessDetailScreen extends ConsumerWidget {
                           ],
 
                           // Services Catalog
+                          /*
+                          // Gene - Nov, 03, 2026: Hardcoded procedures title
                           Text(
                             'Procedures & Services',
+                            style: TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.w700,
+                              color: isDark ? NeumorphicColors.darkTextPrimary : NeumorphicColors.lightTextPrimary,
+                            ),
+                          ),
+                          */
+                          // Gene - Nov, 04, 2026: Dynamic service label header based on template uiConfig
+                          Text(
+                            '${business.serviceLabel} Catalog',
                             style: TextStyle(
                               fontSize: 17,
                               fontWeight: FontWeight.w700,

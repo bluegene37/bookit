@@ -156,7 +156,12 @@ class _ClientIntakeStepState extends State<ClientIntakeStep> {
                         ),
                         Switch(
                           value: isChecked,
+                          /*
+                          // Gene - Nov, 04, 2026: Deprecated activeColor
                           activeColor: accent,
+                          */
+                          // Gene - Nov, 04, 2026: Updated to activeTrackColor for modern Flutter Switch
+                          activeTrackColor: accent,
                           onChanged: (val) {
                             setState(() => _dynamicBooleans[id] = val);
                             _syncNotes();

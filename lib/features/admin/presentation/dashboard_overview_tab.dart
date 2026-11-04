@@ -164,8 +164,18 @@ class DashboardOverviewTab extends ConsumerWidget {
                               style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
                             ),
                             const SizedBox(height: 4),
+                            /*
+                            // Gene - Nov, 03, 2026: Unbounded single-line schedule text
                             Text(
                               '${b.serviceName ?? 'Service'} • ${b.formattedSchedule}',
+                              style: TextStyle(fontSize: 13, color: isDark ? Colors.white70 : Colors.black87),
+                            ),
+                            */
+                            // Gene - Nov, 04, 2026: Added maxLines: 2 and ellipsis for graceful wrapping on small screens
+                            Text(
+                              '${b.serviceName ?? 'Service'} • ${b.formattedSchedule}',
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
                               style: TextStyle(fontSize: 13, color: isDark ? Colors.white70 : Colors.black87),
                             ),
                             if (b.clientNotes != null) ...[
@@ -238,6 +248,8 @@ class DashboardOverviewTab extends ConsumerWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
+                            /*
+                            // Gene - Nov, 03, 2026: Previous unconstrained Row causing RenderFlex overflow on mobile screens
                             Row(
                               children: [
                                 Text(
@@ -248,9 +260,49 @@ class DashboardOverviewTab extends ConsumerWidget {
                                 StatusBadge(status: b.status),
                               ],
                             ),
+                            */
+                            /*
+                            // Gene - Nov, 04, 2026: Previous Row causing 27px overflow when client name and StatusBadge exceeded available width on 375px screens
+                            Row(
+                              children: [
+                                Flexible(
+                                  child: Text(
+                                    b.clientName ?? 'Patient',
+                                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                StatusBadge(status: b.status),
+                              ],
+                            ),
+                            */
+                            // Gene - Nov, 04, 2026: Changed to Wrap to allow natural wrapping of client name and status badge on mobile viewports
+                            Wrap(
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              spacing: 8,
+                              runSpacing: 4,
+                              children: [
+                                Text(
+                                  b.clientName ?? 'Patient',
+                                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                                ),
+                                StatusBadge(status: b.status),
+                              ],
+                            ),
                             const SizedBox(height: 4),
+                            /*
+                            // Gene - Nov, 03, 2026: Unbounded single-line schedule text
                             Text(
                               '${b.serviceName ?? 'Service'} • ${b.formattedSchedule}',
+                              style: TextStyle(fontSize: 13, color: isDark ? Colors.white70 : Colors.black87),
+                            ),
+                            */
+                            // Gene - Nov, 04, 2026: Added maxLines: 2 and ellipsis for graceful wrapping on small screens
+                            Text(
+                              '${b.serviceName ?? 'Service'} • ${b.formattedSchedule}',
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
                               style: TextStyle(fontSize: 13, color: isDark ? Colors.white70 : Colors.black87),
                             ),
                             if (b.staffName != null) ...[

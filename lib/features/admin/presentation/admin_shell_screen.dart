@@ -119,6 +119,8 @@ class _AdminShellScreenState extends ConsumerState<AdminShellScreen> {
           orElse: () => businesses.first,
         );
 
+        /*
+        // Gene - Nov, 04, 2026: Previous unconditional desktop layout with static 250px sidebar
         return Scaffold(
           body: Column(
             children: [
@@ -136,20 +138,6 @@ class _AdminShellScreenState extends ConsumerState<AdminShellScreen> {
                     Expanded(
                       child: Container(
                         color: isDark ? NeumorphicColors.darkCanvas : NeumorphicColors.lightCanvas,
-                        /*
-                        // Gene - Nov, 03, 2026: Previous 5-tab stack without payments
-                        child: IndexedStack(
-                          index: _selectedTabIndex,
-                          children: [
-                            DashboardOverviewTab(business: selectedBusiness),
-                            CalendarAgendaTab(business: selectedBusiness),
-                            ServicesManagerTab(business: selectedBusiness),
-                            StaffManagerTab(business: selectedBusiness),
-                            BusinessSettingsTab(business: selectedBusiness),
-                          ],
-                        ),
-                        */
-                        // Gene - Nov, 04, 2026: Added Payments & Invoices tab navigation and service payment policy configuration
                         child: IndexedStack(
                           index: _selectedTabIndex,
                           children: [
@@ -163,6 +151,178 @@ class _AdminShellScreenState extends ConsumerState<AdminShellScreen> {
                         ),
                       ),
                     ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+        */
+
+        // Gene - Nov, 04, 2026: Added fully responsive layout supporting Desktop (sidebar), Tablet, and Mobile (BottomNav & Drawer)
+        final screenWidth = MediaQuery.of(context).size.width;
+        final isCompact = screenWidth < 900;
+
+        final tabContent = Container(
+          color: isDark ? NeumorphicColors.darkCanvas : NeumorphicColors.lightCanvas,
+          child: IndexedStack(
+            index: _selectedTabIndex,
+            children: [
+              DashboardOverviewTab(business: selectedBusiness),
+              CalendarAgendaTab(business: selectedBusiness),
+              ServicesManagerTab(business: selectedBusiness),
+              StaffManagerTab(business: selectedBusiness),
+              PaymentsInvoicesTab(business: selectedBusiness),
+              BusinessSettingsTab(business: selectedBusiness),
+            ],
+          ),
+        );
+
+        if (isCompact) {
+          return Scaffold(
+            appBar: AppBar(
+              backgroundColor: isDark ? NeumorphicColors.darkSurface : NeumorphicColors.lightSurface,
+              elevation: 0,
+              leading: Builder(
+                builder: (ctx) => IconButton(
+                  icon: const Icon(Icons.menu_rounded),
+                  onPressed: () => Scaffold.of(ctx).openDrawer(),
+                ),
+              ),
+              /*
+              // Gene - Nov, 04, 2026: Unconstrained DropdownButton causing RenderFlex overflow on narrow AppBar titles
+              title: DropdownButton<String>(
+                value: _selectedBusinessId,
+                underline: const SizedBox(),
+                isDense: true,
+                dropdownColor: isDark ? NeumorphicColors.darkSurface : NeumorphicColors.lightSurface,
+                icon: const Icon(Icons.arrow_drop_down, size: 20),
+                items: businesses.map((b) {
+                  return DropdownMenuItem(
+                    value: b.id,
+                    child: Text(
+                      b.name,
+                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  );
+                }).toList(),
+                onChanged: (val) {
+                  if (val != null) setState(() => _selectedBusinessId = val);
+                },
+              ),
+              */
+              // Gene - Nov, 04, 2026: Constrained DropdownButton with isExpanded: true to prevent mobile AppBar overflow
+              title: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 160),
+                child: DropdownButton<String>(
+                  isExpanded: true,
+                  value: _selectedBusinessId,
+                  underline: const SizedBox(),
+                  isDense: true,
+                  dropdownColor: isDark ? NeumorphicColors.darkSurface : NeumorphicColors.lightSurface,
+                  icon: const Icon(Icons.arrow_drop_down, size: 20),
+                  items: businesses.map((b) {
+                    return DropdownMenuItem(
+                      value: b.id,
+                      child: Text(
+                        b.name,
+                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    );
+                  }).toList(),
+                  onChanged: (val) {
+                    if (val != null) setState(() => _selectedBusinessId = val);
+                  },
+                ),
+              ),
+              actions: [
+                IconButton(
+                  tooltip: 'Add Business',
+                  icon: Icon(Icons.add_circle_outline_rounded, color: accent),
+                  onPressed: () {
+                    showDialog<String>(
+                      context: context,
+                      builder: (_) => const AdminOnboardingWizard(),
+                    ).then((newId) {
+                      if (newId != null && mounted) {
+                        setState(() => _selectedBusinessId = newId);
+                      }
+                    });
+                  },
+                ),
+                IconButton(
+                  tooltip: isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode',
+                  icon: Icon(
+                    isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
+                    color: isDark ? Colors.amber : NeumorphicColors.lightTextSecondary,
+                  ),
+                  onPressed: () {
+                    ref.read(themeModeProvider.notifier).toggleTheme();
+                  },
+                ),
+                Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.notifications_outlined),
+                      onPressed: () => context.push('/notifications'),
+                    ),
+                    if (ref.watch(unreadNotificationCountProvider) > 0)
+                      Positioned(
+                        right: 8,
+                        top: 8,
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: const BoxDecoration(
+                            color: NeumorphicColors.error,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Text(
+                            '${ref.watch(unreadNotificationCountProvider)}',
+                            style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ],
+            ),
+            drawer: Drawer(
+              backgroundColor: isDark ? NeumorphicColors.darkSurface : NeumorphicColors.lightSurface,
+              child: SafeArea(
+                child: _buildWebSidebar(context, isDark, accent, selectedBusiness, isDrawer: true),
+              ),
+            ),
+            body: tabContent,
+            bottomNavigationBar: BottomNavigationBar(
+              currentIndex: _selectedTabIndex,
+              onTap: (index) => setState(() => _selectedTabIndex = index),
+              type: BottomNavigationBarType.fixed,
+              selectedItemColor: accent,
+              unselectedItemColor: isDark ? Colors.white54 : Colors.black54,
+              backgroundColor: isDark ? NeumorphicColors.darkSurface : NeumorphicColors.lightSurface,
+              items: AdminShellScreen.bottomNavItems,
+            ),
+          );
+        }
+
+        return Scaffold(
+          body: Column(
+            children: [
+              // 1. Web Top Navigation Bar
+              _buildWebTopBar(context, ref, businesses, selectedBusiness, isDark, accent),
+
+              // 2. Web Body: Left Sidebar + Main Dashboard Area
+              Expanded(
+                child: Row(
+                  children: [
+                    // Left Navigation Sidebar
+                    _buildWebSidebar(context, isDark, accent, selectedBusiness),
+
+                    // Main Website Dashboard Area
+                    Expanded(child: tabContent),
                   ],
                 ),
               ),
@@ -185,6 +345,8 @@ class _AdminShellScreenState extends ConsumerState<AdminShellScreen> {
     final unreadCount = ref.watch(unreadNotificationCountProvider);
     final currentUser = ref.watch(authProvider).user;
 
+    /*
+    // Gene - Nov, 03, 2026: Rigid Row layout with Spacer that overflows under high text scaling or narrow desktop viewports
     return Container(
       height: 68,
       padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -277,9 +439,13 @@ class _AdminShellScreenState extends ConsumerState<AdminShellScreen> {
                   items: businesses.map((b) {
                     return DropdownMenuItem(
                       value: b.id,
-                      child: Text(
-                        '${b.name} (${b.category})',
-                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 220),
+                        child: Text(
+                          '${b.name} (${b.category})',
+                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
                     );
                   }).toList(),
@@ -292,7 +458,6 @@ class _AdminShellScreenState extends ConsumerState<AdminShellScreen> {
           ),
 
           const SizedBox(width: 12),
-          // Gene - Nov, 04, 2026: Added '+ Add Business' button launching AdminOnboardingWizard
           NeumorphicButton(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             onPressed: () {
@@ -505,33 +670,359 @@ class _AdminShellScreenState extends ConsumerState<AdminShellScreen> {
               ),
             ),
           ),
-          /*
-          // Gene - Nov, 03, 2026: Previous static profile avatar without popup menu
-          Row(
-            children: [
-              CircleAvatar(
-                radius: 18,
-                backgroundColor: accent.withValues(alpha: 0.2),
-                child: Icon(Icons.person, size: 20, color: accent),
-              ),
-              const SizedBox(width: 10),
-              Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.start,
+        ],
+      ),
+    );
+    */
+
+    // Gene - Nov, 04, 2026: Responsive horizontal-scroll-protected Web Top Bar with spaceBetween alignment to eliminate overflows under any font scale or desktop viewport width
+    return Container(
+      height: 68,
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      decoration: BoxDecoration(
+        color: isDark ? NeumorphicColors.darkSurface : NeumorphicColors.lightSurface,
+        border: Border(
+          bottom: BorderSide(
+            color: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.08),
+          ),
+        ),
+      ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          return SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minWidth: constraints.maxWidth),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(currentUser?.fullName ?? 'Dr. Alexander Vance'),
-                  Text('Administrator'),
+                  // Left Group: Brand, Title, Clinic Selector, Add Business
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      NeumorphicContainer(
+                        isCircle: true,
+                        width: 40,
+                        height: 40,
+                        child: Icon(Icons.shield_outlined, color: accent, size: 22),
+                      ),
+                      const SizedBox(width: 12),
+                      Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Text(
+                                'BookIt',
+                                style: TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w800,
+                                  color: isDark ? NeumorphicColors.darkTextPrimary : NeumorphicColors.lightTextPrimary,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: accent.withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  'WEB ADMIN',
+                                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: accent, letterSpacing: 0.5),
+                                ),
+                              ),
+                            ],
+                          ),
+                          Text(
+                            'Universal Practice Workspace',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: isDark ? NeumorphicColors.darkTextSecondary : NeumorphicColors.lightTextSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(width: 24),
+                      Container(width: 1, height: 32, color: isDark ? Colors.white12 : Colors.black12),
+                      const SizedBox(width: 20),
+
+                      // Clinic Selector Dropdown
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: isDark ? Colors.white.withValues(alpha: 0.06) : Colors.black.withValues(alpha: 0.04),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: accent.withValues(alpha: 0.3)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              width: 8,
+                              height: 8,
+                              decoration: const BoxDecoration(
+                                color: NeumorphicColors.success,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            DropdownButton<String>(
+                              value: _selectedBusinessId,
+                              underline: const SizedBox(),
+                              isDense: true,
+                              dropdownColor: isDark ? NeumorphicColors.darkSurface : NeumorphicColors.lightSurface,
+                              icon: const Icon(Icons.arrow_drop_down, size: 20),
+                              items: businesses.map((b) {
+                                return DropdownMenuItem(
+                                  value: b.id,
+                                  child: ConstrainedBox(
+                                    constraints: const BoxConstraints(maxWidth: 220),
+                                    child: Text(
+                                      '${b.name} (${b.category})',
+                                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                );
+                              }).toList(),
+                              onChanged: (val) {
+                                if (val != null) setState(() => _selectedBusinessId = val);
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      NeumorphicButton(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        onPressed: () {
+                          showDialog<String>(
+                            context: context,
+                            builder: (_) => const AdminOnboardingWizard(),
+                          ).then((newId) {
+                            if (newId != null && mounted) {
+                              setState(() => _selectedBusinessId = newId);
+                            }
+                          });
+                        },
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.add_circle_outline_rounded, size: 16, color: accent),
+                            const SizedBox(width: 6),
+                            Text(
+                              'Add Business',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: isDark ? NeumorphicColors.darkTextPrimary : NeumorphicColors.lightTextPrimary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(width: 24),
+
+                  // Right Group: Template Badge, Theme Toggle, Notifications, Account Menu
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: accent.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: accent.withValues(alpha: 0.3)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              currentBusiness.bookingModel == BookingModelType.slotBased
+                                  ? Icons.access_time_rounded
+                                  : Icons.date_range_rounded,
+                              size: 14,
+                              color: accent,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              'Template: ${currentBusiness.bookingModel.displayName.split('(').first.trim()}',
+                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: accent),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+
+                      IconButton(
+                        tooltip: isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode',
+                        icon: Icon(
+                          isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
+                          color: isDark ? Colors.amber : NeumorphicColors.lightTextSecondary,
+                        ),
+                        onPressed: () {
+                          ref.read(themeModeProvider.notifier).toggleTheme();
+                        },
+                      ),
+                      const SizedBox(width: 8),
+
+                      Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.notifications_outlined),
+                            tooltip: 'Notifications',
+                            onPressed: () => context.push('/notifications'),
+                          ),
+                          if (unreadCount > 0)
+                            Positioned(
+                              right: 8,
+                              top: 8,
+                              child: Container(
+                                padding: const EdgeInsets.all(4),
+                                decoration: const BoxDecoration(
+                                  color: NeumorphicColors.error,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Text(
+                                  '$unreadCount',
+                                  style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(width: 12),
+
+                      Container(width: 1, height: 32, color: isDark ? Colors.white12 : Colors.black12),
+                      const SizedBox(width: 16),
+
+                      PopupMenuButton<String>(
+                        tooltip: 'Account Menu',
+                        offset: const Offset(0, 48),
+                        color: isDark ? NeumorphicColors.darkSurface : NeumorphicColors.lightSurface,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          side: BorderSide(
+                            color: isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.1),
+                          ),
+                        ),
+                        onSelected: (action) {
+                          if (action == 'profile') {
+                            context.push('/profile');
+                          } else if (action == 'client_view') {
+                            context.go('/');
+                          } else if (action == 'sign_out') {
+                            ref.read(authProvider.notifier).signOut();
+                            context.go('/login?redirect=/admin');
+                          }
+                        },
+                        itemBuilder: (ctx) => [
+                          PopupMenuItem(
+                            enabled: false,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  currentUser?.fullName ?? 'Dr. Alexander Vance',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                    color: isDark ? NeumorphicColors.darkTextPrimary : NeumorphicColors.lightTextPrimary,
+                                  ),
+                                ),
+                                Text(
+                                  currentUser?.email ?? 'admin@bookit.dev',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: isDark ? NeumorphicColors.darkTextSecondary : NeumorphicColors.lightTextSecondary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const PopupMenuDivider(),
+                          const PopupMenuItem(
+                            value: 'profile',
+                            child: Row(
+                              children: [
+                                Icon(Icons.person_outline, size: 18),
+                                SizedBox(width: 10),
+                                Text('Profile & Settings'),
+                              ],
+                            ),
+                          ),
+                          const PopupMenuItem(
+                            value: 'client_view',
+                            child: Row(
+                              children: [
+                                Icon(Icons.phone_android_rounded, size: 18),
+                                SizedBox(width: 10),
+                                Text('Switch to Client View'),
+                              ],
+                            ),
+                          ),
+                          const PopupMenuDivider(),
+                          const PopupMenuItem(
+                            value: 'sign_out',
+                            child: Row(
+                              children: [
+                                Icon(Icons.logout_rounded, size: 18, color: NeumorphicColors.error),
+                                SizedBox(width: 10),
+                                Text('Sign Out', style: TextStyle(color: NeumorphicColors.error)),
+                              ],
+                            ),
+                          ),
+                        ],
+                        child: MouseRegion(
+                          cursor: SystemMouseCursors.click,
+                          child: Row(
+                            children: [
+                              CircleAvatar(
+                                radius: 18,
+                                backgroundColor: accent.withValues(alpha: 0.2),
+                                child: Icon(Icons.person, size: 20, color: accent),
+                              ),
+                              const SizedBox(width: 10),
+                              Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    currentUser?.fullName ?? 'Dr. Alexander Vance',
+                                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+                                  ),
+                                  Text(
+                                    'Administrator ▾',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: isDark ? NeumorphicColors.darkTextSecondary : NeumorphicColors.lightTextSecondary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
               ),
-            ],
-          ),
-          */
-        ],
+            ),
+          );
+        },
       ),
     );
   }
 
-  // --- Web Left Sidebar Navigation ---
+  /*
+  // Gene - Nov, 04, 2026: Previous fixed sidebar without drawer support
   Widget _buildWebSidebar(BuildContext context, bool isDark, Color accent, Business business) {
     return Container(
       width: 250,
@@ -546,40 +1037,44 @@ class _AdminShellScreenState extends ConsumerState<AdminShellScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+  */
+  // Gene - Nov, 04, 2026: Added isDrawer support for responsive mobile & tablet drawer navigation
+  Widget _buildWebSidebar(BuildContext context, bool isDark, Color accent, Business business, {bool isDrawer = false}) {
+    return Container(
+      width: isDrawer ? null : 250,
+      decoration: BoxDecoration(
+        color: isDark ? NeumorphicColors.darkSurface : NeumorphicColors.lightSurface,
+        border: isDrawer
+            ? null
+            : Border(
+                right: BorderSide(
+                  color: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.08),
+                ),
+              ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
           const SizedBox(height: 20),
-          /*
-          // Gene - Nov, 03, 2026: Previous sidebar navigation without payments tab
           _buildSidebarSectionHeader('CLINIC WORKSPACE', isDark),
           const SizedBox(height: 6),
-          _buildSidebarItem(0, 'Dashboard Overview', Icons.dashboard_rounded, accent, isDark),
-          _buildSidebarItem(1, 'Appointments Calendar', Icons.calendar_month_rounded, accent, isDark),
-          _buildSidebarItem(2, 'Services & Pricing', Icons.medical_services_rounded, accent, isDark),
-          _buildSidebarItem(3, 'Doctors & Specialists', Icons.people_alt_rounded, accent, isDark),
+          _buildSidebarItem(0, 'Dashboard Overview', Icons.dashboard_rounded, accent, isDark, isDrawer: isDrawer),
+          _buildSidebarItem(1, 'Appointments Calendar', Icons.calendar_month_rounded, accent, isDark, isDrawer: isDrawer),
+          _buildSidebarItem(2, 'Services & Pricing', Icons.medical_services_rounded, accent, isDark, isDrawer: isDrawer),
+          _buildSidebarItem(3, 'Doctors & Specialists', Icons.people_alt_rounded, accent, isDark, isDrawer: isDrawer),
+          _buildSidebarItem(4, 'Payments & Invoices', Icons.receipt_long_rounded, accent, isDark, isDrawer: isDrawer),
 
           const SizedBox(height: 24),
           _buildSidebarSectionHeader('TEMPLATE & ENGINE', isDark),
           const SizedBox(height: 6),
-          _buildSidebarItem(4, 'Template & Settings', Icons.tune_rounded, accent, isDark),
-          */
-
-          // Gene - Nov, 04, 2026: Added Payments & Invoices tab navigation and service payment policy configuration
-          _buildSidebarSectionHeader('CLINIC WORKSPACE', isDark),
-          const SizedBox(height: 6),
-          _buildSidebarItem(0, 'Dashboard Overview', Icons.dashboard_rounded, accent, isDark),
-          _buildSidebarItem(1, 'Appointments Calendar', Icons.calendar_month_rounded, accent, isDark),
-          _buildSidebarItem(2, 'Services & Pricing', Icons.medical_services_rounded, accent, isDark),
-          _buildSidebarItem(3, 'Doctors & Specialists', Icons.people_alt_rounded, accent, isDark),
-          _buildSidebarItem(4, 'Payments & Invoices', Icons.receipt_long_rounded, accent, isDark),
-
-          const SizedBox(height: 24),
-          _buildSidebarSectionHeader('TEMPLATE & ENGINE', isDark),
-          const SizedBox(height: 6),
-          _buildSidebarItem(5, 'Template & Settings', Icons.tune_rounded, accent, isDark),
+          _buildSidebarItem(5, 'Template & Settings', Icons.tune_rounded, accent, isDark, isDrawer: isDrawer),
 
           // Gene - Nov, 03, 2026: Added Session & Quick Navigation to Sidebar
           const SizedBox(height: 20),
           _buildSidebarSectionHeader('SESSION', isDark),
           const SizedBox(height: 6),
+          /*
+          // Gene - Nov, 03, 2026: Previous unconstrained Row text causing overflow in narrow sidebar/drawer
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 3),
             child: Material(
@@ -637,6 +1132,71 @@ class _AdminShellScreenState extends ConsumerState<AdminShellScreen> {
               ),
             ),
           ),
+          */
+          // Gene - Nov, 04, 2026: Wrapped Client App View and Sign Out in Expanded with ellipsis for responsive sidebar & drawer layout
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 3),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: () => context.go('/'),
+                borderRadius: BorderRadius.circular(12),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  child: Row(
+                    children: [
+                      Icon(Icons.phone_android_rounded, size: 18, color: isDark ? Colors.white60 : Colors.black54),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'Client App View',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                            color: isDark ? Colors.white70 : Colors.black87,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 3),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: () {
+                  ref.read(authProvider.notifier).signOut();
+                  context.go('/login?redirect=/admin');
+                },
+                borderRadius: BorderRadius.circular(12),
+                child: const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  child: Row(
+                    children: [
+                      Icon(Icons.logout_rounded, size: 18, color: NeumorphicColors.error),
+                      SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'Sign Out',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: NeumorphicColors.error,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
 
           const Spacer(),
 
@@ -652,11 +1212,28 @@ class _AdminShellScreenState extends ConsumerState<AdminShellScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                /*
+                // Gene - Nov, 03, 2026: Unconstrained text in status badge
                 Row(
                   children: [
                     Icon(Icons.cloud_done_rounded, size: 16, color: accent),
                     const SizedBox(width: 8),
                     const Text('Supabase Cloud', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                  ],
+                ),
+                */
+                // Gene - Nov, 04, 2026: Wrapped in Expanded with ellipsis for responsive drawer widths
+                Row(
+                  children: [
+                    Icon(Icons.cloud_done_rounded, size: 16, color: accent),
+                    const SizedBox(width: 8),
+                    const Expanded(
+                      child: Text(
+                        'Supabase Cloud',
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 4),
@@ -691,6 +1268,8 @@ class _AdminShellScreenState extends ConsumerState<AdminShellScreen> {
     );
   }
 
+  /*
+  // Gene - Nov, 04, 2026: Previous sidebar item without isDrawer auto-close
   Widget _buildSidebarItem(int index, String title, IconData icon, Color accent, bool isDark) {
     final isSelected = _selectedTabIndex == index;
 
@@ -700,6 +1279,22 @@ class _AdminShellScreenState extends ConsumerState<AdminShellScreen> {
         color: Colors.transparent,
         child: InkWell(
           onTap: () => setState(() => _selectedTabIndex = index),
+  */
+  // Gene - Nov, 04, 2026: Added isDrawer auto-close on sidebar selection for mobile
+  Widget _buildSidebarItem(int index, String title, IconData icon, Color accent, bool isDark, {bool isDrawer = false}) {
+    final isSelected = _selectedTabIndex == index;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 3),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () {
+            setState(() => _selectedTabIndex = index);
+            if (isDrawer) {
+              Navigator.of(context).pop();
+            }
+          },
           borderRadius: BorderRadius.circular(12),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 150),

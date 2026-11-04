@@ -27,7 +27,12 @@ class HomeDiscoveryScreen extends ConsumerWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final accent = isDark ? NeumorphicColors.tealLight : NeumorphicColors.tealPrimary;
 
+    /*
+    // Gene - Nov, 03, 2026: Hardcoded static categories
     final categories = ['All', 'Dental', 'Medical', 'Recovery Stay', 'Wellness'];
+    */
+    // Gene - Nov, 04, 2026: Dynamic categories loaded from businessCategoriesProvider
+    final categoriesAsync = ref.watch(businessCategoriesProvider);
 
     return Scaffold(
       body: SafeArea(
@@ -72,6 +77,8 @@ class HomeDiscoveryScreen extends ConsumerWidget {
                     ),
 
                     // Web Only: Link to Admin Portal
+                    /*
+                    // Gene - Nov, 03, 2026: Unconditional wide TextButton.icon
                     if (kIsWeb) ...[
                       TextButton.icon(
                         icon: const Icon(Icons.admin_panel_settings_outlined, size: 16),
@@ -80,6 +87,25 @@ class HomeDiscoveryScreen extends ConsumerWidget {
                         onPressed: () => context.go('/admin'),
                       ),
                       const SizedBox(width: 4),
+                    ],
+                    */
+                    // Gene - Nov, 04, 2026: Responsive Admin Portal button (compact icon on mobile, full label on wide screens)
+                    if (kIsWeb) ...[
+                      if (MediaQuery.of(context).size.width < 600)
+                        IconButton(
+                          tooltip: 'Admin Portal',
+                          icon: Icon(Icons.admin_panel_settings_outlined, color: accent),
+                          onPressed: () => context.go('/admin'),
+                        )
+                      else ...[
+                        TextButton.icon(
+                          icon: const Icon(Icons.admin_panel_settings_outlined, size: 16),
+                          label: const Text('Admin Portal'),
+                          style: TextButton.styleFrom(foregroundColor: accent),
+                          onPressed: () => context.go('/admin'),
+                        ),
+                        const SizedBox(width: 4),
+                      ],
                     ],
 
                     // Theme Toggle Button (Light/Dark Mode)
@@ -156,6 +182,8 @@ class HomeDiscoveryScreen extends ConsumerWidget {
             ),
 
             // Categories Filter Bar
+            /*
+            // Gene - Nov, 03, 2026: Static ListView of categories
             SliverToBoxAdapter(
               child: SizedBox(
                 height: 58,
@@ -175,6 +203,39 @@ class HomeDiscoveryScreen extends ConsumerWidget {
                           ref.read(selectedCategoryProvider.notifier).state = cat;
                         },
                       ),
+                    );
+                  },
+                ),
+              ),
+            ),
+            */
+            // Gene - Nov, 04, 2026: Dynamic categories filter bar loaded from businessCategoriesProvider
+            SliverToBoxAdapter(
+              child: SizedBox(
+                height: 58,
+                child: categoriesAsync.when(
+                  loading: () => const Center(child: LinearProgressIndicator()),
+                  error: (_, _) => const SizedBox.shrink(),
+                  data: (categories) {
+                    final allItems = ['All', ...categories.map((c) => c.name)];
+                    return ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                      itemCount: allItems.length,
+                      itemBuilder: (context, index) {
+                        final cat = allItems[index];
+                        final isSelected = selectedCategory == cat;
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 10),
+                          child: NeumorphicChip(
+                            label: cat,
+                            isSelected: isSelected,
+                            onTap: () {
+                              ref.read(selectedCategoryProvider.notifier).state = cat;
+                            },
+                          ),
+                        );
+                      },
                     );
                   },
                 ),

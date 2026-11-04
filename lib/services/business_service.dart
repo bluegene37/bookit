@@ -27,12 +27,56 @@ class BusinessService {
       } catch (_) {}
     }
 
-    // Mock fallback
+    /*
+    // Gene - Nov, 03, 2026: Simple string substring category match
     return SupabaseService.mockBusinesses.where((b) {
       final matchesCategory = category == null || category == 'All' || b.category.toLowerCase().contains(category.toLowerCase());
       final matchesQuery = query == null || query.trim().isEmpty || b.name.toLowerCase().contains(query.toLowerCase()) || (b.description?.toLowerCase().contains(query.toLowerCase()) ?? false);
       return matchesCategory && matchesQuery;
     }).toList();
+    */
+
+    // Gene - Nov, 04, 2026: Smart semantic category and template matching across 6 sweet-spot industries
+    return SupabaseService.mockBusinesses.where((b) {
+      final matchesCategory = category == null || _matchesCategory(b, category);
+      final matchesQuery = query == null ||
+          query.trim().isEmpty ||
+          b.name.toLowerCase().contains(query.toLowerCase()) ||
+          (b.description?.toLowerCase().contains(query.toLowerCase()) ?? false);
+      return matchesCategory && matchesQuery;
+    }).toList();
+  }
+
+  // Gene - Nov, 04, 2026: Helper matching business against industry category & template links
+  bool _matchesCategory(Business b, String category) {
+    if (category == 'All') return true;
+    final catLower = category.toLowerCase();
+    final bCat = b.category.toLowerCase();
+    if (bCat.contains(catLower) || catLower.contains(bCat)) return true;
+
+    // Check template link
+    if (b.templateId != null) {
+      final tpl = SupabaseService.mockTemplates.firstWhere(
+        (t) => t.id == b.templateId,
+        orElse: () => SupabaseService.mockTemplates.first,
+      );
+      if (tpl.slug.contains(catLower) || tpl.name.toLowerCase().contains(catLower)) return true;
+      final parentCat = SupabaseService.mockCategories.firstWhere(
+        (c) => c.id == tpl.categoryId,
+        orElse: () => SupabaseService.mockCategories.first,
+      );
+      if (parentCat.name.toLowerCase() == catLower || parentCat.slug.contains(catLower)) return true;
+    }
+
+    // Semantic sweet spot aliases
+    if (catLower.contains('health') && (bCat.contains('dental') || bCat.contains('medical') || bCat.contains('clinic'))) return true;
+    if (catLower.contains('wellness') && (bCat.contains('recovery') || bCat.contains('stay') || bCat.contains('therapy') || bCat.contains('wellness'))) return true;
+    if (catLower.contains('beauty') && (bCat.contains('salon') || bCat.contains('barber') || bCat.contains('spa') || bCat.contains('esthetics'))) return true;
+    if (catLower.contains('fitness') && (bCat.contains('train') || bCat.contains('gym') || bCat.contains('fitness'))) return true;
+    if (catLower.contains('consult') && (bCat.contains('legal') || bCat.contains('tax') || bCat.contains('advis'))) return true;
+    if (catLower.contains('studio') && (bCat.contains('photo') || bCat.contains('podcast') || bCat.contains('space') || bCat.contains('rent'))) return true;
+
+    return false;
   }
 
   Future<Business?> getBusinessById(String id) async {

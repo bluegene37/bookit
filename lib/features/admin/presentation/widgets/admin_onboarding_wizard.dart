@@ -7,7 +7,8 @@ import '../../../../core/widgets/neumorphic_button.dart';
 import '../../../../core/widgets/neumorphic_text_field.dart';
 import '../../../../core/widgets/neumorphic_chip.dart';
 import '../../../../models/business.dart';
-import '../../../../models/business_category.dart';
+// Gene - Nov, 04, 2026: Removed unused direct category model import; managed via providers
+// import '../../../../models/business_category.dart';
 import '../../../../models/business_template.dart';
 import '../../../../models/service_item.dart';
 import '../../../../models/business_staff.dart';
@@ -377,11 +378,11 @@ class _AdminOnboardingWizardState extends ConsumerState<AdminOnboardingWizard> {
     return Row(
       children: [
         _buildProgressDot(0, 'Template', isDark, accent),
-        Expanded(child: Container(height: 2, color: _currentStep > 0 ? accent : Colors.grey.withOpacity(0.3))),
+        Expanded(child: Container(height: 2, color: _currentStep > 0 ? accent : Colors.grey.withValues(alpha: 0.3))),
         _buildProgressDot(1, 'Profile', isDark, accent),
-        Expanded(child: Container(height: 2, color: _currentStep > 1 ? accent : Colors.grey.withOpacity(0.3))),
+        Expanded(child: Container(height: 2, color: _currentStep > 1 ? accent : Colors.grey.withValues(alpha: 0.3))),
         _buildProgressDot(2, 'Catalog', isDark, accent),
-        Expanded(child: Container(height: 2, color: _currentStep > 2 ? accent : Colors.grey.withOpacity(0.3))),
+        Expanded(child: Container(height: 2, color: _currentStep > 2 ? accent : Colors.grey.withValues(alpha: 0.3))),
         _buildProgressDot(3, 'Launch', isDark, accent),
       ],
     );
@@ -463,7 +464,7 @@ class _AdminOnboardingWizardState extends ConsumerState<AdminOnboardingWizard> {
         // Category Filter Chips
         categoriesAsync.when(
           loading: () => const SizedBox(height: 36, child: LinearProgressIndicator()),
-          error: (_, __) => const SizedBox.shrink(),
+          error: (_, _) => const SizedBox.shrink(),
           data: (categories) {
             return SingleChildScrollView(
               scrollDirection: Axis.horizontal,
@@ -563,7 +564,7 @@ class _AdminOnboardingWizardState extends ConsumerState<AdminOnboardingWizard> {
                                     Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                       decoration: BoxDecoration(
-                                        color: accent.withOpacity(0.12),
+                                        color: accent.withValues(alpha: 0.12),
                                         borderRadius: BorderRadius.circular(6),
                                       ),
                                       child: Text(
@@ -766,6 +767,8 @@ class _AdminOnboardingWizardState extends ConsumerState<AdminOnboardingWizard> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        /*
+        // Gene - Nov, 04, 2026: Previous unconstrained Row causing RenderFlex overflow on narrow dialogs
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
@@ -789,6 +792,36 @@ class _AdminOnboardingWizardState extends ConsumerState<AdminOnboardingWizard> {
                   ),
                 ),
               ],
+            ),
+          ],
+        ),
+        */
+        // Gene - Nov, 04, 2026: Wrapped catalog header in Expanded to eliminate RenderFlex overflow on responsive dialogs
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Starter Service Catalog & Resource Roles',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: isDark ? NeumorphicColors.darkTextPrimary : NeumorphicColors.lightTextPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Pre-filled from "${_selectedTemplate?.name}". Toggle or adjust pricing before launch.',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: isDark ? NeumorphicColors.darkTextSecondary : NeumorphicColors.lightTextSecondary,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ],
         ),
@@ -863,7 +896,7 @@ class _AdminOnboardingWizardState extends ConsumerState<AdminOnboardingWizard> {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
-                          color: accent.withOpacity(0.12),
+                          color: accent.withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(
