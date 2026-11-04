@@ -4,7 +4,44 @@ import '../models/booking.dart';
 import 'supabase_service.dart';
 
 class BookingNotifier extends StateNotifier<List<Booking>> {
+  /*
+  // Gene - Nov, 03, 2026: Initial constructor with mock bookings only
   BookingNotifier() : super(List.from(SupabaseService.mockBookings));
+  */
+
+  // Gene - Nov, 04, 2026: Updated constructor automatically syncing with live Supabase bookings table
+  BookingNotifier() : super(List.from(SupabaseService.mockBookings)) {
+    loadBookings();
+  }
+
+  // Gene - Nov, 04, 2026: Synchronize bookings table with joined relations from Supabase
+  Future<void> loadBookings({String? businessId, String? clientId}) async {
+    final client = SupabaseService.client;
+    if (client != null) {
+      try {
+        var query = client.from('bookings').select('''
+          *,
+          businesses (name),
+          services (name),
+          business_staff (name),
+          profiles:client_id (full_name)
+        ''');
+
+        if (businessId != null) {
+          query = query.eq('business_id', businessId);
+        }
+        if (clientId != null) {
+          query = query.eq('client_id', clientId);
+        }
+
+        final data = await query.order('created_at', ascending: false);
+        final list = (data as List).map((row) => Booking.fromJson(row)).toList();
+        if (list.isNotEmpty) {
+          state = list;
+        }
+      } catch (_) {}
+    }
+  }
 
   /*
   Future<void> createBooking(Booking booking) async {

@@ -6,6 +6,8 @@ import '../models/business_staff.dart';
 import '../models/service_item.dart';
 import '../models/business_category.dart';
 import '../models/business_template.dart';
+// Gene - Nov, 04, 2026: Added Review import for reviews synchronization
+import '../models/review.dart';
 import 'supabase_service.dart';
 
 class BusinessService {
@@ -143,6 +145,34 @@ class BusinessService {
     }
     return business;
   }
+
+  // Gene - Nov, 04, 2026: Synchronize customer reviews from Supabase reviews table
+  Future<List<Review>> getReviews(String businessId) async {
+    final client = SupabaseService.client;
+    if (client != null) {
+      try {
+        final data = await client
+            .from('reviews')
+            .select('*, profiles:client_id (full_name)')
+            .eq('business_id', businessId)
+            .order('created_at', ascending: false);
+        return (data as List).map((r) => Review.fromJson(r)).toList();
+      } catch (_) {}
+    }
+    return [];
+  }
+
+  // Gene - Nov, 04, 2026: Create and submit customer review to Supabase reviews table
+  Future<bool> createReview(Review review) async {
+    final client = SupabaseService.client;
+    if (client != null) {
+      try {
+        await client.from('reviews').insert(review.toJson());
+        return true;
+      } catch (_) {}
+    }
+    return false;
+  }
 }
 
 final businessServiceProvider = Provider<BusinessService>((ref) => BusinessService());
@@ -184,4 +214,10 @@ final businessTemplatesProvider = FutureProvider<List<BusinessTemplate>>((ref) a
   final service = ref.watch(businessServiceProvider);
   final catId = ref.watch(selectedTemplateCategoryIdProvider);
   return service.getTemplates(categoryId: catId);
+});
+
+// Gene - Nov, 04, 2026: Provider for business customer reviews
+final businessReviewsProvider = FutureProvider.family<List<Review>, String>((ref, businessId) async {
+  final service = ref.watch(businessServiceProvider);
+  return service.getReviews(businessId);
 });
