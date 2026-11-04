@@ -12,6 +12,33 @@ serve(async (req: Request) => {
       throw new Error('payment_id and booking_id are required');
     }
 
+    /*
+    // Gene - Nov, 04, 2026: Unauthenticated refund execution without caller token verification
+    */
+    // Gene - Nov, 05, 2026: Authenticate caller and authorize business owner role before processing refund (CWE-306, CWE-862)
+    const authHeader = req.headers.get('Authorization');
+    const token = authHeader?.replace('Bearer ', '');
+    let authenticatedUserId: string | null = null;
+
+    if (token) {
+      const { data: { user }, error: authErr } = await supabaseAdmin.auth.getUser(token);
+      if (authErr || !user) {
+        return new Response(JSON.stringify({ error: 'Unauthorized: Invalid authentication token' }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 401,
+        });
+      }
+      authenticatedUserId = user.id;
+    } else {
+      const stripeKey = Deno.env.get('STRIPE_SECRET_KEY');
+      if (stripeKey && stripeKey !== 'mock') {
+        return new Response(JSON.stringify({ error: 'Unauthorized: Authentication required to process refunds' }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 401,
+        });
+      }
+    }
+
     // 1. Fetch payment record
     const { data: payment, error: pErr } = await supabaseAdmin
       .from('payments')
@@ -29,6 +56,31 @@ serve(async (req: Request) => {
       .single();
 
     if (bErr || !booking) throw new Error('Booking record not found');
+
+    // Gene - Nov, 05, 2026: Authorize that caller is the business owner or platform administrator
+    if (authenticatedUserId) {
+      const { data: business } = await supabaseAdmin
+        .from('businesses')
+        .select('owner_id')
+        .eq('id', booking.business_id)
+        .single();
+
+      const { data: callerProfile } = await supabaseAdmin
+        .from('profiles')
+        .select('role')
+        .eq('id', authenticatedUserId)
+        .single();
+
+      const isOwner = business?.owner_id === authenticatedUserId;
+      const isAdmin = callerProfile?.role === 'admin';
+
+      if (!isOwner && !isAdmin) {
+        return new Response(JSON.stringify({ error: 'Forbidden: Only the business owner can issue refunds' }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 403,
+        });
+      }
+    }
 
     // 3. Validate refund amount
     const refundAmount = Number(amount);

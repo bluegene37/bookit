@@ -1,4 +1,5 @@
 // Gene - Nov, 03, 2026: Enhanced Authentication service with SignUp, SignIn, PasswordReset, Demo accounts, and Supabase Auth integration
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/user_profile.dart';
 import 'supabase_service.dart';
@@ -74,7 +75,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
       return true;
       */
 
-      // Gene - Nov, 05, 2026: Multi-Persona testing credentials fallback mapping
+      /*
+      // Gene - Nov, 05, 2026: Multi-Persona testing credentials fallback mapping without release guard
       if (email == 'admin@bookit.dev') {
         state = AuthState(user: DemoData.demoAdmin);
         return true;
@@ -87,6 +89,24 @@ class AuthNotifier extends StateNotifier<AuthState> {
       } else if (email == 'client@bookit.dev') {
         state = AuthState(user: DemoData.demoClient);
         return true;
+      }
+      */
+
+      // Gene - Nov, 05, 2026: Guarded multi-persona fallback credentials behind !kReleaseMode to prevent production auth bypasses
+      if (!kReleaseMode) {
+        if (email == 'admin@bookit.dev') {
+          state = AuthState(user: DemoData.demoAdmin);
+          return true;
+        } else if (email == 'retreat@bookit.dev') {
+          state = AuthState(user: DemoData.demoRetreatOwner);
+          return true;
+        } else if (email == 'staff@bookit.dev') {
+          state = AuthState(user: DemoData.demoStaff);
+          return true;
+        } else if (email == 'client@bookit.dev') {
+          state = AuthState(user: DemoData.demoClient);
+          return true;
+        }
       }
 
       final role = (email.contains('admin') || email.contains('doctor') || email.contains('owner'))

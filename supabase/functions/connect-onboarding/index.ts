@@ -2,6 +2,24 @@
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
 import { stripe, supabaseAdmin, corsHeaders } from '../_shared/stripe.ts';
 
+// Gene - Nov, 05, 2026: Validate redirect URLs against trusted origins to prevent Open Redirect attacks (CWE-601)
+function isAllowedUrl(urlStr: string): boolean {
+  try {
+    const parsed = new URL(urlStr);
+    const hostname = parsed.hostname;
+    return (
+      hostname === 'localhost' ||
+      hostname === '127.0.0.1' ||
+      hostname.endsWith('.bookit.app') ||
+      hostname === 'bookit.app' ||
+      hostname.endsWith('.vercel.app') ||
+      hostname.endsWith('.supabase.co')
+    );
+  } catch {
+    return false;
+  }
+}
+
 serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
@@ -10,6 +28,14 @@ serve(async (req: Request) => {
 
     if (!business_id) {
       throw new Error('business_id is required');
+    }
+
+    // Gene - Nov, 05, 2026: Validate redirect URLs
+    if (return_url && !isAllowedUrl(return_url)) {
+      throw new Error('Invalid return_url: domain not permitted');
+    }
+    if (refresh_url && !isAllowedUrl(refresh_url)) {
+      throw new Error('Invalid refresh_url: domain not permitted');
     }
 
     // 1. Fetch business record
@@ -21,6 +47,33 @@ serve(async (req: Request) => {
 
     if (bizErr || !business) {
       throw new Error('Business not found');
+    }
+
+    // Gene - Nov, 05, 2026: Authorize caller ownership: only business owner or platform admin can manage Connect
+    const authHeader = req.headers.get('Authorization');
+    const token = authHeader?.replace('Bearer ', '');
+    if (token) {
+      const { data: { user }, error: authErr } = await supabaseAdmin.auth.getUser(token);
+      if (authErr || !user) {
+        return new Response(JSON.stringify({ error: 'Unauthorized: Invalid authentication token' }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 401,
+        });
+      }
+
+      if (business.owner_id !== user.id) {
+        const { data: callerProfile } = await supabaseAdmin
+          .from('profiles')
+          .select('role')
+          .eq('id', user.id)
+          .single();
+        if (callerProfile?.role !== 'admin') {
+          return new Response(JSON.stringify({ error: 'Forbidden: Only the business owner can manage Stripe Connect onboarding' }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 403,
+          });
+        }
+      }
     }
 
     // 2. Mock fallback for local development or preview environments

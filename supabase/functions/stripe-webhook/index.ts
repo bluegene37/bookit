@@ -8,11 +8,26 @@ serve(async (req: Request) => {
   const signature = req.headers.get('stripe-signature');
   const webhookSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET');
 
+  /*
+  // Gene - Nov, 04, 2026: Insecure fallback to JSON.parse when signature is absent
   try {
     const body = await req.text();
     const event = webhookSecret && signature
       ? stripe.webhooks.constructEvent(body, signature, webhookSecret)
       : JSON.parse(body);
+  */
+
+  // Gene - Nov, 05, 2026: Enforce mandatory cryptographic signature verification; reject unverified requests (CWE-345)
+  if (!signature || !webhookSecret) {
+    return new Response(
+      JSON.stringify({ error: 'Missing or invalid stripe-signature header or webhook secret' }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
+    );
+  }
+
+  try {
+    const body = await req.text();
+    const event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
 
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object;

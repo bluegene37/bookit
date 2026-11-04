@@ -1,4 +1,5 @@
 // Gene - Nov, 05, 2026: Tactile Neumorphic Demo Persona Switcher and Reset Store Dialog
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -14,7 +15,21 @@ import '../../models/user_profile.dart';
 class DemoPersonaSwitcherDialog extends ConsumerWidget {
   const DemoPersonaSwitcherDialog({super.key});
 
+  /*
+  // Gene - Nov, 05, 2026: Unconditional dialog presentation
   static void show(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => const DemoPersonaSwitcherDialog(),
+    );
+  }
+  */
+
+  // Gene - Nov, 05, 2026: Disable demo persona switcher in production release builds (CWE-489)
+  static void show(BuildContext context) {
+    if (kReleaseMode) return;
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,

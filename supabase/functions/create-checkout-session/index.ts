@@ -2,11 +2,37 @@
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
 import { stripe, supabaseAdmin, corsHeaders } from '../_shared/stripe.ts';
 
+// Gene - Nov, 05, 2026: Validate redirect URLs against trusted origins to prevent Open Redirect attacks (CWE-601)
+function isAllowedUrl(urlStr: string): boolean {
+  try {
+    const parsed = new URL(urlStr);
+    const hostname = parsed.hostname;
+    return (
+      hostname === 'localhost' ||
+      hostname === '127.0.0.1' ||
+      hostname.endsWith('.bookit.app') ||
+      hostname === 'bookit.app' ||
+      hostname.endsWith('.vercel.app') ||
+      hostname.endsWith('.supabase.co')
+    );
+  } catch {
+    return false;
+  }
+}
+
 serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
   try {
     const { booking_id, return_url, cancel_url } = await req.json();
+
+    // Gene - Nov, 05, 2026: Enforce URL origin validation
+    if (return_url && !isAllowedUrl(return_url)) {
+      throw new Error('Invalid return_url: domain not permitted');
+    }
+    if (cancel_url && !isAllowedUrl(cancel_url)) {
+      throw new Error('Invalid cancel_url: domain not permitted');
+    }
 
     // 1. Fetch booking details
     const { data: booking, error: bErr } = await supabaseAdmin
@@ -16,6 +42,26 @@ serve(async (req: Request) => {
       .single();
 
     if (bErr || !booking) throw new Error('Booking not found');
+
+    // Gene - Nov, 05, 2026: Verify caller ownership if authenticated
+    const authHeader = req.headers.get('Authorization');
+    const token = authHeader?.replace('Bearer ', '');
+    if (token) {
+      const { data: { user } } = await supabaseAdmin.auth.getUser(token);
+      if (user && booking.client_id !== user.id) {
+        const { data: callerProfile } = await supabaseAdmin
+          .from('profiles')
+          .select('role')
+          .eq('id', user.id)
+          .single();
+        if (callerProfile?.role !== 'admin') {
+          return new Response(JSON.stringify({ error: 'Forbidden: You do not own this booking' }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 403,
+          });
+        }
+      }
+    }
 
     const business = booking.businesses;
     const service = booking.services;

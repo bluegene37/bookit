@@ -1,4 +1,5 @@
 // Gene - Nov, 03, 2026: Built full SaaS Web Dashboard layout with Top Bar, Sidebar, and responsive content area
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -89,13 +90,23 @@ class _AdminShellScreenState extends ConsumerState<AdminShellScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Gene - Nov, 03, 2026: Check authentication before rendering Admin Web Dashboard
     final authState = ref.watch(authProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final accent = isDark ? NeumorphicColors.tealLight : NeumorphicColors.tealPrimary;
 
+    /*
+    // Gene - Nov, 03, 2026: Check authentication before rendering Admin Web Dashboard
     if (authState.user == null) {
       return _buildAdminAuthGate(context, isDark, accent);
+    }
+    */
+
+    // Gene - Nov, 05, 2026: RBAC check - require both active session and business owner role (CWE-285)
+    if (authState.user == null) {
+      return _buildAdminAuthGate(context, isDark, accent);
+    }
+    if (!authState.user!.isBusinessOwner) {
+      return _buildUnauthorizedRoleGate(context, isDark, accent);
     }
 
     final businessesAsync = ref.watch(businessListProvider);
@@ -1479,7 +1490,8 @@ class _AdminShellScreenState extends ConsumerState<AdminShellScreen> {
                     label: const Text('Sign In to Practice Portal', style: TextStyle(fontWeight: FontWeight.w700)),
                     onPressed: () => context.go('/login?redirect=/admin'),
                   ),
-                  const SizedBox(height: 12),
+                  /*
+                  // Gene - Nov, 03, 2026: Unconditional demo sign in button
                   OutlinedButton.icon(
                     style: OutlinedButton.styleFrom(
                       minimumSize: const Size.fromHeight(48),
@@ -1491,11 +1503,94 @@ class _AdminShellScreenState extends ConsumerState<AdminShellScreen> {
                       ref.read(authProvider.notifier).loginAsDemoAdmin();
                     },
                   ),
-                  const SizedBox(height: 16),
+                  */
+                  // Gene - Nov, 05, 2026: Guard debug demo quick-sign-in so it is compiled out in release production builds
+                  if (!kReleaseMode) ...[
+                    OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        minimumSize: const Size.fromHeight(48),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      icon: const Icon(Icons.flash_on_rounded),
+                      label: const Text('Quick Sign In as Demo Admin'),
+                      onPressed: () {
+                        ref.read(authProvider.notifier).loginAsDemoAdmin();
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                  ],
                   TextButton.icon(
                     icon: const Icon(Icons.arrow_back, size: 16),
                     label: const Text('Return to Client Booking Portal'),
                     onPressed: () => context.go('/'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Gene - Nov, 05, 2026: Role Access Gate for authenticated clients attempting to access practice admin portal (CWE-285)
+  Widget _buildUnauthorizedRoleGate(BuildContext context, bool isDark, Color accent) {
+    return Scaffold(
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 460),
+            child: NeumorphicContainer(
+              padding: const EdgeInsets.all(36),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  NeumorphicContainer(
+                    isCircle: true,
+                    width: 76,
+                    height: 76,
+                    child: Icon(Icons.shield_outlined, size: 40, color: Colors.amber.shade700),
+                  ),
+                  const SizedBox(height: 20),
+                  Text(
+                    'Access Restricted',
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w800,
+                      color: isDark ? NeumorphicColors.darkTextPrimary : NeumorphicColors.lightTextPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Your account is currently registered as a Client. Business Owner or Administrator privileges are required to access practice operations.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: isDark ? NeumorphicColors.darkTextSecondary : NeumorphicColors.lightTextSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: 28),
+                  ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: accent,
+                      foregroundColor: Colors.white,
+                      minimumSize: const Size.fromHeight(48),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    icon: const Icon(Icons.arrow_back),
+                    label: const Text('Return to Client Portal', style: TextStyle(fontWeight: FontWeight.w700)),
+                    onPressed: () => context.go('/'),
+                  ),
+                  const SizedBox(height: 12),
+                  OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size.fromHeight(48),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    icon: const Icon(Icons.switch_account_rounded),
+                    label: const Text('Sign In with Business Account'),
+                    onPressed: () => context.go('/login?redirect=/admin'),
                   ),
                 ],
               ),

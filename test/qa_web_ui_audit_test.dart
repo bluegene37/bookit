@@ -159,6 +159,26 @@ void main() {
       expect(find.text('Please sign in with clinic administrator credentials to access practice management.'), findsOneWidget);
     });
 
+    // Gene - Nov, 05, 2026: QA test verifying RBAC gate blocks client role and renders Access Restricted gate (CWE-285)
+    testWidgets('AdminShellScreen renders access restricted gate when logged in user has client role', (tester) async {
+      final container = ProviderContainer();
+      container.read(authProvider.notifier).loginAsDemoClient();
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: const MaterialApp(
+            home: AdminShellScreen(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Access Restricted'), findsOneWidget);
+      expect(find.text('Your account is currently registered as a Client. Business Owner or Administrator privileges are required to access practice operations.'), findsOneWidget);
+      expect(find.text('Return to Client Portal'), findsOneWidget);
+    });
+
     testWidgets('AdminShellScreen renders responsive mobile layout with bottom navigation on narrow screen', (tester) async {
       await tester.binding.setSurfaceSize(const Size(375, 812));
       tester.view.physicalSize = const Size(375, 812);

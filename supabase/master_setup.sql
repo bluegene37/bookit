@@ -286,8 +286,20 @@ CREATE POLICY "Users view bookings" ON public.bookings FOR SELECT TO authenticat
     client_id = auth.uid() OR EXISTS (SELECT 1 FROM public.businesses b WHERE b.id = business_id AND b.owner_id = auth.uid())
 );
 CREATE POLICY "Clients create bookings" ON public.bookings FOR INSERT TO authenticated WITH CHECK (client_id = auth.uid());
+/*
+-- Gene - Nov, 03, 2026: Loose update policy allowing clients to alter all columns
 CREATE POLICY "Users update bookings" ON public.bookings FOR UPDATE TO authenticated USING (
     client_id = auth.uid() OR EXISTS (SELECT 1 FROM public.businesses b WHERE b.id = business_id AND b.owner_id = auth.uid())
+);
+*/
+-- Gene - Nov, 05, 2026: Hardened bookings policies separating owner management and client cancellation only
+CREATE POLICY "Business owners update bookings" ON public.bookings FOR UPDATE TO authenticated USING (
+    EXISTS (SELECT 1 FROM public.businesses b WHERE b.id = business_id AND b.owner_id = auth.uid())
+);
+CREATE POLICY "Clients can only cancel bookings" ON public.bookings FOR UPDATE TO authenticated USING (
+    client_id = auth.uid()
+) WITH CHECK (
+    client_id = auth.uid() AND status = 'cancelled'
 );
 
 -- Payments & Refunds policies
@@ -309,6 +321,8 @@ CREATE POLICY "Clients update reviews" ON public.reviews FOR UPDATE TO authentic
 -- =====================================================================
 -- 11. AUTOMATIC PROFILE CREATION TRIGGER
 -- =====================================================================
+/*
+-- Gene - Nov, 03, 2026: Automatic profile creation trigger without search_path and loose role assignment
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -326,6 +340,28 @@ BEGIN
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
+*/
+-- Gene - Nov, 05, 2026: Hardened profile creation with secure search_path and non-escalatable role logic
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER AS $$
+BEGIN
+    INSERT INTO public.profiles (id, email, full_name, role, avatar_url)
+    VALUES (
+        NEW.id,
+        NEW.email,
+        COALESCE(NEW.raw_user_meta_data->>'full_name', split_part(NEW.email, '@', 1)),
+        CASE 
+            WHEN NEW.raw_user_meta_data->>'role' = 'business_owner' THEN 'business_owner'
+            ELSE 'client'
+        END,
+        NEW.raw_user_meta_data->>'avatar_url'
+    )
+    ON CONFLICT (id) DO UPDATE
+    SET email = EXCLUDED.email,
+        full_name = EXCLUDED.full_name;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp;
 
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
@@ -392,3 +428,79 @@ INSERT INTO public.business_templates (
     3
 )
 ON CONFLICT (id) DO NOTHING;
+
+-- =====================================================================
+-- 13. SECURITY HARDENING, ROLE SAFEGUARDS & CONCURRENCY CONSTRAINTS
+-- Gene - Nov, 05, 2026: Security protections against role-escalation, booking tampering, and double-booking
+-- =====================================================================
+
+-- 1. Enable btree_gist for timestamp range exclusion constraints
+CREATE EXTENSION IF NOT EXISTS btree_gist;
+
+-- 2. Prevent Profile Role Self-Escalation
+CREATE OR REPLACE FUNCTION public.protect_profile_role()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF (OLD.role IS DISTINCT FROM NEW.role) THEN
+        IF auth.uid() = OLD.id AND auth.role() = 'authenticated' THEN
+            IF OLD.role != 'admin' THEN
+                RAISE EXCEPTION 'Access Denied: Users are not permitted to alter their account role.';
+            END IF;
+        END IF;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp;
+
+DROP TRIGGER IF EXISTS trg_protect_profile_role ON public.profiles;
+CREATE TRIGGER trg_protect_profile_role
+    BEFORE UPDATE OF role ON public.profiles
+    FOR EACH ROW EXECUTE FUNCTION public.protect_profile_role();
+
+-- 3. Prevent Client Tampering with Financial / Payment Columns
+CREATE OR REPLACE FUNCTION public.protect_booking_financial_fields()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF auth.role() = 'authenticated' AND auth.uid() = OLD.client_id AND NOT EXISTS (
+        SELECT 1 FROM public.businesses b WHERE b.id = OLD.business_id AND b.owner_id = auth.uid()
+    ) THEN
+        IF NEW.status IS DISTINCT FROM OLD.status AND NEW.status != 'cancelled' THEN
+            RAISE EXCEPTION 'Clients are only permitted to cancel bookings.';
+        END IF;
+
+        IF NEW.payment_status IS DISTINCT FROM OLD.payment_status OR
+           NEW.amount_paid IS DISTINCT FROM OLD.amount_paid OR
+           NEW.amount_due IS DISTINCT FROM OLD.amount_due OR
+           NEW.total_price IS DISTINCT FROM OLD.total_price THEN
+            RAISE EXCEPTION 'Direct client manipulation of financial or payment columns is forbidden.';
+        END IF;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp;
+
+DROP TRIGGER IF EXISTS trg_protect_booking_financial_fields ON public.bookings;
+CREATE TRIGGER trg_protect_booking_financial_fields
+    BEFORE UPDATE ON public.bookings
+    FOR EACH ROW EXECUTE FUNCTION public.protect_booking_financial_fields();
+
+-- 4. Exclusion Constraint: Prevent Overlapping Staff Appointments (No Double-Booking)
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'no_overlapping_staff_slots'
+    ) THEN
+        ALTER TABLE public.bookings ADD CONSTRAINT no_overlapping_staff_slots
+        EXCLUDE USING gist (
+            business_id WITH =,
+            staff_id WITH =,
+            tstzrange(start_time, end_time) WITH &&
+        ) WHERE (
+            staff_id IS NOT NULL AND 
+            start_time IS NOT NULL AND 
+            end_time IS NOT NULL AND 
+            status NOT IN ('cancelled', 'rejected')
+        );
+    END IF;
+END $$;
+
