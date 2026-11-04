@@ -19,8 +19,14 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
+-- Gene - Nov, 04, 2026: Replaced DROP TRIGGER with CREATE OR REPLACE TRIGGER for idempotent non-destructive migration execution
+/*
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
+    AFTER INSERT ON auth.users
+    FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+*/
+CREATE OR REPLACE TRIGGER on_auth_user_created
     AFTER INSERT ON auth.users
     FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 
@@ -47,8 +53,14 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
+-- Gene - Nov, 04, 2026: Replaced DROP TRIGGER with CREATE OR REPLACE TRIGGER
+/*
 DROP TRIGGER IF EXISTS on_review_changed ON public.reviews;
 CREATE TRIGGER on_review_changed
+    AFTER INSERT OR UPDATE OR DELETE ON public.reviews
+    FOR EACH ROW EXECUTE FUNCTION public.update_business_rating();
+*/
+CREATE OR REPLACE TRIGGER on_review_changed
     AFTER INSERT OR UPDATE OR DELETE ON public.reviews
     FOR EACH ROW EXECUTE FUNCTION public.update_business_rating();
 
@@ -89,8 +101,14 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
+-- Gene - Nov, 04, 2026: Replaced DROP TRIGGER with CREATE OR REPLACE TRIGGER
+/*
 DROP TRIGGER IF EXISTS on_booking_status_updated ON public.bookings;
 CREATE TRIGGER on_booking_status_updated
+    AFTER INSERT OR UPDATE OF status ON public.bookings
+    FOR EACH ROW EXECUTE FUNCTION public.handle_booking_status_notification();
+*/
+CREATE OR REPLACE TRIGGER on_booking_status_updated
     AFTER INSERT OR UPDATE OF status ON public.bookings
     FOR EACH ROW EXECUTE FUNCTION public.handle_booking_status_notification();
 

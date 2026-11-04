@@ -305,9 +305,11 @@ class SupabaseService {
   ];
 
   // Gene - Nov, 04, 2026: Seed mock business templates with default settings, ui_config, and starter services
+  // Gene - Nov, 04, 2026: Updated template mock IDs from t0000001 to b0000001 for valid UUID compliance
   static final List<BusinessTemplate> mockTemplates = [
     BusinessTemplate(
-      id: 't0000001-0000-0000-0000-000000000001',
+      // id: 't0000001-0000-0000-0000-000000000001',
+      id: 'b0000001-0000-0000-0000-000000000001',
       categoryId: 'c0000001-0000-0000-0000-000000000001',
       name: 'Dental Care Clinic',
       slug: 'dental-clinic',
@@ -350,7 +352,8 @@ class SupabaseService {
       displayOrder: 1,
     ),
     BusinessTemplate(
-      id: 't0000001-0000-0000-0000-000000000002',
+      // id: 't0000001-0000-0000-0000-000000000002',
+      id: 'b0000001-0000-0000-0000-000000000002',
       categoryId: 'c0000001-0000-0000-0000-000000000001',
       name: 'Medical Specialist & Dermatology',
       slug: 'medical-dermatology',
@@ -391,7 +394,8 @@ class SupabaseService {
       displayOrder: 2,
     ),
     BusinessTemplate(
-      id: 't0000001-0000-0000-0000-000000000003',
+      // id: 't0000001-0000-0000-0000-000000000003',
+      id: 'b0000001-0000-0000-0000-000000000003',
       categoryId: 'c0000002-0000-0000-0000-000000000002',
       name: 'Post-Op Recovery & Wellness Suites',
       slug: 'recovery-suites',
@@ -425,7 +429,8 @@ class SupabaseService {
       displayOrder: 3,
     ),
     BusinessTemplate(
-      id: 't0000001-0000-0000-0000-000000000004',
+      // id: 't0000001-0000-0000-0000-000000000004',
+      id: 'b0000001-0000-0000-0000-000000000004',
       categoryId: 'c0000002-0000-0000-0000-000000000002',
       name: 'Mental Health & Therapy Practice',
       slug: 'mental-health-therapy',
@@ -466,7 +471,8 @@ class SupabaseService {
       displayOrder: 4,
     ),
     BusinessTemplate(
-      id: 't0000001-0000-0000-0000-000000000005',
+      // id: 't0000001-0000-0000-0000-000000000005',
+      id: 'b0000001-0000-0000-0000-000000000005',
       categoryId: 'c0000003-0000-0000-0000-000000000003',
       name: 'Hair Salon & Barbershop',
       slug: 'hair-salon-barber',
@@ -506,7 +512,8 @@ class SupabaseService {
       displayOrder: 5,
     ),
     BusinessTemplate(
-      id: 't0000001-0000-0000-0000-000000000006',
+      // id: 't0000001-0000-0000-0000-000000000006',
+      id: 'b0000001-0000-0000-0000-000000000006',
       categoryId: 'c0000003-0000-0000-0000-000000000003',
       name: 'Luxury Day Spa & Esthetics',
       slug: 'day-spa-esthetics',
@@ -545,7 +552,8 @@ class SupabaseService {
       displayOrder: 6,
     ),
     BusinessTemplate(
-      id: 't0000001-0000-0000-0000-000000000007',
+      // id: 't0000001-0000-0000-0000-000000000007',
+      id: 'b0000001-0000-0000-0000-000000000007',
       categoryId: 'c0000004-0000-0000-0000-000000000004',
       name: 'Personal Training & Fitness Studio',
       slug: 'personal-training',
@@ -584,7 +592,8 @@ class SupabaseService {
       displayOrder: 7,
     ),
     BusinessTemplate(
-      id: 't0000001-0000-0000-0000-000000000008',
+      // id: 't0000001-0000-0000-0000-000000000008',
+      id: 'b0000001-0000-0000-0000-000000000008',
       categoryId: 'c0000005-0000-0000-0000-000000000005',
       name: 'Legal & Financial Advisory',
       slug: 'legal-financial-advisory',
@@ -624,7 +633,8 @@ class SupabaseService {
       displayOrder: 8,
     ),
     BusinessTemplate(
-      id: 't0000001-0000-0000-0000-000000000009',
+      // id: 't0000001-0000-0000-0000-000000000009',
+      id: 'b0000001-0000-0000-0000-000000000009',
       categoryId: 'c0000006-0000-0000-0000-000000000006',
       name: 'Photography & Podcast Studio',
       slug: 'photo-podcast-studio',

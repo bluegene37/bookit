@@ -142,8 +142,10 @@ ON CONFLICT (id) DO NOTHING;
 INSERT INTO public.business_templates (
     id, category_id, name, slug, description, icon, booking_model,
     default_settings, ui_config, starter_services, starter_staff_roles, display_order
-) VALUES (
-    't0000001-0000-0000-0000-000000000001',
+) VALUES 
+-- Gene - Nov, 04, 2026: Changed template IDs from non-hex 't0000001' to valid UUID hex 'b0000001'
+(
+    'b0000001-0000-0000-0000-000000000001',
     'c0000001-0000-0000-0000-000000000001',
     'Dental Care Clinic',
     'dental-clinic',
@@ -187,7 +189,7 @@ INSERT INTO public.business_templates (
 ),
 -- Template 2: Medical Practice / Specialist
 (
-    't0000001-0000-0000-0000-000000000002',
+    'b0000001-0000-0000-0000-000000000002',
     'c0000001-0000-0000-0000-000000000001',
     'Medical Specialist & Dermatology',
     'medical-dermatology',
@@ -229,7 +231,7 @@ INSERT INTO public.business_templates (
 ),
 -- Template 3: Post-Op Recovery Care Retreat (Specialized Clinical Stays)
 (
-    't0000001-0000-0000-0000-000000000003',
+    'b0000001-0000-0000-0000-000000000003',
     'c0000002-0000-0000-0000-000000000002',
     'Post-Op Recovery & Wellness Suites',
     'recovery-suites',
@@ -264,7 +266,7 @@ INSERT INTO public.business_templates (
 ),
 -- Template 4: Mental Health & Counseling
 (
-    't0000001-0000-0000-0000-000000000004',
+    'b0000001-0000-0000-0000-000000000004',
     'c0000002-0000-0000-0000-000000000002',
     'Mental Health & Therapy Practice',
     'mental-health-therapy',
@@ -306,7 +308,7 @@ INSERT INTO public.business_templates (
 ),
 -- Template 5: Hair Salon & Barbershop
 (
-    't0000001-0000-0000-0000-000000000005',
+    'b0000001-0000-0000-0000-000000000005',
     'c0000003-0000-0000-0000-000000000003',
     'Hair Salon & Barbershop',
     'hair-salon-barber',
@@ -347,7 +349,7 @@ INSERT INTO public.business_templates (
 ),
 -- Template 6: Luxury Day Spa & Esthetics
 (
-    't0000001-0000-0000-0000-000000000006',
+    'b0000001-0000-0000-0000-000000000006',
     'c0000003-0000-0000-0000-000000000003',
     'Luxury Day Spa & Esthetics',
     'day-spa-esthetics',
@@ -388,7 +390,7 @@ INSERT INTO public.business_templates (
 ),
 -- Template 7: Fitness Coaching & Personal Training
 (
-    't0000001-0000-0000-0000-000000000007',
+    'b0000001-0000-0000-0000-000000000007',
     'c0000004-0000-0000-0000-000000000004',
     'Personal Training & Fitness Studio',
     'personal-training',
@@ -428,7 +430,7 @@ INSERT INTO public.business_templates (
 ),
 -- Template 8: Professional Legal & Consulting
 (
-    't0000001-0000-0000-0000-000000000008',
+    'b0000001-0000-0000-0000-000000000008',
     'c0000005-0000-0000-0000-000000000005',
     'Legal & Financial Advisory',
     'legal-financial-advisory',
@@ -469,7 +471,7 @@ INSERT INTO public.business_templates (
 ),
 -- Template 9: Photography & Podcast Studio
 (
-    't0000001-0000-0000-0000-000000000009',
+    'b0000001-0000-0000-0000-000000000009',
     'c0000006-0000-0000-0000-000000000006',
     'Photography & Podcast Studio',
     'photo-podcast-studio',
