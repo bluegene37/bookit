@@ -48,5 +48,20 @@ void main() {
       expect(authNotifier.state.isAuthenticated, isFalse);
       expect(authNotifier.state.user, isNull);
     });
+
+    // Gene - Nov, 05, 2026: Added unit tests for signUp with role assignment and authentication state verification
+    test('signUp creates user profile and authenticates session', () async {
+      final success = await authNotifier.signUp(
+        email: 'dr.newclinic@bookit.dev',
+        password: 'securePassword123',
+        fullName: 'Dr. Sarah Connor',
+        role: 'business_owner',
+      );
+      expect(success, isTrue);
+      expect(authNotifier.state.isAuthenticated, isTrue);
+      expect(authNotifier.state.user?.email, equals('dr.newclinic@bookit.dev'));
+      expect(authNotifier.state.user?.fullName, equals('Dr. Sarah Connor'));
+      expect(authNotifier.state.user?.isBusinessOwner, isTrue);
+    });
   });
 }

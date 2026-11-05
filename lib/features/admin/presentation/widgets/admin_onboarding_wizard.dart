@@ -14,6 +14,8 @@ import '../../../../models/service_item.dart';
 import '../../../../models/business_staff.dart';
 import '../../../../services/business_service.dart';
 import '../../../../services/auth_service.dart';
+// Gene - Nov, 05, 2026: Added Uuid import for PostgreSQL UUID compliant IDs
+import 'package:uuid/uuid.dart';
 
 class AdminOnboardingWizard extends ConsumerStatefulWidget {
   final VoidCallback? onCompleted;
@@ -103,8 +105,19 @@ class _AdminOnboardingWizardState extends ConsumerState<AdminOnboardingWizard> {
 
     try {
       final user = ref.read(authProvider).user;
+      /*
+      // Gene - Nov, 04, 2026: Non-UUID timestamp keys that cause PostgreSQL syntax errors
       final ownerId = user?.id ?? '00000000-0000-0000-0000-000000000001';
       final businessId = 'biz-${DateTime.now().millisecondsSinceEpoch}';
+      final slug = _slugController.text.trim().isNotEmpty
+          ? _slugController.text.trim()
+          : 'biz-${DateTime.now().millisecondsSinceEpoch}';
+      */
+
+      // Gene - Nov, 05, 2026: Generate valid RFC 4122 UUID v4 identifiers for business, services, and staff
+      const uuidGen = Uuid();
+      final ownerId = user?.id ?? '00000000-0000-0000-0000-000000000001';
+      final businessId = uuidGen.v4();
       final slug = _slugController.text.trim().isNotEmpty
           ? _slugController.text.trim()
           : 'biz-${DateTime.now().millisecondsSinceEpoch}';
@@ -128,7 +141,8 @@ class _AdminOnboardingWizardState extends ConsumerState<AdminOnboardingWizard> {
         uiConfig: _selectedTemplate!.uiConfig,
       );
 
-      // Prepare Services to seed
+      /*
+      // Gene - Nov, 04, 2026: Non-UUID service IDs
       final servicesToInsert = <ServiceItem>[];
       for (int i = 0; i < _customServices.length; i++) {
         final s = _customServices[i];
@@ -147,13 +161,49 @@ class _AdminOnboardingWizardState extends ConsumerState<AdminOnboardingWizard> {
           );
         }
       }
+      */
 
-      // Prepare Staff to seed
+      // Gene - Nov, 05, 2026: Generate UUID v4 for each provisioned service
+      final servicesToInsert = <ServiceItem>[];
+      for (int i = 0; i < _customServices.length; i++) {
+        final s = _customServices[i];
+        if (s['is_included'] == true) {
+          servicesToInsert.add(
+            ServiceItem(
+              id: uuidGen.v4(),
+              businessId: businessId,
+              name: s['name'] as String,
+              description: s['description'] as String?,
+              durationMinutes: s['duration_minutes'] as int,
+              price: (s['price'] as num).toDouble(),
+              paymentPolicy: s['payment_policy'] as String? ?? 'pay_at_venue',
+              depositAmount: (s['deposit_amount'] as num?)?.toDouble() ?? 0.0,
+            ),
+          );
+        }
+      }
+
+      /*
+      // Gene - Nov, 04, 2026: Non-UUID staff IDs
       final staffToInsert = <BusinessStaff>[];
       for (int i = 0; i < _customStaff.length; i++) {
         staffToInsert.add(
           BusinessStaff(
             id: 'stf-${DateTime.now().millisecondsSinceEpoch}-$i',
+            businessId: businessId,
+            name: '${_customStaff[i]} 1',
+            specialty: _customStaff[i],
+          ),
+        );
+      }
+      */
+
+      // Gene - Nov, 05, 2026: Generate UUID v4 for each provisioned staff member
+      final staffToInsert = <BusinessStaff>[];
+      for (int i = 0; i < _customStaff.length; i++) {
+        staffToInsert.add(
+          BusinessStaff(
+            id: uuidGen.v4(),
             businessId: businessId,
             name: '${_customStaff[i]} 1',
             specialty: _customStaff[i],

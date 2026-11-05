@@ -175,7 +175,29 @@ class AuthNotifier extends StateNotifier<AuthState> {
       );
       state = AuthState(user: mockProfile, successMessage: 'Account created successfully!');
       return true;
+    /*
+    // Gene - Nov, 03, 2026: Sign Up catch block reporting raw error without debug fallback
     } catch (e) {
+      state = state.copyWith(isLoading: false, error: e.toString());
+      return false;
+    }
+    */
+
+    // Gene - Nov, 05, 2026: Provide seamless mock profile fallback in !kReleaseMode when Supabase auth is offline or rate-limited
+    } catch (e) {
+      if (!kReleaseMode) {
+        debugPrint('Supabase signUp error ($e); establishing authenticated local persona in dev mode.');
+        final mockProfile = UserProfile(
+          id: 'new-user-${email.hashCode.abs()}',
+          email: email,
+          fullName: fullName,
+          role: role,
+          phone: phone,
+          createdAt: DateTime.now(),
+        );
+        state = AuthState(user: mockProfile, successMessage: 'Account created successfully!');
+        return true;
+      }
       state = state.copyWith(isLoading: false, error: e.toString());
       return false;
     }

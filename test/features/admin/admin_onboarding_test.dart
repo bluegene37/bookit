@@ -92,6 +92,14 @@ void main() {
       final fetchedStaff = await service.getStaff('test-biz-onboard-1');
       expect(fetchedStaff.any((st) => st.id == 'stf-test-1'), isTrue);
     });
+
+    // Gene - Nov, 05, 2026: Added test for getBusinesses ensuring non-empty fallback and newly registered business inclusion
+    test('getBusinesses returns non-empty list and includes freshly registered businesses', () async {
+      final service = BusinessService();
+      final list = await service.getBusinesses();
+      expect(list.isNotEmpty, isTrue);
+      expect(list.any((b) => b.id == 'test-biz-onboard-1'), isTrue);
+    });
   });
 
   group('AdminOnboardingWizard Widget Tests', () {

@@ -63,6 +63,8 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
       phone: _phoneController.text.trim().isNotEmpty ? _phoneController.text.trim() : null,
     );
 
+    /*
+    // Gene - Nov, 03, 2026: Sign up without explicit failure SnackBar feedback
     if (success && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -75,6 +77,30 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
       } else {
         context.go('/');
       }
+    }
+    */
+
+    // Gene - Nov, 05, 2026: Provide immediate user feedback and error SnackBar if registration fails
+    if (success && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Account registered! Welcome to BookIt.'),
+          backgroundColor: NeumorphicColors.success,
+        ),
+      );
+      if (_selectedRole == 'business_owner') {
+        context.go('/admin');
+      } else {
+        context.go('/');
+      }
+    } else if (mounted) {
+      final errorMsg = ref.read(authProvider).error ?? 'Registration failed. Please check your credentials and try again.';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(errorMsg),
+          backgroundColor: NeumorphicColors.error,
+        ),
+      );
     }
   }
 

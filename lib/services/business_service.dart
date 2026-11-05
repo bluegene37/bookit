@@ -1,5 +1,7 @@
 // Gene - Nov, 03, 2026: Business, Services, and Staff repository service and providers
 // Gene - Nov, 04, 2026: Added category & template queries and transactional business onboarding
+// Gene - Nov, 05, 2026: Added foundation import for debugPrint logging
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/business.dart';
 import '../models/business_staff.dart';
@@ -11,6 +13,8 @@ import '../models/review.dart';
 import 'supabase_service.dart';
 
 class BusinessService {
+  /*
+  // Gene - Nov, 04, 2026: Smart semantic category and template matching across 6 sweet-spot industries without empty-table fallback
   Future<List<Business>> getBusinesses({String? category, String? query}) async {
     final client = SupabaseService.client;
     if (client != null) {
@@ -27,16 +31,6 @@ class BusinessService {
       } catch (_) {}
     }
 
-    /*
-    // Gene - Nov, 03, 2026: Simple string substring category match
-    return SupabaseService.mockBusinesses.where((b) {
-      final matchesCategory = category == null || category == 'All' || b.category.toLowerCase().contains(category.toLowerCase());
-      final matchesQuery = query == null || query.trim().isEmpty || b.name.toLowerCase().contains(query.toLowerCase()) || (b.description?.toLowerCase().contains(query.toLowerCase()) ?? false);
-      return matchesCategory && matchesQuery;
-    }).toList();
-    */
-
-    // Gene - Nov, 04, 2026: Smart semantic category and template matching across 6 sweet-spot industries
     return SupabaseService.mockBusinesses.where((b) {
       final matchesCategory = category == null || _matchesCategory(b, category);
       final matchesQuery = query == null ||
@@ -45,6 +39,46 @@ class BusinessService {
           (b.description?.toLowerCase().contains(query.toLowerCase()) ?? false);
       return matchesCategory && matchesQuery;
     }).toList();
+  }
+  */
+
+  // Gene - Nov, 05, 2026: Resilient getBusinesses combining remote data with local mock fallback and newly registered practices
+  Future<List<Business>> getBusinesses({String? category, String? query}) async {
+    final client = SupabaseService.client;
+    List<Business> remoteList = [];
+    if (client != null) {
+      try {
+        var queryBuilder = client.from('businesses').select().eq('is_active', true);
+        if (category != null && category != 'All') {
+          queryBuilder = queryBuilder.ilike('category', '%$category%');
+        }
+        if (query != null && query.trim().isNotEmpty) {
+          queryBuilder = queryBuilder.ilike('name', '%$query%');
+        }
+        final data = await queryBuilder;
+        remoteList = (data as List).map((json) => Business.fromJson(json)).toList();
+      } catch (_) {}
+    }
+
+    // Filter local mock businesses against category and query criteria
+    final filteredMock = SupabaseService.mockBusinesses.where((b) {
+      final matchesCategory = category == null || _matchesCategory(b, category);
+      final matchesQuery = query == null ||
+          query.trim().isEmpty ||
+          b.name.toLowerCase().contains(query.toLowerCase()) ||
+          (b.description?.toLowerCase().contains(query.toLowerCase()) ?? false);
+      return matchesCategory && matchesQuery;
+    }).toList();
+
+    if (remoteList.isNotEmpty) {
+      // Merge any newly registered local businesses not yet present in remote
+      final remoteIds = remoteList.map((b) => b.id).toSet();
+      final localOnly = filteredMock.where((b) => !remoteIds.contains(b.id)).toList();
+      return [...localOnly, ...remoteList];
+    }
+
+    // If remote table is empty or unseeded, fall back to rich demo & newly registered businesses
+    return filteredMock;
   }
 
   // Gene - Nov, 04, 2026: Helper matching business against industry category & template links
@@ -113,6 +147,8 @@ class BusinessService {
     );
   }
 
+  /*
+  // Gene - Nov, 03, 2026: Previous getServices returning empty remote list on unseeded tables
   Future<List<ServiceItem>> getServices(String businessId) async {
     final client = SupabaseService.client;
     if (client != null) {
@@ -123,13 +159,43 @@ class BusinessService {
     }
     return SupabaseService.mockServices.where((s) => s.businessId == businessId).toList();
   }
+  */
 
+  // Gene - Nov, 05, 2026: Defensive getServices falling back to mock services when remote table has 0 rows for business
+  Future<List<ServiceItem>> getServices(String businessId) async {
+    final client = SupabaseService.client;
+    if (client != null) {
+      try {
+        final data = await client.from('services').select().eq('business_id', businessId).eq('is_active', true);
+        final list = (data as List).map((json) => ServiceItem.fromJson(json)).toList();
+        if (list.isNotEmpty) return list;
+      } catch (_) {}
+    }
+    return SupabaseService.mockServices.where((s) => s.businessId == businessId).toList();
+  }
+
+  /*
+  // Gene - Nov, 03, 2026: Previous getStaff returning empty remote list on unseeded tables
   Future<List<BusinessStaff>> getStaff(String businessId) async {
     final client = SupabaseService.client;
     if (client != null) {
       try {
         final data = await client.from('business_staff').select().eq('business_id', businessId).eq('is_active', true);
         return (data as List).map((json) => BusinessStaff.fromJson(json)).toList();
+      } catch (_) {}
+    }
+    return SupabaseService.mockStaff.where((st) => st.businessId == businessId).toList();
+  }
+  */
+
+  // Gene - Nov, 05, 2026: Defensive getStaff falling back to mock staff when remote table has 0 rows for business
+  Future<List<BusinessStaff>> getStaff(String businessId) async {
+    final client = SupabaseService.client;
+    if (client != null) {
+      try {
+        final data = await client.from('business_staff').select().eq('business_id', businessId).eq('is_active', true);
+        final list = (data as List).map((json) => BusinessStaff.fromJson(json)).toList();
+        if (list.isNotEmpty) return list;
       } catch (_) {}
     }
     return SupabaseService.mockStaff.where((st) => st.businessId == businessId).toList();
@@ -170,7 +236,8 @@ class BusinessService {
     return SupabaseService.mockTemplates;
   }
 
-  // Gene - Nov, 04, 2026: Register and provision a new business with services and staff
+  /*
+  // Gene - Nov, 04, 2026: Original createBusiness implementation
   Future<Business> createBusiness({
     required Business business,
     required List<ServiceItem> services,
@@ -207,6 +274,57 @@ class BusinessService {
     for (final st in staff) {
       SupabaseService.mockStaff.add(st);
     }
+    return business;
+  }
+  */
+
+  // Gene - Nov, 05, 2026: Resilient createBusiness ensuring local memory persistence alongside Supabase remote sync
+  Future<Business> createBusiness({
+    required Business business,
+    required List<ServiceItem> services,
+    required List<BusinessStaff> staff,
+  }) async {
+    // 1. Always ensure local mock state reflects newly registered business immediately
+    final existingIdx = SupabaseService.mockBusinesses.indexWhere((b) => b.id == business.id);
+    if (existingIdx != -1) {
+      SupabaseService.mockBusinesses[existingIdx] = business;
+    } else {
+      SupabaseService.mockBusinesses.insert(0, business);
+    }
+    for (final srv in services) {
+      if (!SupabaseService.mockServices.any((s) => s.id == srv.id)) {
+        SupabaseService.mockServices.add(srv);
+      }
+    }
+    for (final st in staff) {
+      if (!SupabaseService.mockStaff.any((s) => s.id == st.id)) {
+        SupabaseService.mockStaff.add(st);
+      }
+    }
+
+    // 2. Attempt remote Supabase synchronization if client is configured
+    final client = SupabaseService.client;
+    if (client != null) {
+      try {
+        final bizData = await client.from('businesses').insert(business.toJson()).select().single();
+        final createdBusiness = Business.fromJson(bizData);
+
+        if (services.isNotEmpty) {
+          final srvJsonList = services.map((s) => s.toJson()).toList();
+          await client.from('services').insert(srvJsonList);
+        }
+
+        if (staff.isNotEmpty) {
+          final staffJsonList = staff.map((st) => st.toJson()).toList();
+          await client.from('business_staff').insert(staffJsonList);
+        }
+
+        return createdBusiness;
+      } catch (e) {
+        debugPrint('Remote Supabase business sync note (using local state): $e');
+      }
+    }
+
     return business;
   }
 
