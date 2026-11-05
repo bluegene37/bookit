@@ -504,3 +504,16 @@ BEGIN
     END IF;
 END $$;
 
+-- =====================================================================
+-- 14. AUTOMATED DUAL-STAGE REMINDER TRACKING
+-- Gene - Nov, 05, 2026: Idempotent columns for 24-hour notice and 2-hour arrival SMS/email dispatch
+-- =====================================================================
+ALTER TABLE public.bookings
+ADD COLUMN IF NOT EXISTS reminder_24h_sent TIMESTAMPTZ,
+ADD COLUMN IF NOT EXISTS reminder_2h_sent TIMESTAMPTZ;
+
+CREATE INDEX IF NOT EXISTS idx_bookings_reminder_lookup 
+ON public.bookings(status, start_time, reminder_24h_sent, reminder_2h_sent)
+WHERE status = 'confirmed';
+
+

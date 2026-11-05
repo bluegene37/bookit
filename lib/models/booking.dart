@@ -31,6 +31,10 @@ class Booking {
   final double amountPaid;
   final double amountDue;
 
+  // Gene - Nov, 05, 2026: Added dual-stage automated reminder delivery tracking
+  final DateTime? reminder24hSent;
+  final DateTime? reminder2hSent;
+
   /*
   const Booking({
     required this.id,
@@ -82,6 +86,8 @@ class Booking {
     this.holdExpiresAt,
     this.amountPaid = 0.0,
     this.amountDue = 0.0,
+    this.reminder24hSent,
+    this.reminder2hSent,
   });
 
   // Gene - Nov, 04, 2026: Added copyWith for immutability and state transitions
@@ -110,6 +116,8 @@ class Booking {
     DateTime? holdExpiresAt,
     double? amountPaid,
     double? amountDue,
+    DateTime? reminder24hSent,
+    DateTime? reminder2hSent,
   }) {
     return Booking(
       id: id ?? this.id,
@@ -136,12 +144,17 @@ class Booking {
       holdExpiresAt: holdExpiresAt ?? this.holdExpiresAt,
       amountPaid: amountPaid ?? this.amountPaid,
       amountDue: amountDue ?? this.amountDue,
+      reminder24hSent: reminder24hSent ?? this.reminder24hSent,
+      reminder2hSent: reminder2hSent ?? this.reminder2hSent,
     );
   }
 
   bool get isSlotBased => bookingModel == 'slot_based';
   bool get isDateRange => bookingModel == 'date_range';
   bool get isDaily => bookingModel == 'daily';
+
+  // Gene - Nov, 05, 2026: Convenient 8-character uppercase booking reference ID getter
+  String get formattedId => id.length >= 8 ? id.substring(0, 8).toUpperCase() : id.toUpperCase();
 
   String get formattedSchedule {
     if (isSlotBased && startTime != null) {
@@ -297,6 +310,13 @@ class Booking {
           : null,
       amountPaid: (json['amount_paid'] as num?)?.toDouble() ?? 0.0,
       amountDue: (json['amount_due'] as num?)?.toDouble() ?? ((json['total_price'] as num?)?.toDouble() ?? 0.0),
+      // Gene - Nov, 05, 2026: Parsed dual-stage reminder sent timestamps
+      reminder24hSent: json['reminder_24h_sent'] != null
+          ? DateTime.tryParse(json['reminder_24h_sent'].toString())
+          : null,
+      reminder2hSent: json['reminder_2h_sent'] != null
+          ? DateTime.tryParse(json['reminder_2h_sent'].toString())
+          : null,
     );
   }
 
@@ -346,6 +366,8 @@ class Booking {
       'hold_expires_at': holdExpiresAt?.toIso8601String(),
       'amount_paid': amountPaid,
       'amount_due': amountDue,
+      'reminder_24h_sent': reminder24hSent?.toIso8601String(),
+      'reminder_2h_sent': reminder2hSent?.toIso8601String(),
     };
   }
 }

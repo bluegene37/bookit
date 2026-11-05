@@ -12,6 +12,8 @@ import '../../../models/booking.dart';
 import 'widgets/reschedule_dialog.dart';
 import 'widgets/review_dialog.dart';
 import '../../../core/widgets/demo_persona_switcher.dart';
+// Gene - Nov, 05, 2026: Imported CalendarSyncService for 1-Tap Google/Outlook and .ics export
+import '../../../services/calendar_sync_service.dart';
 
 class ClientBookingsScreen extends ConsumerStatefulWidget {
   const ClientBookingsScreen({super.key});
@@ -242,6 +244,54 @@ class _ClientBookingsScreenState extends ConsumerState<ClientBookingsScreen> {
                                       crossAxisAlignment: WrapCrossAlignment.center,
                                       children: [
                                         if (booking.status == 'confirmed' || booking.status == 'pending') ...[
+                                          // Gene - Nov, 05, 2026: 1-Tap Calendar Sync dropdown (Google Calendar & RFC 5545 .ics invite)
+                                          PopupMenuButton<String>(
+                                            tooltip: 'Add to Calendar',
+                                            icon: Icon(Icons.calendar_month_rounded, size: 16, color: accent),
+                                            padding: EdgeInsets.zero,
+                                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                            onSelected: (val) async {
+                                              if (val == 'google') {
+                                                await CalendarSyncService.openGoogleCalendar(booking: booking);
+                                              } else if (val == 'ics') {
+                                                final success = await CalendarSyncService.downloadIcsFile(booking: booking);
+                                                if (context.mounted) {
+                                                  ScaffoldMessenger.of(context).showSnackBar(
+                                                    SnackBar(
+                                                      content: Text(
+                                                        success
+                                                            ? 'Calendar invite (.ics) downloaded!'
+                                                            : 'Generated calendar invite.',
+                                                      ),
+                                                      backgroundColor: accent,
+                                                    ),
+                                                  );
+                                                }
+                                              }
+                                            },
+                                            itemBuilder: (ctx) => [
+                                              const PopupMenuItem(
+                                                value: 'google',
+                                                child: Row(
+                                                  children: [
+                                                    Icon(Icons.open_in_new, size: 16),
+                                                    SizedBox(width: 8),
+                                                    Text('Google Calendar', style: TextStyle(fontSize: 13)),
+                                                  ],
+                                                ),
+                                              ),
+                                              const PopupMenuItem(
+                                                value: 'ics',
+                                                child: Row(
+                                                  children: [
+                                                    Icon(Icons.download_rounded, size: 16),
+                                                    SizedBox(width: 8),
+                                                    Text('Download .ICS File', style: TextStyle(fontSize: 13)),
+                                                  ],
+                                                ),
+                                              ),
+                                            ],
+                                          ),
                                           OutlinedButton.icon(
                                             icon: const Icon(Icons.edit_calendar_rounded, size: 14),
                                             label: const Text('Reschedule', style: TextStyle(fontSize: 12)),

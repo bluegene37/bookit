@@ -4,6 +4,8 @@ import '../../../../core/theme/neumorphic_colors.dart';
 import '../../../../core/widgets/neumorphic_container.dart';
 import '../../../../core/widgets/neumorphic_button.dart';
 import '../../../../models/booking.dart';
+// Gene - Nov, 05, 2026: Imported CalendarSyncService for 1-Tap Google Calendar and .ics invite generation
+import '../../../../services/calendar_sync_service.dart';
 
 class BookingConfirmationStep extends StatelessWidget {
   final Booking booking;
@@ -266,15 +268,58 @@ class BookingConfirmationStep extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(height: 28),
+          const SizedBox(height: 24),
 
-          /*
-          NeumorphicButton(
-            isPrimary: true,
-            onPressed: onViewBookings,
-            child: const Text('View in My Bookings'),
+          // Gene - Nov, 05, 2026: Universal 1-Tap Calendar Integration (Google Calendar & RFC 5545 .ics invite)
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  icon: const Icon(Icons.calendar_today_rounded, size: 16),
+                  label: const Text('Google Calendar', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: accent,
+                    side: BorderSide(color: accent.withValues(alpha: 0.5)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                  onPressed: () async {
+                    await CalendarSyncService.openGoogleCalendar(booking: booking);
+                  },
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: OutlinedButton.icon(
+                  icon: const Icon(Icons.download_rounded, size: 16),
+                  label: const Text('Download .ICS', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: isDark ? Colors.white70 : Colors.black87,
+                    side: BorderSide(color: isDark ? Colors.white24 : Colors.black12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                  onPressed: () async {
+                    final success = await CalendarSyncService.downloadIcsFile(booking: booking);
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            success
+                                ? 'Calendar invite (.ics) generated and downloaded!'
+                                : 'Calendar invite generated for Apple / Outlook.',
+                          ),
+                          backgroundColor: accent,
+                        ),
+                      );
+                    }
+                  },
+                ),
+              ),
+            ],
           ),
-          */
+          const SizedBox(height: 16),
+
           // Gene - Nov, 04, 2026: Integrated PaymentCheckoutStep into universal booking wizard and enhanced confirmation receipt
           NeumorphicButton(
             onPressed: () {

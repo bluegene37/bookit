@@ -140,6 +140,10 @@ void main() {
 
       // Verify Download PDF Invoice button
       expect(find.text('Download PDF Invoice'), findsOneWidget);
+
+      // Gene - Nov, 05, 2026: Verified 1-Tap Google Calendar and .ICS export buttons render on confirmation pass
+      expect(find.text('Google Calendar'), findsOneWidget);
+      expect(find.text('Download .ICS'), findsOneWidget);
     });
   });
 }
