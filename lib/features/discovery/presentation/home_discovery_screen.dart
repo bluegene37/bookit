@@ -14,6 +14,8 @@ import '../../../services/auth_service.dart';
 // Gene - Nov, 05, 2026: Added demo_persona_switcher and safe_network_image imports
 import '../../../core/widgets/demo_persona_switcher.dart';
 import '../../../core/widgets/safe_network_image.dart';
+// Gene - Nov 06, 2026: Added DiscoveryMapView import for interactive map view toggle
+import 'widgets/discovery_map_view.dart';
 
 class HomeDiscoveryScreen extends ConsumerWidget {
   const HomeDiscoveryScreen({super.key});
@@ -25,6 +27,7 @@ class HomeDiscoveryScreen extends ConsumerWidget {
     final businessesAsync = ref.watch(businessListProvider);
     final selectedCategory = ref.watch(selectedCategoryProvider);
     final unreadCount = ref.watch(unreadNotificationCountProvider);
+    final isMapView = ref.watch(isDiscoveryMapViewProvider);
     // final themeMode = ref.watch(themeModeProvider);
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -314,16 +317,82 @@ class HomeDiscoveryScreen extends ConsumerWidget {
                       ),
                     ),
                     const SizedBox(width: 8),
+                    /*
+                    // Original static text
                     Text(
                       'Showing active',
                       style: TextStyle(fontSize: 12, color: isDark ? Colors.white38 : Colors.black38),
+                    ),
+                    */
+                    // Gene - Nov 06, 2026: Segmented toggle for List View vs OpenStreetMap Map View
+                    Container(
+                      decoration: BoxDecoration(
+                        color: isDark ? const Color(0xFF1E2330) : const Color(0xFFE2E8F0),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      padding: const EdgeInsets.all(2),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          InkWell(
+                            onTap: () => ref.read(isDiscoveryMapViewProvider.notifier).state = false,
+                            borderRadius: BorderRadius.circular(8),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: !isMapView ? (isDark ? const Color(0xFF2D3748) : Colors.white) : Colors.transparent,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(Icons.view_list_rounded, size: 14, color: !isMapView ? accent : (isDark ? Colors.white54 : Colors.black45)),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    'List',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: !isMapView ? FontWeight.w700 : FontWeight.w500,
+                                      color: !isMapView ? accent : (isDark ? Colors.white54 : Colors.black45),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          InkWell(
+                            onTap: () => ref.read(isDiscoveryMapViewProvider.notifier).state = true,
+                            borderRadius: BorderRadius.circular(8),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: isMapView ? (isDark ? const Color(0xFF2D3748) : Colors.white) : Colors.transparent,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(Icons.map_rounded, size: 14, color: isMapView ? accent : (isDark ? Colors.white54 : Colors.black45)),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    'Map',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: isMapView ? FontWeight.w700 : FontWeight.w500,
+                                      color: isMapView ? accent : (isDark ? Colors.white54 : Colors.black45),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),
               ),
             ),
 
-            // Business Cards List
+            // Business Cards List or Interactive Map View
             businessesAsync.when(
               loading: () => const SliverFillRemaining(child: Center(child: CircularProgressIndicator())),
               error: (err, _) => SliverFillRemaining(child: Center(child: Text('Error: $err'))),
@@ -331,6 +400,14 @@ class HomeDiscoveryScreen extends ConsumerWidget {
                 if (businesses.isEmpty) {
                   return const SliverFillRemaining(
                     child: Center(child: Text('No clinics matching your search criteria.')),
+                  );
+                }
+
+                // Gene - Nov 06, 2026: Render DiscoveryMapView when Map toggle is selected
+                if (isMapView) {
+                  return SliverFillRemaining(
+                    hasScrollBody: true,
+                    child: DiscoveryMapView(businesses: businesses),
                   );
                 }
 

@@ -675,6 +675,7 @@ class _MockHttpClient extends Fake implements HttpClient {
   }
 }
 */
+/*
 // Gene - Nov, 04, 2026: Added autoUncompress and idleTimeout getters/setters for NetworkImage loader compatibility
 class _MockHttpClient extends Fake implements HttpClient {
   @override
@@ -688,10 +689,41 @@ class _MockHttpClient extends Fake implements HttpClient {
     return _MockHttpClientRequest();
   }
 }
+*/
+// Gene - Nov 06, 2026: Implemented openUrl, close, and userAgent in _MockHttpClient for flutter_map NetworkTileProvider compatibility
+class _MockHttpClient extends Fake implements HttpClient {
+  @override
+  bool autoUncompress = false;
+
+  @override
+  Duration idleTimeout = const Duration(seconds: 15);
+
+  @override
+  String? userAgent;
+
+  @override
+  Future<HttpClientRequest> getUrl(Uri url) async {
+    return _MockHttpClientRequest();
+  }
+
+  @override
+  Future<HttpClientRequest> openUrl(String method, Uri url) async {
+    return _MockHttpClientRequest();
+  }
+
+  @override
+  void close({bool force = false}) {}
+}
 
 class _MockHttpClientRequest extends Fake implements HttpClientRequest {
   @override
   final HttpHeaders headers = _MockHttpHeaders();
+
+  @override
+  bool followRedirects = true;
+
+  @override
+  int maxRedirects = 5;
 
   @override
   Future<HttpClientResponse> close() async {

@@ -328,6 +328,27 @@ class BusinessService {
     return business;
   }
 
+  // Gene - Nov 06, 2026: Update business details including latitude, longitude, and address
+  Future<Business> updateBusiness(Business business) async {
+    final existingIdx = SupabaseService.mockBusinesses.indexWhere((b) => b.id == business.id);
+    if (existingIdx != -1) {
+      SupabaseService.mockBusinesses[existingIdx] = business;
+    } else {
+      SupabaseService.mockBusinesses.insert(0, business);
+    }
+
+    final client = SupabaseService.client;
+    if (client != null) {
+      try {
+        final data = await client.from('businesses').update(business.toJson()).eq('id', business.id).select().single();
+        return Business.fromJson(data);
+      } catch (e) {
+        debugPrint('[BusinessService] updateBusiness remote error: $e');
+      }
+    }
+    return business;
+  }
+
   /*
   // Gene - Nov, 04, 2026: Synchronize customer reviews from Supabase reviews table
   Future<List<Review>> getReviews(String businessId) async {

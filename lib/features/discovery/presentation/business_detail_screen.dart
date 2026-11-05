@@ -8,6 +8,8 @@ import '../../../core/widgets/neumorphic_button.dart';
 import '../../../services/business_service.dart';
 // Gene - Nov, 05, 2026: Added safe_network_image import
 import '../../../core/widgets/safe_network_image.dart';
+// Gene - Nov 06, 2026: Added StorefrontDirectionsCard import
+import 'widgets/storefront_directions_card.dart';
 
 class BusinessDetailScreen extends ConsumerWidget {
   final String businessId;
@@ -289,6 +291,9 @@ class BusinessDetailScreen extends ConsumerWidget {
                               ),
                             );
                           }),
+                          // Gene - Nov 06, 2026: Storefront Directions & Interactive Map Card with Google/Apple Maps launcher
+                          const SizedBox(height: 12),
+                          StorefrontDirectionsCard(business: business),
                           const SizedBox(height: 100), // spacing for bottom bar
                         ],
                       ),

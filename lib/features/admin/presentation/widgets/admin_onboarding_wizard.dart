@@ -16,6 +16,10 @@ import '../../../../services/business_service.dart';
 import '../../../../services/auth_service.dart';
 // Gene - Nov, 05, 2026: Added Uuid import for PostgreSQL UUID compliant IDs
 import 'package:uuid/uuid.dart';
+// Gene - Nov 06, 2026: Added location geocoding service and interactive map pin-picker widget
+import 'dart:async';
+import '../../../../services/location_geocoding_service.dart';
+import 'location_pin_picker.dart';
 
 class AdminOnboardingWizard extends ConsumerStatefulWidget {
   final VoidCallback? onCompleted;
@@ -42,6 +46,38 @@ class _AdminOnboardingWizardState extends ConsumerState<AdminOnboardingWizard> {
   final _cityController = TextEditingController();
   final _descriptionController = TextEditingController();
 
+  // Gene - Nov 06, 2026: Coordinates and debouncer for interactive map pin-picker
+  double? _latitude = 37.7749;
+  double? _longitude = -122.4194;
+  final GlobalKey<LocationPinPickerState> _pinPickerKey = GlobalKey<LocationPinPickerState>();
+  Timer? _addressDebounce;
+
+  @override
+  void initState() {
+    super.initState();
+    _addressController.addListener(_onAddressChanged);
+    _cityController.addListener(_onAddressChanged);
+  }
+
+  void _onAddressChanged() {
+    _addressDebounce?.cancel();
+    _addressDebounce = Timer(const Duration(milliseconds: 600), () async {
+      final query = '${_addressController.text.trim()}, ${_cityController.text.trim()}'.trim();
+      if (query.length > 5) {
+        final geocoder = ref.read(locationGeocodingServiceProvider);
+        final results = await geocoder.searchAddress(query);
+        if (results.isNotEmpty && mounted) {
+          final loc = results.first;
+          setState(() {
+            _latitude = loc.latitude;
+            _longitude = loc.longitude;
+          });
+          _pinPickerKey.currentState?.moveToLocation(loc.latitude, loc.longitude, addressLabel: loc.formattedAddress);
+        }
+      }
+    });
+  }
+
   // Step 2: Starter Catalog & Staff
   final List<Map<String, dynamic>> _customServices = [];
   final List<String> _customStaff = [];
@@ -50,6 +86,9 @@ class _AdminOnboardingWizardState extends ConsumerState<AdminOnboardingWizard> {
 
   @override
   void dispose() {
+    _addressDebounce?.cancel();
+    _addressController.removeListener(_onAddressChanged);
+    _cityController.removeListener(_onAddressChanged);
     _nameController.dispose();
     _slugController.dispose();
     _phoneController.dispose();
@@ -122,6 +161,8 @@ class _AdminOnboardingWizardState extends ConsumerState<AdminOnboardingWizard> {
           ? _slugController.text.trim()
           : 'biz-${DateTime.now().millisecondsSinceEpoch}';
 
+      /*
+      // Original newBusiness without coordinates
       final newBusiness = Business(
         id: businessId,
         ownerId: ownerId,
@@ -135,6 +176,28 @@ class _AdminOnboardingWizardState extends ConsumerState<AdminOnboardingWizard> {
             : _selectedTemplate!.description,
         address: _addressController.text.trim().isNotEmpty ? _addressController.text.trim() : null,
         city: _cityController.text.trim().isNotEmpty ? _cityController.text.trim() : null,
+        contactPhone: _phoneController.text.trim().isNotEmpty ? _phoneController.text.trim() : null,
+        contactEmail: _emailController.text.trim().isNotEmpty ? _emailController.text.trim() : null,
+        settings: _selectedTemplate!.defaultSettings,
+        uiConfig: _selectedTemplate!.uiConfig,
+      );
+      */
+      // Gene - Nov 06, 2026: Included latitude and longitude captured from interactive LocationPinPicker
+      final newBusiness = Business(
+        id: businessId,
+        ownerId: ownerId,
+        templateId: _selectedTemplate!.id,
+        name: name,
+        slug: slug,
+        category: _selectedTemplate!.slug,
+        bookingModel: _selectedTemplate!.bookingModel,
+        description: _descriptionController.text.trim().isNotEmpty
+            ? _descriptionController.text.trim()
+            : _selectedTemplate!.description,
+        address: _addressController.text.trim().isNotEmpty ? _addressController.text.trim() : null,
+        city: _cityController.text.trim().isNotEmpty ? _cityController.text.trim() : null,
+        latitude: _latitude,
+        longitude: _longitude,
         contactPhone: _phoneController.text.trim().isNotEmpty ? _phoneController.text.trim() : null,
         contactEmail: _emailController.text.trim().isNotEmpty ? _emailController.text.trim() : null,
         settings: _selectedTemplate!.defaultSettings,
@@ -797,6 +860,27 @@ class _AdminOnboardingWizardState extends ConsumerState<AdminOnboardingWizard> {
                 ),
               ),
             ],
+          ),
+          // Gene - Nov 06, 2026: Embedded interactive LocationPinPicker with bidirectional sync
+          const SizedBox(height: 16),
+          LocationPinPicker(
+            key: _pinPickerKey,
+            initialLatitude: _latitude ?? 37.7749,
+            initialLongitude: _longitude ?? -122.4194,
+            height: 200,
+            label: 'Clinic Map Location (Drag or tap map to set pin)',
+            onLocationChanged: (loc) {
+              setState(() {
+                _latitude = loc.latitude;
+                _longitude = loc.longitude;
+                _addressController.removeListener(_onAddressChanged);
+                _cityController.removeListener(_onAddressChanged);
+                _addressController.text = loc.formattedAddress;
+                if (loc.city != null) _cityController.text = loc.city!;
+                _addressController.addListener(_onAddressChanged);
+                _cityController.addListener(_onAddressChanged);
+              });
+            },
           ),
           const SizedBox(height: 16),
 

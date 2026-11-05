@@ -6,9 +6,13 @@ import '../../../../core/widgets/neumorphic_container.dart';
 import '../../../../core/widgets/neumorphic_button.dart';
 import '../../../../core/widgets/neumorphic_text_field.dart';
 import '../../../../models/business.dart';
-// import '../../../../services/business_service.dart';
+import '../../../../services/business_service.dart';
 // Gene - Nov, 05, 2026: Added Storefront QR Standee Studio import
 import 'widgets/qr_standee_studio_card.dart';
+// Gene - Nov 06, 2026: Added LocationGeocodingService and LocationPinPicker imports
+import 'dart:async';
+import '../../../../services/location_geocoding_service.dart';
+import 'widgets/location_pin_picker.dart';
 
 class BusinessSettingsTab extends ConsumerStatefulWidget {
   final Business business;
@@ -29,6 +33,12 @@ class _BusinessSettingsTabState extends ConsumerState<BusinessSettingsTab> {
   late bool _requiresApproval;
   bool _saved = false;
 
+  // Gene - Nov 06, 2026: Added coordinates and debounce for interactive map pin-picker
+  late double? _latitude;
+  late double? _longitude;
+  final GlobalKey<LocationPinPickerState> _pinPickerKey = GlobalKey<LocationPinPickerState>();
+  Timer? _addressDebounce;
+
   @override
   void initState() {
     super.initState();
@@ -39,16 +49,42 @@ class _BusinessSettingsTabState extends ConsumerState<BusinessSettingsTab> {
     _slotInterval = widget.business.slotIntervalMinutes;
     _bufferMinutes = widget.business.bufferMinutes;
     _requiresApproval = widget.business.requiresApproval;
+    _latitude = widget.business.latitude ?? 37.7749;
+    _longitude = widget.business.longitude ?? -122.4194;
+    _addressController.addListener(_onAddressChanged);
+  }
+
+  void _onAddressChanged() {
+    _addressDebounce?.cancel();
+    _addressDebounce = Timer(const Duration(milliseconds: 600), () async {
+      final query = _addressController.text.trim();
+      if (query.length > 5) {
+        final geocoder = ref.read(locationGeocodingServiceProvider);
+        final results = await geocoder.searchAddress(query);
+        if (results.isNotEmpty && mounted) {
+          final loc = results.first;
+          setState(() {
+            _latitude = loc.latitude;
+            _longitude = loc.longitude;
+          });
+          _pinPickerKey.currentState?.moveToLocation(loc.latitude, loc.longitude, addressLabel: loc.formattedAddress);
+        }
+      }
+    });
   }
 
   @override
   void dispose() {
+    _addressDebounce?.cancel();
+    _addressController.removeListener(_onAddressChanged);
     _nameController.dispose();
     _addressController.dispose();
     _phoneController.dispose();
     super.dispose();
   }
 
+  /*
+  // Original _saveSettings without persistence
   void _saveSettings() {
     setState(() => _saved = true);
     ScaffoldMessenger.of(context).showSnackBar(
@@ -60,6 +96,37 @@ class _BusinessSettingsTabState extends ConsumerState<BusinessSettingsTab> {
     Future.delayed(const Duration(seconds: 2), () {
       if (mounted) setState(() => _saved = false);
     });
+  }
+  */
+  // Gene - Nov 06, 2026: Persist updated business profile, coordinates, and address via BusinessService
+  void _saveSettings() async {
+    final updatedBusiness = widget.business.copyWith(
+      name: _nameController.text.trim(),
+      address: _addressController.text.trim(),
+      contactPhone: _phoneController.text.trim(),
+      bookingModel: _selectedModel,
+      latitude: _latitude,
+      longitude: _longitude,
+      settings: {
+        ...widget.business.settings,
+        'slot_interval_minutes': _slotInterval,
+        'buffer_minutes': _bufferMinutes,
+        'requires_approval': _requiresApproval,
+      },
+    );
+    await ref.read(businessServiceProvider).updateBusiness(updatedBusiness);
+    if (mounted) {
+      setState(() => _saved = true);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Saved clinic settings & map location!'),
+          backgroundColor: NeumorphicColors.tealPrimary,
+        ),
+      );
+      Future.delayed(const Duration(seconds: 2), () {
+        if (mounted) setState(() => _saved = false);
+      });
+    }
   }
 
   @override
@@ -243,6 +310,24 @@ class _BusinessSettingsTabState extends ConsumerState<BusinessSettingsTab> {
           NeumorphicTextField(controller: _nameController, labelText: 'Business Name'),
           const SizedBox(height: 12),
           NeumorphicTextField(controller: _addressController, labelText: 'Clinic Address'),
+          // Gene - Nov 06, 2026: Embedded interactive LocationPinPicker for business location configuration
+          const SizedBox(height: 12),
+          LocationPinPicker(
+            key: _pinPickerKey,
+            initialLatitude: _latitude ?? 37.7749,
+            initialLongitude: _longitude ?? -122.4194,
+            height: 220,
+            label: 'Location Pin on Map',
+            onLocationChanged: (loc) {
+              setState(() {
+                _latitude = loc.latitude;
+                _longitude = loc.longitude;
+                _addressController.removeListener(_onAddressChanged);
+                _addressController.text = loc.formattedAddress;
+                _addressController.addListener(_onAddressChanged);
+              });
+            },
+          ),
           const SizedBox(height: 12),
           NeumorphicTextField(controller: _phoneController, labelText: 'Contact Phone'),
           const SizedBox(height: 28),

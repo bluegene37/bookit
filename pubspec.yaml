@@ -46,6 +46,11 @@ dependencies:
   # Gene - Nov, 05, 2026: Added dependencies for QR code generation and mobile camera scanning
   qr_flutter: ^4.1.0
   mobile_scanner: ^5.2.3
+  # Gene - Nov 06, 2026: Added dependencies for interactive OpenStreetMap, CartoDB tiles, coordinates, and GPS geolocation
+  flutter_map: ^8.3.2
+  latlong2: ^0.10.1
+  geolocator: ^14.1.2
+  http: ^1.2.2
 
 dev_dependencies:
   flutter_test:
