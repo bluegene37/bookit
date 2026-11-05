@@ -277,6 +277,8 @@ class HomeDiscoveryScreen extends ConsumerWidget {
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+                /*
+                // Original section header Row
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -288,6 +290,30 @@ class HomeDiscoveryScreen extends ConsumerWidget {
                         color: isDark ? NeumorphicColors.darkTextPrimary : NeumorphicColors.lightTextPrimary,
                       ),
                     ),
+                    Text(
+                      'Showing active',
+                      style: TextStyle(fontSize: 12, color: isDark ? Colors.white38 : Colors.black38),
+                    ),
+                  ],
+                ),
+                */
+                // Gene - Nov 06, 2026: Wrapped section header title in Expanded with ellipsis to prevent RenderFlex overflow on constrained mobile viewports
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Available Clinics & Services',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: isDark ? NeumorphicColors.darkTextPrimary : NeumorphicColors.lightTextPrimary,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
                     Text(
                       'Showing active',
                       style: TextStyle(fontSize: 12, color: isDark ? Colors.white38 : Colors.black38),
@@ -430,6 +456,8 @@ class HomeDiscoveryScreen extends ConsumerWidget {
                                   const SizedBox(height: 12),
 
                                   // Template Model Pill & Book CTA
+                                  /*
+                                  // Original Template Model Pill & Book CTA
                                   Row(
                                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                     children: [
@@ -445,6 +473,44 @@ class HomeDiscoveryScreen extends ConsumerWidget {
                                         ),
                                       ),
                                       Row(
+                                        children: [
+                                          Text(
+                                            'Book Now',
+                                            style: TextStyle(
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w700,
+                                              color: accent,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 4),
+                                          Icon(Icons.arrow_forward, size: 14, color: accent),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                  */
+                                  // Gene - Nov 06, 2026: Wrapped booking model badge in Flexible with text ellipsis to prevent RenderFlex overflow on narrow mobile screens
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Flexible(
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                          decoration: BoxDecoration(
+                                            color: accent.withValues(alpha: 0.12),
+                                            borderRadius: BorderRadius.circular(10),
+                                          ),
+                                          child: Text(
+                                            business.bookingModel.displayName.split('(').first.trim(),
+                                            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: accent),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Row(
+                                        mainAxisSize: MainAxisSize.min,
                                         children: [
                                           Text(
                                             'Book Now',

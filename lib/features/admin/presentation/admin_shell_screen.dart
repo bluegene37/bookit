@@ -17,14 +17,19 @@ import 'business_settings_tab.dart';
 import 'services_manager_tab.dart';
 import 'staff_manager_tab.dart';
 import 'tabs/payments_invoices_tab.dart';
+// Gene - Nov, 05, 2026: Added LiveReceptionQueueTab import
+import 'tabs/live_reception_queue_tab.dart';
 // Gene - Nov, 04, 2026: Added AdminOnboardingWizard import for business template registration
 import 'widgets/admin_onboarding_wizard.dart';
 // Gene - Nov, 05, 2026: Added demo_persona_switcher import
 import '../../../core/widgets/demo_persona_switcher.dart';
+// Gene - Nov, 05, 2026: Added reception QR scanner modal, check-in action sheet, and booking state transitions
+import 'widgets/reception_qr_scanner_modal.dart';
 
 class AdminShellScreen extends ConsumerStatefulWidget {
   const AdminShellScreen({super.key});
 
+  /*
   // Gene - Nov, 04, 2026: Added Payments & Invoices tab navigation and service payment policy configuration
   static const List<NavigationRailDestination> railDestinations = [
     NavigationRailDestination(
@@ -57,6 +62,70 @@ class AdminShellScreen extends ConsumerStatefulWidget {
     BottomNavigationBarItem(
       icon: Icon(Icons.dashboard_rounded),
       label: 'Overview',
+    ),
+    BottomNavigationBarItem(
+      icon: Icon(Icons.calendar_month_rounded),
+      label: 'Calendar',
+    ),
+    BottomNavigationBarItem(
+      icon: Icon(Icons.medical_services_rounded),
+      label: 'Services',
+    ),
+    BottomNavigationBarItem(
+      icon: Icon(Icons.people_alt_rounded),
+      label: 'Staff',
+    ),
+    BottomNavigationBarItem(
+      icon: Icon(Icons.receipt_long_rounded),
+      label: 'Payments',
+    ),
+    BottomNavigationBarItem(
+      icon: Icon(Icons.tune_rounded),
+      label: 'Settings',
+    ),
+  ];
+  */
+
+  // Gene - Nov, 05, 2026: Added Live Reception Queue destination to rail and bottom navigation
+  static const List<NavigationRailDestination> railDestinations = [
+    NavigationRailDestination(
+      icon: Icon(Icons.dashboard_rounded),
+      label: Text('Overview'),
+    ),
+    NavigationRailDestination(
+      icon: Icon(Icons.people_alt_outlined),
+      label: Text('Queue'),
+    ),
+    NavigationRailDestination(
+      icon: Icon(Icons.calendar_month_rounded),
+      label: Text('Calendar'),
+    ),
+    NavigationRailDestination(
+      icon: Icon(Icons.medical_services_rounded),
+      label: Text('Services'),
+    ),
+    NavigationRailDestination(
+      icon: Icon(Icons.people_alt_rounded),
+      label: Text('Staff'),
+    ),
+    NavigationRailDestination(
+      icon: Icon(Icons.receipt_long_rounded),
+      label: Text('Payments'),
+    ),
+    NavigationRailDestination(
+      icon: Icon(Icons.tune_rounded),
+      label: Text('Settings'),
+    ),
+  ];
+
+  static const List<BottomNavigationBarItem> bottomNavItems = [
+    BottomNavigationBarItem(
+      icon: Icon(Icons.dashboard_rounded),
+      label: 'Overview',
+    ),
+    BottomNavigationBarItem(
+      icon: Icon(Icons.people_alt_outlined),
+      label: 'Queue',
     ),
     BottomNavigationBarItem(
       icon: Icon(Icons.calendar_month_rounded),
@@ -176,12 +245,32 @@ class _AdminShellScreenState extends ConsumerState<AdminShellScreen> {
         final screenWidth = MediaQuery.of(context).size.width;
         final isCompact = screenWidth < 900;
 
+        /*
+        // Gene - Nov, 04, 2026: Previous tabContent without Live Reception Queue
         final tabContent = Container(
           color: isDark ? NeumorphicColors.darkCanvas : NeumorphicColors.lightCanvas,
           child: IndexedStack(
             index: _selectedTabIndex,
             children: [
               DashboardOverviewTab(business: selectedBusiness),
+              CalendarAgendaTab(business: selectedBusiness),
+              ServicesManagerTab(business: selectedBusiness),
+              StaffManagerTab(business: selectedBusiness),
+              PaymentsInvoicesTab(business: selectedBusiness),
+              BusinessSettingsTab(business: selectedBusiness),
+            ],
+          ),
+        );
+        */
+
+        // Gene - Nov, 05, 2026: Added LiveReceptionQueueTab at index 1 in Admin tab stack
+        final tabContent = Container(
+          color: isDark ? NeumorphicColors.darkCanvas : NeumorphicColors.lightCanvas,
+          child: IndexedStack(
+            index: _selectedTabIndex,
+            children: [
+              DashboardOverviewTab(business: selectedBusiness),
+              LiveReceptionQueueTab(businessId: selectedBusiness.id, business: selectedBusiness),
               CalendarAgendaTab(business: selectedBusiness),
               ServicesManagerTab(business: selectedBusiness),
               StaffManagerTab(business: selectedBusiness),
@@ -250,7 +339,48 @@ class _AdminShellScreenState extends ConsumerState<AdminShellScreen> {
                   },
                 ),
               ),
+              /*
+              // Gene - Nov, 05, 2026: Previous actions without QR check-in scanner button
               actions: [
+                IconButton(
+                  tooltip: 'Add Business',
+                  icon: Icon(Icons.add_circle_outline_rounded, color: accent),
+                  onPressed: () {
+                    showDialog<String>(
+                      context: context,
+                      builder: (_) => const AdminOnboardingWizard(),
+                    ).then((newId) {
+                      if (newId != null && mounted) {
+                        setState(() => _selectedBusinessId = newId);
+                      }
+                    });
+                  },
+                ),
+                // Gene - Nov, 05, 2026: Mobile AppBar Demo Persona Switcher action
+                IconButton(
+                  tooltip: 'Switch Demo Persona',
+                  icon: Icon(Icons.switch_account_outlined, color: accent),
+                  onPressed: () => DemoPersonaSwitcherDialog.show(context),
+                ),
+                IconButton(
+                  tooltip: isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode',
+                  icon: Icon(
+                    isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
+                    color: isDark ? Colors.amber : NeumorphicColors.lightTextSecondary,
+                  ),
+                  onPressed: () {
+                    ref.read(themeModeProvider.notifier).toggleTheme();
+                  },
+                ),
+              ],
+              */
+              // Gene - Nov, 05, 2026: Added reception QR scanner modal, check-in action sheet, and booking state transitions
+              actions: [
+                IconButton(
+                  tooltip: 'Scan Check-In',
+                  icon: Icon(Icons.qr_code_scanner_rounded, color: accent),
+                  onPressed: () => ReceptionQrScannerModal.show(context),
+                ),
                 IconButton(
                   tooltip: 'Add Business',
                   icon: Icon(Icons.add_circle_outline_rounded, color: accent),
@@ -822,6 +952,52 @@ class _AdminShellScreenState extends ConsumerState<AdminShellScreen> {
                           ],
                         ),
                       ),
+                      /*
+                      // Gene - Nov, 04, 2026: Previous actions without Scan Check-In button
+                      const SizedBox(width: 12),
+                      NeumorphicButton(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        onPressed: () {
+                          showDialog<String>(
+                            context: context,
+                            builder: (_) => const AdminOnboardingWizard(),
+                          ).then((newId) {
+                            if (newId != null && mounted) {
+                              setState(() => _selectedBusinessId = newId);
+                            }
+                          });
+                        },
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.add_circle_outline_rounded, size: 16, color: accent),
+                            const SizedBox(width: 6),
+                            Text(
+                              'Add Business',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: isDark ? NeumorphicColors.darkTextPrimary : NeumorphicColors.lightTextPrimary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      */
+                      // Gene - Nov, 05, 2026: Added reception QR scanner modal, check-in action sheet, and booking state transitions
+                      const SizedBox(width: 12),
+                      NeumorphicButton(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                        onPressed: () => ReceptionQrScannerModal.show(context),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.qr_code_scanner_rounded, size: 18),
+                            SizedBox(width: 8),
+                            Text('Scan Check-In', style: TextStyle(fontWeight: FontWeight.w700)),
+                          ],
+                        ),
+                      ),
                       const SizedBox(width: 12),
                       NeumorphicButton(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -1085,6 +1261,8 @@ class _AdminShellScreenState extends ConsumerState<AdminShellScreen> {
           const SizedBox(height: 20),
           _buildSidebarSectionHeader('CLINIC WORKSPACE', isDark),
           const SizedBox(height: 6),
+          /*
+          // Gene - Nov, 04, 2026: Previous sidebar navigation items without Live Reception Queue
           _buildSidebarItem(0, 'Dashboard Overview', Icons.dashboard_rounded, accent, isDark, isDrawer: isDrawer),
           _buildSidebarItem(1, 'Appointments Calendar', Icons.calendar_month_rounded, accent, isDark, isDrawer: isDrawer),
           _buildSidebarItem(2, 'Services & Pricing', Icons.medical_services_rounded, accent, isDark, isDrawer: isDrawer),
@@ -1095,6 +1273,20 @@ class _AdminShellScreenState extends ConsumerState<AdminShellScreen> {
           _buildSidebarSectionHeader('TEMPLATE & ENGINE', isDark),
           const SizedBox(height: 6),
           _buildSidebarItem(5, 'Template & Settings', Icons.tune_rounded, accent, isDark, isDrawer: isDrawer),
+          */
+
+          // Gene - Nov, 05, 2026: Added Live Reception Queue item to sidebar navigation
+          _buildSidebarItem(0, 'Dashboard Overview', Icons.dashboard_rounded, accent, isDark, isDrawer: isDrawer),
+          _buildSidebarItem(1, 'Live Reception Queue', Icons.people_alt_outlined, accent, isDark, isDrawer: isDrawer),
+          _buildSidebarItem(2, 'Appointments Calendar', Icons.calendar_month_rounded, accent, isDark, isDrawer: isDrawer),
+          _buildSidebarItem(3, 'Services & Pricing', Icons.medical_services_rounded, accent, isDark, isDrawer: isDrawer),
+          _buildSidebarItem(4, 'Doctors & Specialists', Icons.people_alt_rounded, accent, isDark, isDrawer: isDrawer),
+          _buildSidebarItem(5, 'Payments & Invoices', Icons.receipt_long_rounded, accent, isDark, isDrawer: isDrawer),
+
+          const SizedBox(height: 24),
+          _buildSidebarSectionHeader('TEMPLATE & ENGINE', isDark),
+          const SizedBox(height: 6),
+          _buildSidebarItem(6, 'Template & Settings', Icons.tune_rounded, accent, isDark, isDrawer: isDrawer),
 
           // Gene - Nov, 03, 2026: Added Session & Quick Navigation to Sidebar
           const SizedBox(height: 20),

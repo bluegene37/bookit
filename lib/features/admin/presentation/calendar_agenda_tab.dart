@@ -151,6 +151,8 @@ class _CalendarAgendaTabState extends ConsumerState<CalendarAgendaTab> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
+                            /*
+                            // Original Row with clientName and StatusBadge
                             Row(
                               children: [
                                 Text(
@@ -158,6 +160,20 @@ class _CalendarAgendaTabState extends ConsumerState<CalendarAgendaTab> {
                                   style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
                                 ),
                                 const SizedBox(width: 8),
+                                StatusBadge(status: b.status),
+                              ],
+                            ),
+                            */
+                            // Gene - Nov 06, 2026: Converted Row to Wrap to prevent horizontal overflow on mobile viewports with tight width constraints
+                            Wrap(
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              spacing: 8,
+                              runSpacing: 4,
+                              children: [
+                                Text(
+                                  b.clientName ?? 'Patient',
+                                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                                ),
                                 StatusBadge(status: b.status),
                               ],
                             ),

@@ -6,6 +6,9 @@ import '../../../../core/widgets/neumorphic_button.dart';
 import '../../../../models/booking.dart';
 // Gene - Nov, 05, 2026: Imported CalendarSyncService for 1-Tap Google Calendar and .ics invite generation
 import '../../../../services/calendar_sync_service.dart';
+// Gene - Nov, 05, 2026: Added digital QR boarding pass modal and pass preview
+import 'package:qr_flutter/qr_flutter.dart';
+import '../../../client_bookings/presentation/widgets/booking_qr_pass_modal.dart';
 
 class BookingConfirmationStep extends StatelessWidget {
   final Booking booking;
@@ -54,7 +57,100 @@ class BookingConfirmationStep extends StatelessWidget {
               color: isDark ? NeumorphicColors.darkTextSecondary : NeumorphicColors.lightTextSecondary,
             ),
           ),
+          const SizedBox(height: 20),
+
+          /*
           const SizedBox(height: 24),
+
+          // Digital Ticket Card
+          NeumorphicContainer(
+          */
+
+          // Gene - Nov, 05, 2026: Added digital QR boarding pass modal and pass preview
+          NeumorphicContainer(
+            borderRadius: 18.0,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            onTap: () => BookingQrPassModal.show(context, booking),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Colors.black12),
+                  ),
+                  child: QrImageView(
+                    data: 'https://bookit.app/checkin/${booking.id}?token=${booking.qrToken ?? (booking.id.length >= 6 ? booking.id.substring(0, 6) : booking.id)}',
+                    version: QrVersions.auto,
+                    size: 58,
+                    padding: EdgeInsets.zero,
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.confirmation_number_outlined, size: 14, color: accent),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Digital Boarding Pass',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w800,
+                              color: isDark ? NeumorphicColors.darkTextPrimary : NeumorphicColors.lightTextPrimary,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        'Present upon arrival for quick check-in',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: isDark ? NeumorphicColors.darkTextSecondary : NeumorphicColors.lightTextSecondary,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Text(
+                            booking.qrToken ?? '#${booking.formattedId}',
+                            style: TextStyle(
+                              fontFamily: 'monospace',
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: accent,
+                            ),
+                          ),
+                          const Spacer(),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                'Tap to enlarge',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                  color: accent,
+                                ),
+                              ),
+                              const SizedBox(width: 2),
+                              Icon(Icons.open_in_full_rounded, size: 12, color: accent),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
 
           // Digital Ticket Card
           NeumorphicContainer(

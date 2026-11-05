@@ -7,6 +7,8 @@ import '../../../../core/widgets/neumorphic_button.dart';
 import '../../../../core/widgets/neumorphic_text_field.dart';
 import '../../../../models/business.dart';
 // import '../../../../services/business_service.dart';
+// Gene - Nov, 05, 2026: Added Storefront QR Standee Studio import
+import 'widgets/qr_standee_studio_card.dart';
 
 class BusinessSettingsTab extends ConsumerStatefulWidget {
   final Business business;
@@ -245,11 +247,25 @@ class _BusinessSettingsTabState extends ConsumerState<BusinessSettingsTab> {
           NeumorphicTextField(controller: _phoneController, labelText: 'Contact Phone'),
           const SizedBox(height: 28),
 
+          /*
+          // Gene - Nov, 03, 2026: Previous bottom action without Storefront QR Standee Studio
           NeumorphicButton(
             isPrimary: true,
             onPressed: _saveSettings,
             child: Text(_saved ? 'Settings Saved! ✓' : 'Save Template Settings'),
           ),
+          */
+
+          // Gene - Nov, 05, 2026: Added Storefront QR Standee Studio to business settings
+          NeumorphicButton(
+            isPrimary: true,
+            onPressed: _saveSettings,
+            child: Text(_saved ? 'Settings Saved! ✓' : 'Save Template Settings'),
+          ),
+          const SizedBox(height: 32),
+
+          // Gene - Nov, 05, 2026: Storefront QR & Marketing Standee Studio
+          QrStandeeStudioCard(business: widget.business),
         ],
       ),
     );

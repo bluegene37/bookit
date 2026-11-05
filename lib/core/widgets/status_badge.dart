@@ -109,6 +109,8 @@ class StatusBadge extends StatelessWidget {
       isInset: true,
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       border: Border.all(color: color.withValues(alpha: 0.3), width: 1),
+      /*
+      // Gene - Nov, 04, 2026: Fixed StatusBadge layout without flex constraint
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -120,6 +122,27 @@ class StatusBadge extends StatelessWidget {
               color: color,
               fontWeight: FontWeight.w600,
               fontSize: 12,
+            ),
+          ),
+        ],
+      ),
+      */
+      // Gene - Nov 06, 2026: Wrapped status badge label in Flexible with ellipsis to prevent RenderFlex overflow in compact/mobile containers
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: color),
+          const SizedBox(width: 5),
+          Flexible(
+            child: Text(
+              label,
+              style: TextStyle(
+                color: color,
+                fontWeight: FontWeight.w600,
+                fontSize: 12,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
         ],

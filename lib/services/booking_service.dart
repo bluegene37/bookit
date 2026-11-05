@@ -312,6 +312,48 @@ class BookingNotifier extends StateNotifier<List<Booking>> {
       return b;
     }).toList();
   }
+
+  // Gene - Nov, 05, 2026: Added reception QR scanner modal, check-in action sheet, and booking state transitions
+  Future<void> checkInBooking(String bookingId) async {
+    final now = DateTime.now();
+    final client = SupabaseService.client;
+    if (client != null) {
+      try {
+        await client.from('bookings').update({
+          'status': 'checked_in',
+          'checked_in_at': now.toIso8601String(),
+        }).eq('id', bookingId);
+      } catch (_) {}
+    }
+    state = [
+      for (final b in state)
+        if (b.id == bookingId)
+          b.copyWith(status: 'checked_in', checkedInAt: now)
+        else
+          b,
+    ];
+  }
+
+  // Gene - Nov, 05, 2026: Transition booking from waiting room to in_service
+  Future<void> startServiceBooking(String bookingId) async {
+    final now = DateTime.now();
+    final client = SupabaseService.client;
+    if (client != null) {
+      try {
+        await client.from('bookings').update({
+          'status': 'in_service',
+          'in_service_at': now.toIso8601String(),
+        }).eq('id', bookingId);
+      } catch (_) {}
+    }
+    state = [
+      for (final b in state)
+        if (b.id == bookingId)
+          b.copyWith(status: 'in_service', inServiceAt: now)
+        else
+          b,
+    ];
+  }
 }
 
 final bookingsProvider = StateNotifierProvider<BookingNotifier, List<Booking>>((ref) {

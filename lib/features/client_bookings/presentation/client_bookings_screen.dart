@@ -14,6 +14,8 @@ import 'widgets/review_dialog.dart';
 import '../../../core/widgets/demo_persona_switcher.dart';
 // Gene - Nov, 05, 2026: Imported CalendarSyncService for 1-Tap Google/Outlook and .ics export
 import '../../../services/calendar_sync_service.dart';
+// Gene - Nov, 05, 2026: Added digital QR boarding pass modal and pass preview
+import 'widgets/booking_qr_pass_modal.dart';
 
 class ClientBookingsScreen extends ConsumerStatefulWidget {
   const ClientBookingsScreen({super.key});
@@ -78,7 +80,11 @@ class _ClientBookingsScreenState extends ConsumerState<ClientBookingsScreen> {
     final accent = isDark ? NeumorphicColors.tealLight : NeumorphicColors.tealPrimary;
     final textPrimary = isDark ? NeumorphicColors.darkTextPrimary : NeumorphicColors.lightTextPrimary;
 
+    /*
     final upcoming = bookings.where((b) => b.status == 'confirmed' || b.status == 'pending').toList();
+    */
+    // Gene - Nov, 05, 2026: Included checked_in and in_service statuses in active upcoming bookings
+    final upcoming = bookings.where((b) => b.status == 'confirmed' || b.status == 'pending' || b.status == 'checked_in' || b.status == 'in_service').toList();
     final past = bookings.where((b) => b.status == 'completed' || b.status == 'cancelled' || b.status == 'rejected').toList();
     final displayedList = _showUpcoming ? upcoming : past;
 
@@ -188,6 +194,8 @@ class _ClientBookingsScreenState extends ConsumerState<ClientBookingsScreen> {
                                 ),
                                 const Divider(height: 20),
 
+                                /*
+                                // Original unconstrained staff name row
                                 if (booking.staffName != null) ...[
                                   Row(
                                     children: [
@@ -196,6 +204,25 @@ class _ClientBookingsScreenState extends ConsumerState<ClientBookingsScreen> {
                                       Text(
                                         booking.staffName!,
                                         style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 6),
+                                ],
+                                */
+                                // Gene - Nov 06, 2026: Wrapped staffName in Expanded with ellipsis to prevent overflow on mobile viewport
+                                if (booking.staffName != null) ...[
+                                  Row(
+                                    children: [
+                                      Icon(Icons.badge_outlined, size: 15, color: accent),
+                                      const SizedBox(width: 6),
+                                      Expanded(
+                                        child: Text(
+                                          booking.staffName!,
+                                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
                                       ),
                                     ],
                                   ),
@@ -237,12 +264,35 @@ class _ClientBookingsScreenState extends ConsumerState<ClientBookingsScreen> {
                                     ],
                                     */
 
+                                    /*
                                     // Gene - Nov, 05, 2026: Interactive Reschedule, Cancel, and Customer Review actions
                                     Wrap(
                                       spacing: 8,
                                       runSpacing: 6,
                                       crossAxisAlignment: WrapCrossAlignment.center,
                                       children: [
+                                        if (booking.status == 'confirmed' || booking.status == 'pending') ...[
+                                    */
+
+                                    // Gene - Nov, 05, 2026: Added digital QR boarding pass modal and pass preview button
+                                    Wrap(
+                                      spacing: 8,
+                                      runSpacing: 6,
+                                      crossAxisAlignment: WrapCrossAlignment.center,
+                                      children: [
+                                        if (booking.status == 'confirmed' || booking.status == 'pending' || booking.status == 'checked_in' || booking.status == 'in_service') ...[
+                                          OutlinedButton.icon(
+                                            icon: const Icon(Icons.qr_code_rounded, size: 14),
+                                            label: const Text('View QR Pass', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                                            style: OutlinedButton.styleFrom(
+                                              foregroundColor: accent,
+                                              side: BorderSide(color: accent, width: 1.2),
+                                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                            ),
+                                            onPressed: () => BookingQrPassModal.show(context, booking),
+                                          ),
+                                        ],
                                         if (booking.status == 'confirmed' || booking.status == 'pending') ...[
                                           // Gene - Nov, 05, 2026: 1-Tap Calendar Sync dropdown (Google Calendar & RFC 5545 .ics invite)
                                           PopupMenuButton<String>(

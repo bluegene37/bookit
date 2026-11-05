@@ -36,6 +36,8 @@ class NeumorphicChip extends StatelessWidget {
         height: subtitle != null ? height + 16 : height,
         borderRadius: 20.0,
         isInset: isSelected,
+        /*
+        // Original NeumorphicChip child layout
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         border: isSelected ? Border.all(color: accent.withValues(alpha: 0.7), width: 1.5) : null,
         child: Row(
@@ -70,6 +72,51 @@ class NeumorphicChip extends StatelessWidget {
                   ),
                 ],
               ],
+            ),
+          ],
+        ),
+        */
+        // Gene - Nov 06, 2026: Added Flexible container with text ellipsis to NeumorphicChip children to avoid RenderFlex overflow on mobile screens
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        border: isSelected ? Border.all(color: accent.withValues(alpha: 0.7), width: 1.5) : null,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            if (icon != null) ...[
+              Icon(icon, size: 16, color: textColor),
+              const SizedBox(width: 6),
+            ],
+            Flexible(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: textColor,
+                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                      fontSize: 13,
+                    ),
+                  ),
+                  if (subtitle != null) ...[
+                    Text(
+                      subtitle!,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: isDark ? NeumorphicColors.darkTextMuted : NeumorphicColors.lightTextMuted,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w400,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
             ),
           ],
         ),

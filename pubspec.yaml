@@ -43,6 +43,9 @@ dependencies:
   google_fonts: ^6.2.1
   # Gene - Nov, 04, 2026: Added direct dependency for url_launcher for Stripe checkout and onboarding redirects
   url_launcher: ^6.3.0
+  # Gene - Nov, 05, 2026: Added dependencies for QR code generation and mobile camera scanning
+  qr_flutter: ^4.1.0
+  mobile_scanner: ^5.2.3
 
 dev_dependencies:
   flutter_test:
