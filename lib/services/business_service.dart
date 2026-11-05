@@ -349,6 +349,27 @@ class BusinessService {
     return business;
   }
 
+  // Gene - Nov 06, 2026: Update staff member details, shift hours, and lunch breaks
+  Future<BusinessStaff> updateStaff(BusinessStaff staff) async {
+    final existingIdx = SupabaseService.mockStaff.indexWhere((st) => st.id == staff.id);
+    if (existingIdx != -1) {
+      SupabaseService.mockStaff[existingIdx] = staff;
+    } else {
+      SupabaseService.mockStaff.add(staff);
+    }
+
+    final client = SupabaseService.client;
+    if (client != null) {
+      try {
+        final data = await client.from('business_staff').update(staff.toJson()).eq('id', staff.id).select().single();
+        return BusinessStaff.fromJson(data);
+      } catch (e) {
+        debugPrint('[BusinessService] updateStaff remote sync note (using memory state): $e');
+      }
+    }
+    return staff;
+  }
+
   /*
   // Gene - Nov, 04, 2026: Synchronize customer reviews from Supabase reviews table
   Future<List<Review>> getReviews(String businessId) async {

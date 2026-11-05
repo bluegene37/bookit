@@ -25,6 +25,8 @@ import 'widgets/admin_onboarding_wizard.dart';
 import '../../../core/widgets/demo_persona_switcher.dart';
 // Gene - Nov, 05, 2026: Added reception QR scanner modal, check-in action sheet, and booking state transitions
 import 'widgets/reception_qr_scanner_modal.dart';
+// Gene - Nov 06, 2026: Added ClientsCrmTab import for patient directory and clinical visit dossier
+import 'tabs/clients_crm_tab.dart';
 
 class AdminShellScreen extends ConsumerStatefulWidget {
   const AdminShellScreen({super.key});
@@ -86,6 +88,7 @@ class AdminShellScreen extends ConsumerStatefulWidget {
   ];
   */
 
+  /*
   // Gene - Nov, 05, 2026: Added Live Reception Queue destination to rail and bottom navigation
   static const List<NavigationRailDestination> railDestinations = [
     NavigationRailDestination(
@@ -130,6 +133,78 @@ class AdminShellScreen extends ConsumerStatefulWidget {
     BottomNavigationBarItem(
       icon: Icon(Icons.calendar_month_rounded),
       label: 'Calendar',
+    ),
+    BottomNavigationBarItem(
+      icon: Icon(Icons.medical_services_rounded),
+      label: 'Services',
+    ),
+    BottomNavigationBarItem(
+      icon: Icon(Icons.people_alt_rounded),
+      label: 'Staff',
+    ),
+    BottomNavigationBarItem(
+      icon: Icon(Icons.receipt_long_rounded),
+      label: 'Payments',
+    ),
+    BottomNavigationBarItem(
+      icon: Icon(Icons.tune_rounded),
+      label: 'Settings',
+    ),
+  ];
+  */
+
+  // Gene - Nov 06, 2026: Added Patients/Clients CRM destination to rail and bottom navigation
+  static const List<NavigationRailDestination> railDestinations = [
+    NavigationRailDestination(
+      icon: Icon(Icons.dashboard_rounded),
+      label: Text('Overview'),
+    ),
+    NavigationRailDestination(
+      icon: Icon(Icons.people_alt_outlined),
+      label: Text('Queue'),
+    ),
+    NavigationRailDestination(
+      icon: Icon(Icons.calendar_month_rounded),
+      label: Text('Calendar'),
+    ),
+    NavigationRailDestination(
+      icon: Icon(Icons.assignment_ind_rounded),
+      label: Text('Clients'),
+    ),
+    NavigationRailDestination(
+      icon: Icon(Icons.medical_services_rounded),
+      label: Text('Services'),
+    ),
+    NavigationRailDestination(
+      icon: Icon(Icons.people_alt_rounded),
+      label: Text('Staff'),
+    ),
+    NavigationRailDestination(
+      icon: Icon(Icons.receipt_long_rounded),
+      label: Text('Payments'),
+    ),
+    NavigationRailDestination(
+      icon: Icon(Icons.tune_rounded),
+      label: Text('Settings'),
+    ),
+  ];
+
+  static const List<BottomNavigationBarItem> bottomNavItems = [
+    BottomNavigationBarItem(
+      icon: Icon(Icons.dashboard_rounded),
+      label: 'Overview',
+    ),
+    BottomNavigationBarItem(
+      icon: Icon(Icons.people_alt_outlined),
+      label: 'Queue',
+    ),
+    BottomNavigationBarItem(
+      icon: Icon(Icons.calendar_month_rounded),
+      label: 'Calendar',
+    ),
+    BottomNavigationBarItem(
+      icon: Icon(Icons.assignment_ind_rounded),
+      label: 'Clients',
     ),
     BottomNavigationBarItem(
       icon: Icon(Icons.medical_services_rounded),
@@ -263,6 +338,7 @@ class _AdminShellScreenState extends ConsumerState<AdminShellScreen> {
         );
         */
 
+        /*
         // Gene - Nov, 05, 2026: Added LiveReceptionQueueTab at index 1 in Admin tab stack
         final tabContent = Container(
           color: isDark ? NeumorphicColors.darkCanvas : NeumorphicColors.lightCanvas,
@@ -272,6 +348,25 @@ class _AdminShellScreenState extends ConsumerState<AdminShellScreen> {
               DashboardOverviewTab(business: selectedBusiness),
               LiveReceptionQueueTab(businessId: selectedBusiness.id, business: selectedBusiness),
               CalendarAgendaTab(business: selectedBusiness),
+              ServicesManagerTab(business: selectedBusiness),
+              StaffManagerTab(business: selectedBusiness),
+              PaymentsInvoicesTab(business: selectedBusiness),
+              BusinessSettingsTab(business: selectedBusiness),
+            ],
+          ),
+        );
+        */
+
+        // Gene - Nov 06, 2026: Added ClientsCrmTab at index 3 in Admin tab stack
+        final tabContent = Container(
+          color: isDark ? NeumorphicColors.darkCanvas : NeumorphicColors.lightCanvas,
+          child: IndexedStack(
+            index: _selectedTabIndex,
+            children: [
+              DashboardOverviewTab(business: selectedBusiness),
+              LiveReceptionQueueTab(businessId: selectedBusiness.id, business: selectedBusiness),
+              CalendarAgendaTab(business: selectedBusiness),
+              ClientsCrmTab(businessId: selectedBusiness.id),
               ServicesManagerTab(business: selectedBusiness),
               StaffManagerTab(business: selectedBusiness),
               PaymentsInvoicesTab(business: selectedBusiness),
@@ -637,8 +732,6 @@ class _AdminShellScreenState extends ConsumerState<AdminShellScreen> {
           ),
 
           const Spacer(),
-
-          // Template Model Badge
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
@@ -1255,12 +1348,17 @@ class _AdminShellScreenState extends ConsumerState<AdminShellScreen> {
                 ),
               ),
       ),
+      // Gene - Nov 06, 2026: Wrapped sidebar navigation list in Expanded SingleChildScrollView to eliminate vertical RenderFlex overflow on short viewports
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const SizedBox(height: 20),
-          _buildSidebarSectionHeader('CLINIC WORKSPACE', isDark),
-          const SizedBox(height: 6),
+          Expanded(
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 20),
+                  _buildSidebarSectionHeader('CLINIC WORKSPACE', isDark),
+                  const SizedBox(height: 6),
           /*
           // Gene - Nov, 04, 2026: Previous sidebar navigation items without Live Reception Queue
           _buildSidebarItem(0, 'Dashboard Overview', Icons.dashboard_rounded, accent, isDark, isDrawer: isDrawer),
@@ -1275,6 +1373,7 @@ class _AdminShellScreenState extends ConsumerState<AdminShellScreen> {
           _buildSidebarItem(5, 'Template & Settings', Icons.tune_rounded, accent, isDark, isDrawer: isDrawer),
           */
 
+          /*
           // Gene - Nov, 05, 2026: Added Live Reception Queue item to sidebar navigation
           _buildSidebarItem(0, 'Dashboard Overview', Icons.dashboard_rounded, accent, isDark, isDrawer: isDrawer),
           _buildSidebarItem(1, 'Live Reception Queue', Icons.people_alt_outlined, accent, isDark, isDrawer: isDrawer),
@@ -1287,6 +1386,21 @@ class _AdminShellScreenState extends ConsumerState<AdminShellScreen> {
           _buildSidebarSectionHeader('TEMPLATE & ENGINE', isDark),
           const SizedBox(height: 6),
           _buildSidebarItem(6, 'Template & Settings', Icons.tune_rounded, accent, isDark, isDrawer: isDrawer),
+          */
+
+          // Gene - Nov 06, 2026: Added Patients & Clients (CRM) item to sidebar navigation at index 3
+          _buildSidebarItem(0, 'Dashboard Overview', Icons.dashboard_rounded, accent, isDark, isDrawer: isDrawer),
+          _buildSidebarItem(1, 'Live Reception Queue', Icons.people_alt_outlined, accent, isDark, isDrawer: isDrawer),
+          _buildSidebarItem(2, 'Appointments Calendar', Icons.calendar_month_rounded, accent, isDark, isDrawer: isDrawer),
+          _buildSidebarItem(3, 'Patients & Clients (CRM)', Icons.assignment_ind_rounded, accent, isDark, isDrawer: isDrawer),
+          _buildSidebarItem(4, 'Services & Pricing', Icons.medical_services_rounded, accent, isDark, isDrawer: isDrawer),
+          _buildSidebarItem(5, 'Doctors & Specialists', Icons.people_alt_rounded, accent, isDark, isDrawer: isDrawer),
+          _buildSidebarItem(6, 'Payments & Invoices', Icons.receipt_long_rounded, accent, isDark, isDrawer: isDrawer),
+
+          const SizedBox(height: 24),
+          _buildSidebarSectionHeader('TEMPLATE & ENGINE', isDark),
+          const SizedBox(height: 6),
+          _buildSidebarItem(7, 'Template & Settings', Icons.tune_rounded, accent, isDark, isDrawer: isDrawer),
 
           // Gene - Nov, 03, 2026: Added Session & Quick Navigation to Sidebar
           const SizedBox(height: 20),
@@ -1417,7 +1531,10 @@ class _AdminShellScreenState extends ConsumerState<AdminShellScreen> {
             ),
           ),
 
-          const Spacer(),
+                ],
+              ),
+            ),
+          ),
 
           // Bottom System Status Card
           Container(

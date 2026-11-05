@@ -6,6 +6,8 @@ import '../../../../core/widgets/neumorphic_container.dart';
 import '../../../../core/widgets/neumorphic_button.dart';
 import '../../../../models/business.dart';
 import '../../../../services/business_service.dart';
+// Gene - Nov 06, 2026: Added StaffShiftEditorDialog import for shift matrix & break management
+import 'widgets/staff_shift_editor_dialog.dart';
 
 class StaffManagerTab extends ConsumerWidget {
   final Business business;
@@ -97,6 +99,8 @@ class StaffManagerTab extends ConsumerWidget {
                 return const Center(child: Text('No practitioners registered yet.'));
               }
 
+              /*
+              // Gene - Nov, 03, 2026: Original staff card without shift schedule display and editor
               return ListView.builder(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
@@ -149,6 +153,121 @@ class StaffManagerTab extends ConsumerWidget {
                             child: const Text(
                               'Active',
                               style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: NeumorphicColors.success),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              );
+              */
+
+              // Gene - Nov 06, 2026: Enhanced staff card with shift summary badge and StaffShiftEditorDialog launcher
+              return ListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: staff.length,
+                itemBuilder: (context, index) {
+                  final st = staff[index];
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: NeumorphicContainer(
+                      borderRadius: 18.0,
+                      padding: const EdgeInsets.all(16),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          CircleAvatar(
+                            radius: 26,
+                            backgroundImage: NetworkImage(
+                              st.avatarUrl ??
+                                  'https://images.unsplash.com/photo-1622253692010-333f2da6031d?w=200',
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Flexible(
+                                      child: Text(
+                                        st.name,
+                                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: NeumorphicColors.success.withValues(alpha: 0.15),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: const Text(
+                                        'Active',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w700,
+                                          color: NeumorphicColors.success,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                if (st.specialty != null) ...[
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    st.specialty!,
+                                    style: TextStyle(fontSize: 13, color: accent, fontWeight: FontWeight.w600),
+                                  ),
+                                ],
+                                const SizedBox(height: 6),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: isDark ? Colors.white.withValues(alpha: 0.06) : Colors.black.withValues(alpha: 0.04),
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(color: accent.withValues(alpha: 0.2)),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.schedule_rounded, size: 12, color: accent),
+                                      const SizedBox(width: 4),
+                                      Flexible(
+                                        child: Text(
+                                          st.shiftSummary,
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w600,
+                                            color: isDark ? Colors.white70 : Colors.black87,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          NeumorphicButton(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            onPressed: () => StaffShiftEditorDialog.show(context, st, business.id),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.edit_calendar_rounded, size: 14, color: accent),
+                                const SizedBox(width: 6),
+                                const Text(
+                                  'Edit Shifts',
+                                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                                ),
+                              ],
                             ),
                           ),
                         ],

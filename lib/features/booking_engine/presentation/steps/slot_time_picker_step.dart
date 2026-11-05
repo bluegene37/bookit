@@ -38,11 +38,23 @@ class SlotTimePickerStep extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final accent = isDark ? NeumorphicColors.tealLight : NeumorphicColors.tealPrimary;
 
+    /*
+    // Gene - Nov, 03, 2026: Original slot calculation without staff shift and lunch break awareness
     final availableSlots = SlotCalculator.calculateAvailableSlots(
       business: business,
       date: selectedDate,
       existingBookings: existingBookings,
       filterStaffId: selectedStaff?.id,
+    );
+    */
+
+    // Gene - Nov 06, 2026: Pass staffMember to enforce practitioner shift matrix & lunch breaks
+    final availableSlots = SlotCalculator.calculateAvailableSlots(
+      business: business,
+      date: selectedDate,
+      existingBookings: existingBookings,
+      filterStaffId: selectedStaff?.id,
+      staffMember: selectedStaff,
     );
 
     return SingleChildScrollView(
