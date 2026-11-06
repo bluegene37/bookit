@@ -39,6 +39,8 @@ class _ClientIntakeStepState extends State<ClientIntakeStep> {
   late TextEditingController _notesController;
   final Map<String, TextEditingController> _dynamicControllers = {};
   final Map<String, bool> _dynamicBooleans = {};
+  // Gene - Nov 06, 2026: Added dynamic select state map for dropdown options (e.g. Fitzpatrick scale)
+  final Map<String, String> _dynamicSelects = {};
 
   @override
   void initState() {
@@ -52,6 +54,9 @@ class _ClientIntakeStepState extends State<ClientIntakeStep> {
         final type = field['type'] as String? ?? 'text';
         if (type == 'boolean') {
           _dynamicBooleans[id] = false;
+        } else if (type == 'select') {
+          final options = (field['options'] as List?)?.map((e) => e.toString()).toList() ?? [];
+          _dynamicSelects[id] = options.isNotEmpty ? options.first : '';
         } else {
           _dynamicControllers[id] = TextEditingController();
         }
@@ -78,6 +83,11 @@ class _ClientIntakeStepState extends State<ClientIntakeStep> {
         if (type == 'boolean') {
           final val = _dynamicBooleans[id] == true ? 'Yes' : 'No';
           buffer.writeln('$label: $val');
+        } else if (type == 'select') {
+          final val = _dynamicSelects[id] ?? '';
+          if (val.isNotEmpty) {
+            buffer.writeln('$label: $val');
+          }
         } else {
           final val = _dynamicControllers[id]?.text.trim() ?? '';
           if (val.isNotEmpty) {
@@ -135,6 +145,8 @@ class _ClientIntakeStepState extends State<ClientIntakeStep> {
               final placeholder = field['placeholder'] as String? ?? '';
               final required = field['required'] as bool? ?? false;
 
+              /*
+              // Gene - Nov, 04, 2026: Previous dynamic field rendering supporting only basic boolean and text fields
               if (type == 'boolean') {
                 final isChecked = _dynamicBooleans[id] ?? false;
                 return Padding(
@@ -156,17 +168,138 @@ class _ClientIntakeStepState extends State<ClientIntakeStep> {
                         ),
                         Switch(
                           value: isChecked,
-                          /*
-                          // Gene - Nov, 04, 2026: Deprecated activeColor
-                          activeColor: accent,
-                          */
-                          // Gene - Nov, 04, 2026: Updated to activeTrackColor for modern Flutter Switch
                           activeTrackColor: accent,
                           onChanged: (val) {
                             setState(() => _dynamicBooleans[id] = val);
                             _syncNotes();
                           },
                         ),
+                      ],
+                    ),
+                  ),
+                );
+              }
+              */
+
+              // Gene - Nov 06, 2026: Added select dropdown, contraindication alert banner, and helper text rendering
+              if (type == 'select') {
+                final options = (field['options'] as List?)?.map((e) => e.toString()).toList() ?? [];
+                final selectedVal = _dynamicSelects[id] ?? (options.isNotEmpty ? options.first : '');
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 16),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.04),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          label + (required ? ' *' : ''),
+                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                        ),
+                        const SizedBox(height: 6),
+                        DropdownButtonHideUnderline(
+                          child: DropdownButton<String>(
+                            value: options.contains(selectedVal) ? selectedVal : (options.isNotEmpty ? options.first : null),
+                            isExpanded: true,
+                            dropdownColor: isDark ? NeumorphicColors.darkSurface : NeumorphicColors.lightSurface,
+                            items: options.map((opt) {
+                              return DropdownMenuItem<String>(
+                                value: opt,
+                                child: Text(opt, style: const TextStyle(fontSize: 13)),
+                              );
+                            }).toList(),
+                            onChanged: (val) {
+                              if (val != null) {
+                                setState(() => _dynamicSelects[id] = val);
+                                _syncNotes();
+                              }
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }
+
+              if (type == 'boolean') {
+                final isChecked = _dynamicBooleans[id] ?? false;
+                final helperText = field['helper_text'] as String?;
+                final blockingCondition = field['blocking_condition'] as bool? ?? false;
+                final blockingMessage = field['blocking_message'] as String?;
+
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 16),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.04),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: Text(
+                                label + (required ? ' *' : ''),
+                                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                              ),
+                            ),
+                            Switch(
+                              value: isChecked,
+                              activeTrackColor: accent,
+                              onChanged: (val) {
+                                setState(() => _dynamicBooleans[id] = val);
+                                _syncNotes();
+                              },
+                            ),
+                          ],
+                        ),
+                        if (helperText != null) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            helperText,
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: isDark ? Colors.white60 : Colors.black54,
+                            ),
+                          ),
+                        ],
+                        if (blockingCondition && isChecked && blockingMessage != null) ...[
+                          const SizedBox(height: 8),
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: NeumorphicColors.error.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: NeumorphicColors.error.withValues(alpha: 0.3)),
+                            ),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Icon(Icons.warning_amber_rounded, size: 16, color: NeumorphicColors.error),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    blockingMessage,
+                                    style: const TextStyle(
+                                      fontSize: 11,
+                                      color: NeumorphicColors.error,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ),

@@ -1150,6 +1150,8 @@ class _AdminOnboardingWizardState extends ConsumerState<AdminOnboardingWizard> {
   }
 
   Widget _buildSummaryRow(String label, String value) {
+    /*
+    // Gene - Nov, 04, 2026: Rigid Row causing RenderFlex overflow for multi-resource archetypes
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
@@ -1157,6 +1159,25 @@ class _AdminOnboardingWizardState extends ConsumerState<AdminOnboardingWizard> {
         children: [
           Text(label, style: const TextStyle(fontSize: 13, color: Colors.grey)),
           Text(value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
+        ],
+      ),
+    );
+    */
+    // Gene - Nov 06, 2026: Wrapped summary row value in Flexible to prevent RenderFlex overflow for multi-resource archetypes
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: const TextStyle(fontSize: 13, color: Colors.grey)),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Text(
+              value,
+              textAlign: TextAlign.end,
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+            ),
+          ),
         ],
       ),
     );

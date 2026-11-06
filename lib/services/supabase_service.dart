@@ -390,6 +390,8 @@ class SupabaseService {
       starterStaffRoles: const ['General Dentist', 'Lead Orthodontist', 'Dental Hygienist', 'Oral Surgeon'],
       displayOrder: 1,
     ),
+    /*
+    // Gene - Nov, 04, 2026: Original Medical Specialist & Dermatology template
     BusinessTemplate(
       // id: 't0000001-0000-0000-0000-000000000002',
       id: 'b0000001-0000-0000-0000-000000000002',
@@ -430,6 +432,111 @@ class SupabaseService {
         {'name': 'Clinical Skin Check & Biopsy Review', 'description': 'Full-body dermatoscope inspection of moles and lesions.', 'duration_minutes': 45, 'price': 220.00, 'payment_policy': 'deposit_required', 'deposit_amount': 50.00},
       ],
       starterStaffRoles: const ['Board Certified Dermatologist', 'Attending Physician', 'Clinical Nurse Specialist'],
+      displayOrder: 2,
+    ),
+    */
+
+    // Gene - Nov 06, 2026: Upgraded to comprehensive Aesthetic & Dermatology Clinic template (Injectables, Laser, Morpheus8, Fitzpatrick, Accutane screening)
+    BusinessTemplate(
+      id: 'b0000001-0000-0000-0000-000000000002',
+      categoryId: 'c0000001-0000-0000-0000-000000000001',
+      name: 'Aesthetic & Dermatology Clinic',
+      slug: 'aesthetic-dermatology',
+      description: 'Medical aesthetics, laser dermatology, Botox/fillers, Morpheus8 RF, and clinical peels.',
+      icon: 'health_and_safety_rounded',
+      bookingModel: BookingModelType.slotBased,
+      defaultSettings: const {
+        'slot_interval_minutes': 15,
+        'buffer_minutes': 15,
+        'numbing_buffer_minutes': 20,
+        'requires_approval': true,
+        'deposit_percent': 30.0,
+        'cancellation_window_hours': 48,
+        'advance_booking_days': 60,
+        'min_notice_hours': 6,
+        'working_hours': {
+          'monday': {'open': '09:00', 'close': '18:00', 'is_open': true},
+          'tuesday': {'open': '09:00', 'close': '18:00', 'is_open': true},
+          'wednesday': {'open': '09:00', 'close': '18:00', 'is_open': true},
+          'thursday': {'open': '09:00', 'close': '18:00', 'is_open': true},
+          'friday': {'open': '09:00', 'close': '18:00', 'is_open': true},
+          'saturday': {'open': '10:00', 'close': '16:00', 'is_open': true},
+          'sunday': {'open': '00:00', 'close': '00:00', 'is_open': false},
+        },
+      },
+      uiConfig: const {
+        'resource_type': 'person_and_room_and_device',
+        'resource_label': 'Medical Practitioner',
+        'service_label': 'Aesthetic Treatment',
+        'show_staff_selection': true,
+        'intake_fields': [
+          {
+            'id': 'fitzpatrick_scale',
+            'label': 'Fitzpatrick Skin Type',
+            'type': 'select',
+            'required': true,
+            'options': [
+              'Type I - Always burns, never tans',
+              'Type II - Usually burns, tans with difficulty',
+              'Type III - Sometimes mild burn, gradually tans',
+              'Type IV - Rarely burns, tans with ease',
+              'Type V - Very rarely burns, tans very easily',
+              'Type VI - Never burns, deeply pigmented'
+            ]
+          },
+          {
+            'id': 'accutane_history',
+            'label': 'Used oral Isotretinoin (Accutane) within the past 6 months?',
+            'type': 'boolean',
+            'required': true,
+            'blocking_condition': true,
+            'blocking_message': 'Laser, RF microneedling, and chemical peels cannot be administered within 6 months of Accutane therapy due to scarring risks.'
+          },
+          {
+            'id': 'blood_thinners_nsaids',
+            'label': 'Currently taking blood thinners, Aspirin, Ibuprofen, or high-dose Fish Oil?',
+            'type': 'boolean',
+            'required': true,
+            'helper_text': 'May increase injection-site bruising.'
+          },
+          {
+            'id': 'pregnancy_lactation',
+            'label': 'Currently pregnant, planning pregnancy, or breastfeeding?',
+            'type': 'boolean',
+            'required': true,
+            'blocking_condition': true,
+            'blocking_message': 'Cosmetic injectables and laser treatments are contraindicated during pregnancy and breastfeeding.'
+          },
+          {
+            'id': 'hsv_cold_sores',
+            'label': 'History of oral facial cold sores (HSV-1)?',
+            'type': 'boolean',
+            'required': false,
+            'helper_text': 'If having lip filler or perioral laser, prophylactic antiviral medication is recommended.'
+          },
+          {
+            'id': 'clinical_photo_consent',
+            'label': 'I consent to pre- and post-treatment photographic documentation for my clinical record',
+            'type': 'boolean',
+            'required': true
+          }
+        ],
+      },
+      starterServices: const [
+        {'name': 'Botox / Dysport Wrinkle Relaxer', 'description': 'Precision neuromodulator injections for forehead lines, crow\'s feet, and frown lines.', 'duration_minutes': 30, 'price': 320.00, 'payment_policy': 'deposit_required', 'deposit_amount': 96.00},
+        {'name': 'Juvederm / Restylane Dermal Filler', 'description': 'Hyaluronic acid contouring for midface volume, cheekbones, and jawline definition.', 'duration_minutes': 45, 'price': 650.00, 'payment_policy': 'deposit_required', 'deposit_amount': 195.00},
+        {'name': 'Lip Augmentation & Volumizing', 'description': 'Bespoke lip shaping, hydration enhancement, and natural vermilion border definition.', 'duration_minutes': 45, 'price': 550.00, 'payment_policy': 'deposit_required', 'deposit_amount': 165.00},
+        {'name': 'Candela GentleMax Pro Laser Hair (Full Legs)', 'description': 'Medical-grade dual-wavelength alexandrite/Nd:YAG permanent hair reduction.', 'duration_minutes': 45, 'price': 280.00, 'payment_policy': 'deposit_required', 'deposit_amount': 84.00},
+        {'name': 'PicoWay Pigmentation & Melasma Removal', 'description': 'Picosecond acoustic laser targeting sun damage, age spots, and stubborn melasma.', 'duration_minutes': 45, 'price': 400.00, 'payment_policy': 'deposit_required', 'deposit_amount': 120.00},
+        {'name': 'Morpheus8 RF Microneedling (Face & Neck)', 'description': 'Fractional radiofrequency subdermal adipose remodeling for skin tightening.', 'duration_minutes': 75, 'price': 950.00, 'payment_policy': 'deposit_required', 'deposit_amount': 285.00},
+        {'name': 'Deluxe Medical Hydrafacial with Booster', 'description': 'Vortex-fusion deep pore cleansing, exfoliation, painless extraction, and antioxidant infusion.', 'duration_minutes': 60, 'price': 275.00, 'payment_policy': 'pay_at_venue'},
+        {'name': 'TCA Jessner Medium Skin Rejuvenation Peel', 'description': 'Clinical chemical exfoliation targeting cellular turnover, hyperpigmentation, and texture.', 'duration_minutes': 45, 'price': 220.00, 'payment_policy': 'deposit_required', 'deposit_amount': 66.00},
+      ],
+      starterStaffRoles: const [
+        'Dr. Alexander Vance, MD (Board-Certified Dermatologist)',
+        'Sarah Jenkins, RN, CANS (Lead Aesthetic Nurse Injector)',
+        'Elena Rostova (Senior Certified Laser Specialist)',
+      ],
       displayOrder: 2,
     ),
     BusinessTemplate(
