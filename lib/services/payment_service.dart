@@ -145,7 +145,11 @@ class PaymentService {
         (s) => s?.id == booking!.serviceId,
         orElse: () => null,
       );
+      /*
       if (service != null && service.paymentPolicy == 'deposit') {
+      */
+      // Gene - Nov 06, 2026: Support both 'deposit' and 'deposit_required' policy keys
+      if (service != null && (service.paymentPolicy == 'deposit' || service.paymentPolicy == 'deposit_required')) {
         if (service.depositType == 'percentage') {
           paidAmount = double.parse((totalPrice * (service.depositAmount / 100)).toStringAsFixed(2));
         } else {

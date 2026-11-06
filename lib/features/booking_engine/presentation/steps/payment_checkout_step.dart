@@ -84,7 +84,13 @@ class PaymentCheckoutStep extends StatelessWidget {
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
+                        /*
                         service?.paymentPolicy == 'deposit'
+                            ? 'Deposit Policy'
+                            : (service?.paymentPolicy == 'pay_at_venue' ? 'Pay at Venue' : 'Full Payment'),
+                        */
+                        // Gene - Nov 06, 2026: Support both 'deposit' and 'deposit_required' policy keys for deposit badge
+                        (service?.paymentPolicy == 'deposit' || service?.paymentPolicy == 'deposit_required')
                             ? 'Deposit Policy'
                             : (service?.paymentPolicy == 'pay_at_venue' ? 'Pay at Venue' : 'Full Payment'),
                         style: TextStyle(

@@ -341,6 +341,15 @@ class SupabaseService {
       icon: 'meeting_room_rounded',
       displayOrder: 6,
     ),
+    // Gene - Nov 06, 2026: Added Automotive & Detailing category
+    const BusinessCategory(
+      id: 'c0000007-0000-0000-0000-000000000007',
+      name: 'Automotive & Detailing',
+      slug: 'automotive-detailing',
+      description: 'Car wash, ceramic coatings, interior steam sanitization, and mobile detailing fleets.',
+      icon: 'local_car_wash_rounded',
+      displayOrder: 7,
+    ),
   ];
 
   // Gene - Nov, 04, 2026: Seed mock business templates with default settings, ui_config, and starter services
@@ -1240,6 +1249,104 @@ class SupabaseService {
       ],
       starterStaffRoles: const ['Studio A (Cyclorama Cove)', 'Studio B (Podcast Suite)', 'Sound Stage C'],
       displayOrder: 9,
+    ),
+    // Gene - Nov 06, 2026: Added Auto Detailing & Car Wash template preset
+    BusinessTemplate(
+      id: 'b0000001-0000-0000-0000-000000000010',
+      categoryId: 'c0000007-0000-0000-0000-000000000007',
+      name: 'Auto Detailing & Car Wash',
+      slug: 'auto-detailing-car-wash',
+      description: 'Hand foam washes, interior steam extraction, 1-step machine polish, and multi-year ceramic paint coatings.',
+      icon: 'local_car_wash_rounded',
+      bookingModel: BookingModelType.slotBased,
+      defaultSettings: const {
+        'slot_interval_minutes': 30,
+        'buffer_minutes': 10,
+        'requires_approval': false,
+        'deposit_percent': 25.0,
+        'cancellation_window_hours': 24,
+        'advance_booking_days': 30,
+        'min_notice_hours': 2,
+        'working_hours': {
+          'monday': {'open': '08:00', 'close': '18:00', 'is_open': true},
+          'tuesday': {'open': '08:00', 'close': '18:00', 'is_open': true},
+          'wednesday': {'open': '08:00', 'close': '18:00', 'is_open': true},
+          'thursday': {'open': '08:00', 'close': '18:00', 'is_open': true},
+          'friday': {'open': '08:00', 'close': '18:00', 'is_open': true},
+          'saturday': {'open': '08:00', 'close': '18:00', 'is_open': true},
+          'sunday': {'open': '09:00', 'close': '16:00', 'is_open': true},
+        },
+      },
+      uiConfig: const {
+        'resource_type': 'bay_and_technician',
+        'resource_label': 'Detailing Bay & Specialist',
+        'service_label': 'Auto Detailing Package',
+        'show_staff_selection': true,
+        'intake_fields': [
+          {
+            'id': 'vehicle_type',
+            'label': 'Vehicle Size & Class',
+            'type': 'select',
+            'required': true,
+            'options': [
+              'Sedan / Hatchback',
+              'Mid-Size SUV / Crossover',
+              'Full-Size SUV / Pickup Truck',
+              'Minivan / Commercial Van'
+            ],
+          },
+          {
+            'id': 'vehicle_make_model_year',
+            'label': 'Vehicle Year, Make & Model',
+            'type': 'text',
+            'required': true,
+            'placeholder': 'e.g. 2024 Porsche Macan, Chalk White',
+          },
+          {
+            'id': 'license_plate',
+            'label': 'License Plate # & State',
+            'type': 'text',
+            'required': true,
+            'placeholder': 'e.g. 7XYZ123 (CA)',
+          },
+          {
+            'id': 'heavy_soiling_pet_hair',
+            'label': 'Excessive pet hair, interior mold, or heavy caked mud?',
+            'type': 'boolean',
+            'required': true,
+            'helper_text': 'Additional manual steam extraction surcharge (\$30–\$50) may apply at intake inspection.',
+          },
+          {
+            'id': 'ceramic_matte_paint',
+            'label': 'Vehicle has existing ceramic coating, matte paint, or protective vinyl wrap?',
+            'type': 'boolean',
+            'required': false,
+            'helper_text': 'Ensures pH-neutral foam wash and contact-free drying towels.',
+          },
+          {
+            'id': 'special_requests',
+            'label': 'Interior focus areas or special requests',
+            'type': 'textarea',
+            'required': false,
+            'placeholder': 'Cup holder stains, engine bay wipe, child car seat sanitized...',
+          },
+        ],
+      },
+      starterServices: const [
+        {'name': 'Signature Hand Wash & Wheel Decon', 'description': 'Touchless pre-foam, 2-bucket hand wash, iron wheel decontamination, and tire dressing.', 'duration_minutes': 45, 'price': 55.00, 'payment_policy': 'pay_at_venue'},
+        {'name': 'Executive Interior Steam & Leather Care', 'description': 'Deep dry steam extraction, vents sanitized, leather conditioned, and carpet shampoo.', 'duration_minutes': 90, 'price': 165.00, 'payment_policy': 'deposit_required', 'deposit_amount': 40.00},
+        {'name': 'Complete Diamond Detail (In & Out)', 'description': 'Full exterior clay bar decontamination, 1-month sealant, and intensive interior steam sanitize.', 'duration_minutes': 150, 'price': 280.00, 'payment_policy': 'deposit_required', 'deposit_amount': 70.00},
+        {'name': '1-Step Paint Correction & Machine Polish', 'description': 'Swirl mark and light scratch elimination restoring gloss and optical depth.', 'duration_minutes': 180, 'price': 380.00, 'payment_policy': 'deposit_required', 'deposit_amount': 95.00},
+        {'name': '3-Year Pro Ceramic Coating Package', 'description': 'Full paint decontamination, multi-stage prep, and 9H SiO2 ceramic liquid glass application.', 'duration_minutes': 240, 'price': 850.00, 'payment_policy': 'deposit_required', 'deposit_amount': 200.00},
+        {'name': 'Engine Bay Steam Clean & Dressing', 'description': 'Safe low-moisture steam degreasing of plastics and hoses with satin UV protectant.', 'duration_minutes': 45, 'price': 75.00, 'payment_policy': 'pay_at_venue'},
+        {'name': 'Headlight Restoration & UV Sealant', 'description': 'Wet-sanding yellowed foggy polycarbonate headlights with clear ceramic cure.', 'duration_minutes': 45, 'price': 90.00, 'payment_policy': 'pay_at_venue'},
+      ],
+      starterStaffRoles: const [
+        'Bay 1: Master Certified Detailer & Paint Corrector',
+        'Bay 2: Senior Interior Steam Specialist',
+        'Bay 3: Ceramic Coating Technician',
+      ],
+      displayOrder: 10,
     ),
   ];
 }

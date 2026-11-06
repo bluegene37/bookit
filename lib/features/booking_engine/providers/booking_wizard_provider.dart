@@ -58,7 +58,12 @@ class BookingWizardState {
     return balance > 0 ? balance : 0.0;
   }
 
+  /*
   bool get isDepositOnly => selectedService?.paymentPolicy == 'deposit';
+  */
+  // Gene - Nov 06, 2026: Support both 'deposit' and 'deposit_required' policy keys for deposit calculations
+  bool get isDepositOnly =>
+      selectedService?.paymentPolicy == 'deposit' || selectedService?.paymentPolicy == 'deposit_required';
   bool get isPayAtVenue => selectedService?.paymentPolicy == 'pay_at_venue';
 
   /*
