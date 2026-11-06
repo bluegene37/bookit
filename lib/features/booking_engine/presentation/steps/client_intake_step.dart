@@ -41,6 +41,9 @@ class _ClientIntakeStepState extends State<ClientIntakeStep> {
   final Map<String, bool> _dynamicBooleans = {};
   // Gene - Nov 06, 2026: Added dynamic select state map for dropdown options (e.g. Fitzpatrick scale)
   final Map<String, String> _dynamicSelects = {};
+  // Gene - Nov 06, 2026: Added multi-select chips and signature/waiver state maps for specialized intake
+  final Map<String, Set<String>> _dynamicMultiSelects = {};
+  final Map<String, bool> _dynamicSignatures = {};
 
   @override
   void initState() {
@@ -57,6 +60,10 @@ class _ClientIntakeStepState extends State<ClientIntakeStep> {
         } else if (type == 'select') {
           final options = (field['options'] as List?)?.map((e) => e.toString()).toList() ?? [];
           _dynamicSelects[id] = options.isNotEmpty ? options.first : '';
+        } else if (type == 'multiselect') {
+          _dynamicMultiSelects[id] = <String>{};
+        } else if (type == 'signature') {
+          _dynamicSignatures[id] = false;
         } else {
           _dynamicControllers[id] = TextEditingController();
         }
@@ -88,6 +95,15 @@ class _ClientIntakeStepState extends State<ClientIntakeStep> {
           if (val.isNotEmpty) {
             buffer.writeln('$label: $val');
           }
+        // Gene - Nov 06, 2026: Format multi-select choices and signed waivers into appointment clinical notes
+        } else if (type == 'multiselect') {
+          final set = _dynamicMultiSelects[id] ?? <String>{};
+          if (set.isNotEmpty) {
+            buffer.writeln('$label: ${set.join(', ')}');
+          }
+        } else if (type == 'signature') {
+          final signed = _dynamicSignatures[id] == true ? 'Acknowledged & Signed' : 'Pending Signature';
+          buffer.writeln('$label: $signed');
         } else {
           final val = _dynamicControllers[id]?.text.trim() ?? '';
           if (val.isNotEmpty) {
@@ -300,6 +316,155 @@ class _ClientIntakeStepState extends State<ClientIntakeStep> {
                             ),
                           ),
                         ],
+                      ],
+                    ),
+                  ),
+                );
+              }
+
+              // Gene - Nov 06, 2026: Added multiselect chip group rendering (e.g. massage focus areas, chemical history, fitness limitations)
+              if (type == 'multiselect') {
+                final options = (field['options'] as List?)?.map((e) => e.toString()).toList() ?? [];
+                final selectedSet = _dynamicMultiSelects[id] ?? <String>{};
+                final helperText = field['helper_text'] as String?;
+
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 16),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.04),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          label + (required ? ' *' : ''),
+                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                        ),
+                        if (helperText != null) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            helperText,
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: isDark ? Colors.white60 : Colors.black54,
+                            ),
+                          ),
+                        ],
+                        const SizedBox(height: 10),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: options.map((opt) {
+                            final isSelected = selectedSet.contains(opt);
+                            return FilterChip(
+                              label: Text(
+                                opt,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: isSelected ? Colors.white : (isDark ? Colors.white70 : Colors.black87),
+                                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                                ),
+                              ),
+                              selected: isSelected,
+                              selectedColor: accent,
+                              checkmarkColor: Colors.white,
+                              backgroundColor: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.05),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              onSelected: (selected) {
+                                setState(() {
+                                  if (selected) {
+                                    selectedSet.add(opt);
+                                  } else {
+                                    selectedSet.remove(opt);
+                                  }
+                                  _dynamicMultiSelects[id] = selectedSet;
+                                });
+                                _syncNotes();
+                              },
+                            );
+                          }).toList(),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }
+
+              // Gene - Nov 06, 2026: Added signature & waiver disclaimer card with acknowledgment toggle
+              if (type == 'signature') {
+                final isSigned = _dynamicSignatures[id] ?? false;
+                final disclaimer = field['disclaimer'] as String? ?? '';
+
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 16),
+                  child: Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.04),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: isSigned
+                            ? NeumorphicColors.tealPrimary.withValues(alpha: 0.5)
+                            : (isDark ? Colors.white12 : Colors.black12),
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          label + (required ? ' *' : ''),
+                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+                        ),
+                        if (disclaimer.isNotEmpty) ...[
+                          const SizedBox(height: 8),
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: isDark ? Colors.black.withValues(alpha: 0.25) : Colors.white.withValues(alpha: 0.7),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              disclaimer,
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontStyle: FontStyle.italic,
+                                color: isDark ? Colors.white70 : Colors.black87,
+                              ),
+                            ),
+                          ),
+                        ],
+                        const SizedBox(height: 10),
+                        Row(
+                          children: [
+                            Checkbox(
+                              value: isSigned,
+                              activeColor: accent,
+                              onChanged: (val) {
+                                setState(() => _dynamicSignatures[id] = val ?? false);
+                                _syncNotes();
+                              },
+                            ),
+                            Expanded(
+                              child: GestureDetector(
+                                onTap: () {
+                                  setState(() => _dynamicSignatures[id] = !isSigned);
+                                  _syncNotes();
+                                },
+                                child: Text(
+                                  'I have read, understood, and agree to the terms above',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: isSigned ? FontWeight.w600 : FontWeight.normal,
+                                    color: isDark ? Colors.white : Colors.black87,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ],
                     ),
                   ),

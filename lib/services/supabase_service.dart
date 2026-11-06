@@ -346,6 +346,8 @@ class SupabaseService {
   // Gene - Nov, 04, 2026: Seed mock business templates with default settings, ui_config, and starter services
   // Gene - Nov, 04, 2026: Updated template mock IDs from t0000001 to b0000001 for valid UUID compliance
   static final List<BusinessTemplate> mockTemplates = [
+    /*
+    // Gene - Nov, 04, 2026: Original basic Dental Care Clinic template
     BusinessTemplate(
       // id: 't0000001-0000-0000-0000-000000000001',
       id: 'b0000001-0000-0000-0000-000000000001',
@@ -388,6 +390,113 @@ class SupabaseService {
         {'name': 'Orthodontic & Invisalign Consultation', 'description': '3D intraoral digital scan and smile simulation.', 'duration_minutes': 30, 'price': 50.00, 'payment_policy': 'full_upfront'},
       ],
       starterStaffRoles: const ['General Dentist', 'Lead Orthodontist', 'Dental Hygienist', 'Oral Surgeon'],
+      displayOrder: 1,
+    ),
+    */
+
+    // Gene - Nov 06, 2026: Upgraded Dental Care Clinic to full Dental Practice template (CEREC crowns, Zoom! whitening, Invisalign, antibiotic pre-med, anxiety screening)
+    BusinessTemplate(
+      id: 'b0000001-0000-0000-0000-000000000001',
+      categoryId: 'c0000001-0000-0000-0000-000000000001',
+      name: 'Dental Care Clinic',
+      slug: 'dental-clinic',
+      description: 'Comprehensive family dentistry, CEREC single-visit crowns, Zoom! whitening, and 3D digital orthodontic scans.',
+      icon: 'medical_services_rounded',
+      bookingModel: BookingModelType.slotBased,
+      defaultSettings: const {
+        'slot_interval_minutes': 15,
+        'buffer_minutes': 10,
+        'requires_approval': false,
+        'deposit_percent': 0.0,
+        'cancellation_window_hours': 24,
+        'advance_booking_days': 180,
+        'min_notice_hours': 4,
+        'working_hours': {
+          'monday': {'open': '08:00', 'close': '17:00', 'is_open': true},
+          'tuesday': {'open': '08:00', 'close': '17:00', 'is_open': true},
+          'wednesday': {'open': '08:00', 'close': '17:00', 'is_open': true},
+          'thursday': {'open': '08:00', 'close': '17:00', 'is_open': true},
+          'friday': {'open': '08:00', 'close': '16:00', 'is_open': true},
+          'saturday': {'open': '09:00', 'close': '14:00', 'is_open': true},
+          'sunday': {'open': '00:00', 'close': '00:00', 'is_open': false},
+        },
+      },
+      uiConfig: const {
+        'resource_type': 'dentist_hygienist_and_operatory',
+        'resource_label': 'Dentist / Dental Hygienist',
+        'service_label': 'Dental Treatment',
+        'show_staff_selection': true,
+        'intake_fields': [
+          {
+            'id': 'dental_insurance_info',
+            'label': 'Do you have dental insurance coverage?',
+            'type': 'boolean',
+            'required': true,
+          },
+          {
+            'id': 'insurance_details',
+            'label': 'Insurance Provider Name, Policy ID & Group Number',
+            'type': 'text',
+            'required': false,
+            'placeholder': 'e.g. Delta Dental Premier, Member ID: W1234567, Group: 98765',
+          },
+          {
+            'id': 'medical_premed_conditions',
+            'label': 'Artificial heart valves, joint replacements, or require antibiotic pre-medication?',
+            'type': 'select',
+            'required': true,
+            'options': [
+              'No - None',
+              'Yes - Artificial Heart Valve (Requires Amoxicillin / Clindamycin Pre-med)',
+              'Yes - Total Joint Replacement within past 2 years',
+              'Yes - History of Infective Endocarditis'
+            ],
+          },
+          {
+            'id': 'blood_thinners_bisphosphonates',
+            'label': 'Taking blood thinners (Warfarin/Eliquis) or bone density meds (Fosamax)?',
+            'type': 'boolean',
+            'required': true,
+            'helper_text': 'Crucial for oral surgery, extractions, and deep periodontal scaling safety.',
+          },
+          {
+            'id': 'dental_anxiety_score',
+            'label': 'How would you rate your level of dental anxiety?',
+            'type': 'select',
+            'required': true,
+            'options': [
+              '1 - Completely relaxed and comfortable',
+              '2 - Mild nervousness',
+              '3 - Moderate anxiety (prefer detailed explanations before each step)',
+              '4 - High anxiety (request numbing gel / stress ball)',
+              '5 - Severe phobia (interested in Nitrous Oxide laughing gas sedation)'
+            ],
+          },
+          {
+            'id': 'chief_dental_complaint',
+            'label': 'Primary reason for your visit today',
+            'type': 'textarea',
+            'required': true,
+            'placeholder': 'Routine 6-month checkup, cold sensitivity, throbbing pain in upper molar, smile cosmetic consult...',
+          },
+        ],
+      },
+      starterServices: const [
+        {'name': 'Comprehensive Exam & Digital 3D X-Rays', 'description': 'Full intraoral exam, digital bitewings, gum charting, and oral cancer check.', 'duration_minutes': 60, 'price': 180.00, 'payment_policy': 'pay_at_venue'},
+        {'name': 'Adult Dental Prophylaxis (Cleaning & Polish)', 'description': 'Ultrasonic calculus removal, stain elimination, and fluoride enamel polish.', 'duration_minutes': 45, 'price': 110.00, 'payment_policy': 'pay_at_venue'},
+        {'name': 'Periodontal Deep Scaling & Root Planing', 'description': 'Deep subgingival cleaning per quadrant to halt periodontal bone loss.', 'duration_minutes': 60, 'price': 275.00, 'payment_policy': 'pay_at_venue'},
+        {'name': 'Pediatric Exam, Cleaning & Cavity Sealants', 'description': 'Gentle youth prophylaxis, fluoride treatment, and preventative molar sealants.', 'duration_minutes': 45, 'price': 125.00, 'payment_policy': 'pay_at_venue'},
+        {'name': 'Tooth-Colored Composite Resin Filling', 'description': 'Seamless aesthetic restoration matching natural enamel shade.', 'duration_minutes': 45, 'price': 190.00, 'payment_policy': 'pay_at_venue'},
+        {'name': 'Same-Day CEREC Digital Porcelain Crown', 'description': 'Precision 3D CAD/CAM milled ceramic crown crafted in a single appointment.', 'duration_minutes': 90, 'price': 1250.00, 'payment_policy': 'deposit_required', 'deposit_amount': 200.00},
+        {'name': 'In-Office Philips Zoom! Teeth Whitening', 'description': 'Professional light-activated whitening lifting enamel up to 8 shades in 75 min.', 'duration_minutes': 75, 'price': 450.00, 'payment_policy': 'deposit_required', 'deposit_amount': 100.00},
+        {'name': 'Invisalign Clear Aligner iTero 3D Scan & Consult', 'description': 'High-definition digital impression with immediate real-time smile simulation.', 'duration_minutes': 30, 'price': 0.00, 'payment_policy': 'free_consultation'},
+        {'name': 'Custom Nightguard for Bruxism & Jaw Grinding', 'description': 'Custom lab-fabricated protective appliance preventing TMJ wear and dental erosion.', 'duration_minutes': 30, 'price': 420.00, 'payment_policy': 'deposit_required', 'deposit_amount': 100.00},
+      ],
+      starterStaffRoles: const [
+        'Dr. Arthur Brooks, DDS (Lead Restorative & Implant Dentist)',
+        'Dr. Emily Chen, DMD (Orthodontics & Cosmetic Specialist)',
+        'Rachel Adams, RDH (Senior Dental Hygienist)',
+      ],
       displayOrder: 1,
     ),
     /*
@@ -616,6 +725,8 @@ class SupabaseService {
       starterStaffRoles: const ['Licensed Clinical Psychologist (PsyD)', 'Licensed Marriage & Family Therapist (LMFT)', 'Clinical Social Worker (LCSW)'],
       displayOrder: 4,
     ),
+    /*
+    // Gene - Nov, 04, 2026: Original basic salon, spa, and fitness templates
     BusinessTemplate(
       // id: 't0000001-0000-0000-0000-000000000005',
       id: 'b0000001-0000-0000-0000-000000000005',
@@ -735,6 +846,317 @@ class SupabaseService {
         {'name': 'Athletic Movement & Speed Assessment', 'description': 'Kinematic movement screen identifying kinetic imbalances and power output.', 'duration_minutes': 60, 'price': 120.00, 'payment_policy': 'full_upfront'},
       ],
       starterStaffRoles: const ['Certified Strength & Conditioning Specialist (CSCS)', 'Performance Coach', 'Kinesiologist'],
+      displayOrder: 7,
+    ),
+    */
+
+    // Gene - Nov 06, 2026: Upgraded Hair & Beauty Salon template (Lived-in balayage, keratin, lashes, multiselect chemical history, PPD allergy patch test)
+    BusinessTemplate(
+      id: 'b0000001-0000-0000-0000-000000000005',
+      categoryId: 'c0000003-0000-0000-0000-000000000003',
+      name: 'Hair & Beauty Salon',
+      slug: 'hair-beauty-salon',
+      description: 'Lived-in balayage, precision cuts, Brazilian keratin smoothing, Russian volume lashes, and brow sculpt.',
+      icon: 'content_cut_rounded',
+      bookingModel: BookingModelType.slotBased,
+      defaultSettings: const {
+        'slot_interval_minutes': 15,
+        'buffer_minutes': 10,
+        'requires_approval': false,
+        'deposit_percent': 25.0,
+        'cancellation_window_hours': 48,
+        'advance_booking_days': 60,
+        'min_notice_hours': 4,
+        'working_hours': {
+          'monday': {'open': '00:00', 'close': '00:00', 'is_open': false},
+          'tuesday': {'open': '09:00', 'close': '19:00', 'is_open': true},
+          'wednesday': {'open': '09:00', 'close': '19:00', 'is_open': true},
+          'thursday': {'open': '09:00', 'close': '20:00', 'is_open': true},
+          'friday': {'open': '09:00', 'close': '20:00', 'is_open': true},
+          'saturday': {'open': '09:00', 'close': '18:00', 'is_open': true},
+          'sunday': {'open': '10:00', 'close': '17:00', 'is_open': true},
+        },
+      },
+      uiConfig: const {
+        'resource_type': 'stylist_chair_and_wash_basin',
+        'resource_label': 'Master Stylist / Colorist',
+        'service_label': 'Salon Service',
+        'show_staff_selection': true,
+        'intake_fields': [
+          {
+            'id': 'hair_chemical_history',
+            'label': 'Chemical & Color History (Past 24 Months)',
+            'type': 'multiselect',
+            'required': true,
+            'options': [
+              'Virgin Hair (No color or chemicals ever)',
+              'Professional Salon Bleach / Highlights',
+              'At-Home Drugstore Box Dye / Black Color',
+              'Henna or Vegetable Dyes',
+              'Keratin Treatment / Brazilian Blowout',
+              'Chemical Perm or Relaxer'
+            ],
+          },
+          {
+            'id': 'current_hair_length',
+            'label': 'Current Hair Length',
+            'type': 'select',
+            'required': true,
+            'options': [
+              'Pixie / Above Ears',
+              'Bob / Chin Length',
+              'Shoulder Length',
+              'Mid-Back Length',
+              'Waist Length or Longer (Requires extra time)'
+            ],
+          },
+          {
+            'id': 'ppd_allergy',
+            'label': 'Have you ever experienced an allergic reaction or burning from hair dye (PPD)?',
+            'type': 'boolean',
+            'required': true,
+            'helper_text': 'If yes, a 48-hour strand patch test is required prior to your chemical appointment.',
+          },
+          {
+            'id': 'lash_contact_lenses',
+            'label': 'Wearing contact lenses during lash appointments?',
+            'type': 'boolean',
+            'required': false,
+            'helper_text': 'Please bring lens case or wear glasses to avoid eye irritation.',
+          },
+        ],
+      },
+      starterServices: const [
+        {'name': 'Lived-In Signature Balayage & Glaze', 'description': 'Hand-painted multidimensional blonde with custom gloss tone and signature blowout.', 'duration_minutes': 180, 'price': 320.00, 'payment_policy': 'deposit_required', 'deposit_amount': 75.00},
+        {'name': 'Full Platinum Foil Bleach Retouch', 'description': 'Precision micro-slice on-scalp lightening with bond-building toner.', 'duration_minutes': 150, 'price': 260.00, 'payment_policy': 'deposit_required', 'deposit_amount': 75.00},
+        {'name': 'All-Over Single Process & Gloss', 'description': 'Lustrous root-to-end rich color enrichment, shampoo basin wash, and sleek style.', 'duration_minutes': 105, 'price': 165.00, 'payment_policy': 'deposit_required', 'deposit_amount': 50.00},
+        {'name': 'Master Stylist Precision Cut & Blowout', 'description': 'Bespoke structural shear architecture, wash, and voluminous round-brush finish.', 'duration_minutes': 60, 'price': 110.00, 'payment_policy': 'pay_at_venue'},
+        {'name': 'Signature Bouncy Blowout & Iron Wave', 'description': 'Clarifying scalp wash, tension blowout, and long-lasting thermal barrel waves.', 'duration_minutes': 45, 'price': 65.00, 'payment_policy': 'pay_at_venue'},
+        {'name': 'Brazilian Keratin Smoothing Complex', 'description': 'Formaldehyde-free intensive amino smoothing eliminating 95% of frizz for 12 weeks.', 'duration_minutes': 150, 'price': 350.00, 'payment_policy': 'deposit_required', 'deposit_amount': 100.00},
+        {'name': 'Full Set Russian Volume Lash Extensions', 'description': 'Handmade lightweight 3D-6D volume fans delivering full, dark, fluffy lash drama.', 'duration_minutes': 120, 'price': 220.00, 'payment_policy': 'deposit_required', 'deposit_amount': 50.00},
+        {'name': 'Brow Lamination, Sculpt & Hybrid Dye', 'description': 'Fluffy brushed-up brow setting with custom pigmented dye and thread clean-up.', 'duration_minutes': 45, 'price': 85.00, 'payment_policy': 'pay_at_venue'},
+      ],
+      starterStaffRoles: const [
+        'Julian Voss (Creative Director & Master Balayage Specialist)',
+        'Mia Sterling (Senior Colorist & Keratin Expert)',
+        'Kira Patel (Certified Lash Master & Brow Sculptor)',
+      ],
+      displayOrder: 5,
+    ),
+
+    // Gene - Nov 06, 2026: Upgraded Day Spa & Massage Center template (Couples duet suites, hot stones, pressure map, multiselect focus areas, soundscapes)
+    BusinessTemplate(
+      id: 'b0000001-0000-0000-0000-000000000006',
+      categoryId: 'c0000003-0000-0000-0000-000000000003',
+      name: 'Day Spa & Massage Center',
+      slug: 'day-spa-massage',
+      description: 'Therapeutic massage, basalt hot stones, infrared thermal suites, and couples romance duet rituals.',
+      icon: 'spa_rounded',
+      bookingModel: BookingModelType.slotBased,
+      defaultSettings: const {
+        'slot_interval_minutes': 15,
+        'buffer_minutes': 15,
+        'early_arrival_minutes': 15,
+        'requires_approval': false,
+        'deposit_percent': 25.0,
+        'cancellation_window_hours': 24,
+        'advance_booking_days': 90,
+        'min_notice_hours': 2,
+        'working_hours': {
+          'monday': {'open': '10:00', 'close': '20:00', 'is_open': true},
+          'tuesday': {'open': '10:00', 'close': '20:00', 'is_open': true},
+          'wednesday': {'open': '10:00', 'close': '20:00', 'is_open': true},
+          'thursday': {'open': '10:00', 'close': '20:00', 'is_open': true},
+          'friday': {'open': '10:00', 'close': '21:00', 'is_open': true},
+          'saturday': {'open': '09:00', 'close': '20:00', 'is_open': true},
+          'sunday': {'open': '10:00', 'close': '18:00', 'is_open': true},
+        },
+      },
+      uiConfig: const {
+        'resource_type': 'massage_therapist_and_treatment_room',
+        'resource_label': 'Licensed Massage Therapist (LMT)',
+        'service_label': 'Spa Ritual & Bodywork',
+        'show_staff_selection': true,
+        'intake_fields': [
+          {
+            'id': 'desired_pressure',
+            'label': 'Preferred Massage Pressure',
+            'type': 'select',
+            'required': true,
+            'options': [
+              'Light - Gentle flowing relaxation',
+              'Medium - Balanced stress relief and tension release',
+              'Firm - Deep muscle focus without sharp pain',
+              'Deep Tissue - Intense trigger point focus and myofascial release'
+            ],
+          },
+          {
+            'id': 'focus_and_avoid_areas',
+            'label': 'Primary Focus Areas (Select all that apply)',
+            'type': 'multiselect',
+            'required': true,
+            'options': [
+              'Neck & Cervical Spine',
+              'Upper Shoulders & Trapezius',
+              'Lower Lumbar Back',
+              'Glutes & Sciatic Nerve',
+              'Legs & Hamstrings',
+              'Feet & Reflexology',
+              'Scalp & Temples',
+              'Avoid Glutes',
+              'Avoid Feet'
+            ],
+          },
+          {
+            'id': 'oil_scent_allergies',
+            'label': 'Tree nut (almond carrier oil), iodine, or essential oil allergies?',
+            'type': 'text',
+            'required': false,
+            'placeholder': 'None or specify allergies (e.g. Sweet Almond, Nutmeg, Lavender)',
+          },
+          {
+            'id': 'pregnancy_status',
+            'label': 'Are you currently pregnant?',
+            'type': 'select',
+            'required': true,
+            'options': [
+              'No',
+              'Yes - 1st Trimester (Under 12 weeks: contraindicated)',
+              'Yes - 2nd Trimester (13-27 weeks)',
+              'Yes - 3rd Trimester (28+ weeks)'
+            ],
+          },
+          {
+            'id': 'soundscape_ambience',
+            'label': 'Treatment Room Soundscape Preference',
+            'type': 'select',
+            'required': false,
+            'options': [
+              'Gentle Ocean Waves & Rainfall',
+              'Tibetan Singing Bowls & Meditation',
+              'Soft Acoustic Piano & Cello',
+              'Complete Silence'
+            ],
+          },
+        ],
+      },
+      starterServices: const [
+        {'name': 'Deep Tissue Neuromuscular Massage (60 min)', 'description': 'Targeted myofascial release relieving chronic tension and muscle knots.', 'duration_minutes': 60, 'price': 130.00, 'payment_policy': 'pay_at_venue'},
+        {'name': 'Deep Tissue Neuromuscular Massage (90 min)', 'description': 'Extended full-body therapeutic release with trigger-point therapy.', 'duration_minutes': 90, 'price': 185.00, 'payment_policy': 'pay_at_venue'},
+        {'name': 'Swedish Aromatherapy Serenity Ritual (60 min)', 'description': 'Long flowing effleurage strokes with warm organic botanical essential oils.', 'duration_minutes': 60, 'price': 115.00, 'payment_policy': 'pay_at_venue'},
+        {'name': 'Swedish Aromatherapy Serenity Ritual (90 min)', 'description': 'Complete head-to-toe relaxation with customized aromatherapy blend.', 'duration_minutes': 90, 'price': 165.00, 'payment_policy': 'pay_at_venue'},
+        {'name': 'Basalt Heated Stone Full Body Therapy (75 min)', 'description': 'Smooth volcanic river stones gliding deep heat into tired muscular tissues.', 'duration_minutes': 75, 'price': 170.00, 'payment_policy': 'deposit_required', 'deposit_amount': 42.50},
+        {'name': 'Prenatal Gentle Nurturing Massage (60 min)', 'description': 'Safe side-lying pregnancy comfort relieving pelvic tension and swollen legs.', 'duration_minutes': 60, 'price': 135.00, 'payment_policy': 'pay_at_venue'},
+        {'name': 'Private Infrared Sauna & Cold Plunge Circuit (45 min)', 'description': 'Private thermal sanctuary: full-spectrum infrared sauna and cold plunge bath.', 'duration_minutes': 45, 'price': 65.00, 'payment_policy': 'full_upfront'},
+        {'name': 'Turkish Herbal Eucalyptus Steam Ritual (45 min)', 'description': 'Aromatherapeutic warm eucalyptus steam room with private cooling shower.', 'duration_minutes': 45, 'price': 75.00, 'payment_policy': 'full_upfront'},
+        {'name': 'Presidential Romance Duet Couples Massage (75 min)', 'description': 'Side-by-side couples massage in our luxury fireplace suite with champagne.', 'duration_minutes': 75, 'price': 320.00, 'payment_policy': 'deposit_required', 'deposit_amount': 160.00},
+      ],
+      starterStaffRoles: const [
+        'Maya Lin, LMT (Master Deep Tissue & Heated Stone Specialist)',
+        'David Thorne, LMT (Sports Recovery & Myofascial Therapist)',
+        'Chloe Dupont, LMT (Holistic Aromatherapy & Prenatal Practitioner)',
+      ],
+      displayOrder: 6,
+    ),
+
+    // Gene - Nov 06, 2026: Upgraded Boutique Fitness Studio & Yoga template (Reformer Pilates, Heated Yoga, 1-on-1 private, multiselect PAR-Q, grip socks toggle, waiver signature)
+    BusinessTemplate(
+      id: 'b0000001-0000-0000-0000-000000000007',
+      categoryId: 'c0000004-0000-0000-0000-000000000004',
+      name: 'Boutique Fitness Studio & Yoga',
+      slug: 'fitness-pilates-yoga',
+      description: 'Reformer Pilates, 95° Infrared Vinyasa Yoga, 1-on-1 private movement analysis, and class credits.',
+      icon: 'fitness_center_rounded',
+      bookingModel: BookingModelType.slotBased,
+      defaultSettings: const {
+        'slot_interval_minutes': 60,
+        'buffer_minutes': 10,
+        'requires_approval': false,
+        'deposit_percent': 100.0,
+        'cancellation_window_hours': 12,
+        'advance_booking_days': 14,
+        'min_notice_hours': 1,
+        'working_hours': {
+          'monday': {'open': '06:00', 'close': '20:00', 'is_open': true},
+          'tuesday': {'open': '06:00', 'close': '20:00', 'is_open': true},
+          'wednesday': {'open': '06:00', 'close': '20:00', 'is_open': true},
+          'thursday': {'open': '06:00', 'close': '20:00', 'is_open': true},
+          'friday': {'open': '06:00', 'close': '19:00', 'is_open': true},
+          'saturday': {'open': '07:00', 'close': '16:00', 'is_open': true},
+          'sunday': {'open': '08:00', 'close': '14:00', 'is_open': true},
+        },
+      },
+      uiConfig: const {
+        'resource_type': 'instructor_and_studio_sanctuary',
+        'resource_label': 'Certified Instructor',
+        'service_label': 'Class / Private Session',
+        'show_staff_selection': true,
+        'intake_fields': [
+          {
+            'id': 'fitness_experience_level',
+            'label': 'Pilates / Yoga Experience Level',
+            'type': 'select',
+            'required': true,
+            'options': [
+              'First Timer (Never been on a Reformer before)',
+              'Beginner (1 - 5 classes completed)',
+              'Intermediate (Regular practitioner)',
+              'Advanced / Instructor'
+            ],
+          },
+          {
+            'id': 'injury_movement_limitations',
+            'label': 'Current Injuries, Limitations or Surgeries (Select all that apply)',
+            'type': 'multiselect',
+            'required': true,
+            'options': [
+              'None - Healthy & Full Mobility',
+              'Lower Back Pain / Disc Herniation',
+              'Knee Pain / Meniscus / ACL',
+              'Neck / Cervical Spine',
+              'Shoulder / Rotator Cuff',
+              'Carpal Tunnel / Wrist Sensitivity',
+              'Diastasis Recti / Postpartum',
+              'Currently Pregnant'
+            ],
+          },
+          {
+            'id': 'grip_socks_acknowledgment',
+            'label': 'Mandatory Grip Socks Policy Acknowledgment',
+            'type': 'boolean',
+            'required': true,
+            'helper_text': 'Grip socks are strictly required for all Reformer classes for hygiene and traction.',
+          },
+          {
+            'id': 'studio_liability_waiver',
+            'label': 'Physical Activity Liability Release Waiver',
+            'type': 'signature',
+            'required': true,
+            'disclaimer': 'I voluntarily participate in physical exercise at the studio and assume all risks of injury. I agree to inform the instructor of any pain or modifications needed.',
+          },
+          {
+            'id': 'emergency_contact',
+            'label': 'Emergency Contact (Name & Phone Number)',
+            'type': 'text',
+            'required': true,
+            'placeholder': 'e.g. Alex Morgan - (555) 019-9988',
+          },
+        ],
+      },
+      starterServices: const [
+        {'name': 'Signature Reformer Flow (All Levels)', 'description': 'Full-body core integration, spinal articulation, and muscle endurance on Allegro 2 reformer.', 'duration_minutes': 50, 'price': 36.00, 'payment_policy': 'full_upfront'},
+        {'name': 'Athletic Jumpboard Cardio HIIT Reformer', 'description': 'High-energy low-impact plyometric jumping intervals boosting cardiovascular stamina.', 'duration_minutes': 50, 'price': 38.00, 'payment_policy': 'full_upfront'},
+        {'name': 'Restorative Stretch & Release Reformer', 'description': 'Deep supported stretching using reformer spring assistance to release tight hips and hamstrings.', 'duration_minutes': 50, 'price': 36.00, 'payment_policy': 'full_upfront'},
+        {'name': '95° Infrared Candlelight Vinyasa Yoga', 'description': 'Therapeutic infrared heat promoting detoxifying sweat and deeper muscle flexibility.', 'duration_minutes': 60, 'price': 28.00, 'payment_policy': 'full_upfront'},
+        {'name': 'Yin Yoga & Sound Bowl Meditation', 'description': 'Long-held passive poses stimulating connective fascia paired with Tibetan singing bowls.', 'duration_minutes': 75, 'price': 32.00, 'payment_policy': 'full_upfront'},
+        {'name': '1-on-1 Private Reformer & Movement Analysis', 'description': 'Personalized kinetic biomechanics screen and tailored reformer workout.', 'duration_minutes': 55, 'price': 115.00, 'payment_policy': 'full_upfront'},
+        {'name': 'Duet Private Reformer (2 Persons)', 'description': 'Semi-private training for two clients with dedicated master instructor coaching.', 'duration_minutes': 55, 'price': 160.00, 'payment_policy': 'full_upfront'},
+      ],
+      starterStaffRoles: const [
+        'Maya Sterling (Lead Comprehensive Pilates Master Trainer)',
+        'Leo Rossi (Senior Yoga Acharya & Sound Healer)',
+        'Samira Khan (Functional Movement & Mobility Coach)',
+      ],
       displayOrder: 7,
     ),
     BusinessTemplate(
