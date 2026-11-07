@@ -26,6 +26,8 @@ class HomeDiscoveryScreen extends ConsumerWidget {
     final authState = ref.watch(authProvider);
     final businessesAsync = ref.watch(businessListProvider);
     final selectedCategory = ref.watch(selectedCategoryProvider);
+    // Gene - Nov, 7, 2026: Watch searchQueryProvider to render an interactive clear search button and filter reset state
+    final searchQuery = ref.watch(searchQueryProvider);
     final unreadCount = ref.watch(unreadNotificationCountProvider);
     final isMapView = ref.watch(isDiscoveryMapViewProvider);
     // final themeMode = ref.watch(themeModeProvider);
@@ -205,9 +207,28 @@ class HomeDiscoveryScreen extends ConsumerWidget {
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                /*
                 child: NeumorphicTextField(
                   hintText: 'Search clinic, procedure (e.g. Dental Cleaning)...',
                   prefixIcon: Icon(Icons.search, color: isDark ? Colors.white54 : Colors.black45),
+                  onChanged: (val) {
+                    ref.read(searchQueryProvider.notifier).state = val;
+                  },
+                ),
+                */
+                // Gene - Nov, 7, 2026: Added clear button suffixIcon when searchQuery is non-empty
+                child: NeumorphicTextField(
+                  hintText: 'Search clinic, procedure (e.g. Dental Cleaning)...',
+                  prefixIcon: Icon(Icons.search, color: isDark ? Colors.white54 : Colors.black45),
+                  suffixIcon: searchQuery.isNotEmpty
+                      ? IconButton(
+                          tooltip: 'Clear search',
+                          icon: Icon(Icons.clear_rounded, size: 18, color: isDark ? Colors.white54 : Colors.black45),
+                          onPressed: () {
+                            ref.read(searchQueryProvider.notifier).state = '';
+                          },
+                        )
+                      : null,
                   onChanged: (val) {
                     ref.read(searchQueryProvider.notifier).state = val;
                   },
@@ -398,8 +419,47 @@ class HomeDiscoveryScreen extends ConsumerWidget {
               error: (err, _) => SliverFillRemaining(child: Center(child: Text('Error: $err'))),
               data: (businesses) {
                 if (businesses.isEmpty) {
+                  /*
                   return const SliverFillRemaining(
                     child: Center(child: Text('No clinics matching your search criteria.')),
+                  );
+                  */
+                  // Gene - Nov, 7, 2026: Enhanced empty search/category state with Reset Filters CTA button
+                  return SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.search_off_rounded, size: 48, color: isDark ? Colors.white24 : Colors.black26),
+                            const SizedBox(height: 12),
+                            const Text(
+                              'No clinics matching your search criteria.',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                            ),
+                            if (searchQuery.isNotEmpty || selectedCategory != 'All') ...[
+                              const SizedBox(height: 14),
+                              OutlinedButton.icon(
+                                icon: const Icon(Icons.filter_alt_off_rounded, size: 16),
+                                label: const Text('Reset Filters'),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: accent,
+                                  side: BorderSide(color: accent.withValues(alpha: 0.5)),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                ),
+                                onPressed: () {
+                                  ref.read(searchQueryProvider.notifier).state = '';
+                                  ref.read(selectedCategoryProvider.notifier).state = 'All';
+                                },
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ),
                   );
                 }
 

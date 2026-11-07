@@ -81,6 +81,13 @@ class UniversalBookingScreen extends ConsumerWidget {
                 if (wizardState.currentStep > 0 && wizardState.currentStep < 4) {
                   wizardNotifier.prevStep();
                 } else {
+                  /*
+                  context.pop();
+                  */
+                  // Gene - Nov, 7, 2026: Reset completed wizard state when exiting Step 4 so subsequent bookings start cleanly at Step 0
+                  if (wizardState.currentStep == 4) {
+                    wizardNotifier.reset();
+                  }
                   context.pop();
                 }
               },
@@ -106,6 +113,7 @@ class UniversalBookingScreen extends ConsumerWidget {
                   ),
                 ],
                 */
+                /*
                 // Gene - Nov, 04, 2026: Integrated PaymentCheckoutStep into universal booking wizard and enhanced confirmation receipt
                 if (wizardState.currentStep < 4) ...[
                   Padding(
@@ -119,6 +127,47 @@ class UniversalBookingScreen extends ConsumerWidget {
                         _buildStepNode(context, step: 2, currentStep: wizardState.currentStep, label: 'Intake'),
                         _buildStepLine(context, isActive: wizardState.currentStep > 2),
                         _buildStepNode(context, step: 3, currentStep: wizardState.currentStep, label: 'Payment'),
+                      ],
+                    ),
+                  ),
+                ],
+                */
+                // Gene - Nov, 7, 2026: Made completed step indicator nodes tappable so users can jump back to earlier steps directly
+                if (wizardState.currentStep < 4) ...[
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                    child: Row(
+                      children: [
+                        _buildStepNode(
+                          context,
+                          step: 0,
+                          currentStep: wizardState.currentStep,
+                          label: 'Service',
+                          onTap: wizardState.currentStep > 0 ? () => wizardNotifier.goToStep(0) : null,
+                        ),
+                        _buildStepLine(context, isActive: wizardState.currentStep > 0),
+                        _buildStepNode(
+                          context,
+                          step: 1,
+                          currentStep: wizardState.currentStep,
+                          label: 'Schedule',
+                          onTap: wizardState.currentStep > 1 ? () => wizardNotifier.goToStep(1) : null,
+                        ),
+                        _buildStepLine(context, isActive: wizardState.currentStep > 1),
+                        _buildStepNode(
+                          context,
+                          step: 2,
+                          currentStep: wizardState.currentStep,
+                          label: 'Intake',
+                          onTap: wizardState.currentStep > 2 ? () => wizardNotifier.goToStep(2) : null,
+                        ),
+                        _buildStepLine(context, isActive: wizardState.currentStep > 2),
+                        _buildStepNode(
+                          context,
+                          step: 3,
+                          currentStep: wizardState.currentStep,
+                          label: 'Payment',
+                        ),
                       ],
                     ),
                   ),
@@ -197,6 +246,7 @@ class UniversalBookingScreen extends ConsumerWidget {
                               onNotesChanged: wizardNotifier.updateNotes,
                             );
                           */
+                          /*
                           // Gene - Nov, 04, 2026: Passed business instance for dynamic template intake fields
                           case 2:
                             return ClientIntakeStep(
@@ -204,6 +254,16 @@ class UniversalBookingScreen extends ConsumerWidget {
                               service: wizardState.selectedService,
                               initialNotes: wizardState.clientNotes,
                               onNotesChanged: wizardNotifier.updateNotes,
+                            );
+                          */
+                          // Gene - Nov, 7, 2026: Bound onBlockerChanged to wizardNotifier.setIntakeBlocker to gate clinical contraindications
+                          case 2:
+                            return ClientIntakeStep(
+                              business: business,
+                              service: wizardState.selectedService,
+                              initialNotes: wizardState.clientNotes,
+                              onNotesChanged: wizardNotifier.updateNotes,
+                              onBlockerChanged: wizardNotifier.setIntakeBlocker,
                             );
 
                           /*
@@ -260,10 +320,23 @@ class UniversalBookingScreen extends ConsumerWidget {
                           case 4:
                           default:
                             if (wizardState.completedBooking != null) {
+                              /*
                               return BookingConfirmationStep(
                                 booking: wizardState.completedBooking!,
                                 onViewBookings: () {
                                   context.go('/my-bookings');
+                                },
+                              );
+                              */
+                              // Gene - Nov, 7, 2026: Reset wizard state when viewing bookings or starting another booking from confirmation receipt
+                              return BookingConfirmationStep(
+                                booking: wizardState.completedBooking!,
+                                onViewBookings: () {
+                                  wizardNotifier.reset();
+                                  context.go('/my-bookings');
+                                },
+                                onBookAnother: () {
+                                  wizardNotifier.reset();
                                 },
                               );
                             }
@@ -362,6 +435,7 @@ class UniversalBookingScreen extends ConsumerWidget {
     );
   }
 
+  /*
   Widget _buildStepNode(BuildContext context, {required int step, required int currentStep, required String label}) {
     final isDone = currentStep > step;
     final isCurrent = currentStep == step;
@@ -401,6 +475,65 @@ class UniversalBookingScreen extends ConsumerWidget {
         ),
       ],
     );
+  }
+  */
+
+  // Gene - Nov, 7, 2026: Added optional onTap to _buildStepNode so completed steps can be tapped to navigate back
+  Widget _buildStepNode(
+    BuildContext context, {
+    required int step,
+    required int currentStep,
+    required String label,
+    VoidCallback? onTap,
+  }) {
+    final isDone = currentStep > step;
+    final isCurrent = currentStep == step;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final accent = isDark ? NeumorphicColors.tealLight : NeumorphicColors.tealPrimary;
+
+    final node = Column(
+      children: [
+        NeumorphicContainer(
+          isCircle: true,
+          width: 30,
+          height: 30,
+          isInset: isCurrent,
+          border: isCurrent ? Border.all(color: accent, width: 2) : null,
+          color: isDone ? accent : null,
+          onTap: onTap,
+          child: Center(
+            child: isDone
+                ? const Icon(Icons.check, size: 16, color: Colors.white)
+                : Text(
+                    '${step + 1}',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: isCurrent ? accent : (isDark ? Colors.white60 : Colors.black54),
+                    ),
+                  ),
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: isCurrent ? FontWeight.w700 : FontWeight.w500,
+            color: isCurrent ? accent : (isDark ? Colors.white38 : Colors.black38),
+          ),
+        ),
+      ],
+    );
+
+    if (onTap != null) {
+      return GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: node,
+      );
+    }
+    return node;
   }
 
   Widget _buildStepLine(BuildContext context, {required bool isActive}) {

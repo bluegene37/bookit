@@ -86,8 +86,21 @@ class _ClientBookingsScreenState extends ConsumerState<ClientBookingsScreen> {
     /*
     final upcoming = bookings.where((b) => b.status == 'confirmed' || b.status == 'pending').toList();
     */
+    /*
     // Gene - Nov, 05, 2026: Included checked_in and in_service statuses in active upcoming bookings
     final upcoming = bookings.where((b) => b.status == 'confirmed' || b.status == 'pending' || b.status == 'checked_in' || b.status == 'in_service').toList();
+    */
+    // Gene - Nov, 7, 2026: Include arrived, in_session, and awaiting_payment statuses in active upcoming bookings
+    final upcoming = bookings
+        .where((b) =>
+            b.status == 'confirmed' ||
+            b.status == 'pending' ||
+            b.status == 'checked_in' ||
+            b.status == 'arrived' ||
+            b.status == 'in_service' ||
+            b.status == 'in_session' ||
+            b.status == 'awaiting_payment')
+        .toList();
     final past = bookings.where((b) => b.status == 'completed' || b.status == 'cancelled' || b.status == 'rejected').toList();
     final displayedList = _showUpcoming ? upcoming : past;
 
@@ -176,12 +189,27 @@ class _ClientBookingsScreenState extends ConsumerState<ClientBookingsScreen> {
                                 Row(
                                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
+                                    /*
                                     Expanded(
                                       child: Text(
                                         booking.businessName ?? 'Clinic',
                                         style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                    */
+                                    // Gene - Nov, 7, 2026: Make clinic name tappable to open the business storefront page
+                                    Expanded(
+                                      child: InkWell(
+                                        borderRadius: BorderRadius.circular(6),
+                                        onTap: () => context.push('/business/${booking.businessId}'),
+                                        child: Text(
+                                          booking.businessName ?? 'Clinic',
+                                          style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
                                       ),
                                     ),
                                     StatusBadge(status: booking.status),
@@ -381,7 +409,9 @@ class _ClientBookingsScreenState extends ConsumerState<ClientBookingsScreen> {
                                         if (booking.status == 'completed') ...[
                                           Builder(
                                             builder: (context) {
-                                              final businessReviews = ref.watch(businessReviewsProvider(booking.businessId)).value ?? [];
+                                              // final businessReviews = ref.watch(businessReviewsProvider(booking.businessId)).value ?? [];
+                                              // Gene - Nov, 7, 2026: Use valueOrNull instead of value to prevent rethrowing AsyncError during widget build
+                                              final businessReviews = ref.watch(businessReviewsProvider(booking.businessId)).valueOrNull ?? [];
                                               final existingReview = businessReviews
                                                   .where((r) => r.bookingId == booking.id)
                                                   .firstOrNull ??
@@ -431,6 +461,20 @@ class _ClientBookingsScreenState extends ConsumerState<ClientBookingsScreen> {
                                                 },
                                               );
                                             },
+                                          ),
+                                        ],
+                                        // Gene - Nov, 7, 2026: Added 1-Tap Book Again action on past/completed/cancelled appointments
+                                        if (booking.status == 'completed' || booking.status == 'cancelled' || booking.status == 'rejected') ...[
+                                          OutlinedButton.icon(
+                                            icon: const Icon(Icons.replay_rounded, size: 14),
+                                            label: const Text('Book Again', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                                            style: OutlinedButton.styleFrom(
+                                              foregroundColor: accent,
+                                              side: BorderSide(color: accent.withValues(alpha: 0.45)),
+                                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                            ),
+                                            onPressed: () => context.push('/book/${booking.businessId}'),
                                           ),
                                         ],
                                       ],

@@ -204,6 +204,13 @@ class BusinessDetailScreen extends ConsumerWidget {
                                       width: 150,
                                       borderRadius: 18.0,
                                       padding: const EdgeInsets.all(12),
+                                      // Gene - Nov, 7, 2026: Make specialist card tappable to pre-select practitioner and start booking wizard
+                                      onTap: () {
+                                        final wizardNotifier = ref.read(bookingWizardProvider(business).notifier);
+                                        wizardNotifier.reset();
+                                        wizardNotifier.selectStaff(st);
+                                        context.push('/book/${business.id}');
+                                      },
                                       child: Column(
                                         mainAxisAlignment: MainAxisAlignment.center,
                                         children: [
@@ -321,6 +328,8 @@ class BusinessDetailScreen extends ConsumerWidget {
                                 padding: const EdgeInsets.all(16),
                                 onTap: () {
                                   final wizardNotifier = ref.read(bookingWizardProvider(business).notifier);
+                                  // Gene - Nov, 7, 2026: Reset any previous completed booking state before pre-selecting service and advancing to Step 1
+                                  wizardNotifier.reset();
                                   wizardNotifier.selectService(srv);
                                   wizardNotifier.nextStep();
                                   context.push('/book/${business.id}');
@@ -693,7 +702,17 @@ class BusinessDetailScreen extends ConsumerWidget {
                   ),
                   child: NeumorphicButton(
                     isPrimary: true,
+                    /*
                     onPressed: () => context.push('/book/${business.id}'),
+                    */
+                    // Gene - Nov, 7, 2026: Reset stale completed booking state before launching wizard from main CTA button
+                    onPressed: () {
+                      final wizardState = ref.read(bookingWizardProvider(business));
+                      if (wizardState.currentStep == 4) {
+                        ref.read(bookingWizardProvider(business).notifier).reset();
+                      }
+                      context.push('/book/${business.id}');
+                    },
                     child: Text('Book Appointment (${business.bookingModel.displayName.split('(').first.trim()})'),
                   ),
                 ),

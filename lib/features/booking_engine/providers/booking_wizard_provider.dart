@@ -25,6 +25,8 @@ class BookingWizardState {
   final String selectedPaymentMethod; // 'stripe_card', 'gcash', 'maya', 'bank_transfer'
   final String paymentReference;
   final String paymentSender;
+  // Gene - Nov, 7, 2026: Added hasIntakeBlocker to prevent advancing past Step 2 when a clinical contraindication is active
+  final bool hasIntakeBlocker;
 
   /*
   BookingWizardState({
@@ -41,6 +43,7 @@ class BookingWizardState {
   }) : selectedDate = selectedDate ?? DateTime.now().add(const Duration(days: 1));
   */
 
+  /*
   // Gene - Nov 07, 2026: Updated BookingWizardState constructor supporting selectedPaymentMethod, paymentReference, and paymentSender
   BookingWizardState({
     this.currentStep = 0,
@@ -57,6 +60,25 @@ class BookingWizardState {
     this.paymentReference = '',
     this.paymentSender = '',
   }) : selectedDate = selectedDate ?? DateTime.now().add(const Duration(days: 1));
+  */
+
+  // Gene - Nov, 7, 2026: Updated BookingWizardState constructor supporting hasIntakeBlocker
+  BookingWizardState({
+    this.currentStep = 0,
+    this.selectedService,
+    this.selectedStaff,
+    DateTime? selectedDate,
+    this.selectedSlot,
+    this.dateRangeStart,
+    this.dateRangeEnd,
+    this.clientNotes = '',
+    this.isSubmitting = false,
+    this.completedBooking,
+    this.selectedPaymentMethod = 'stripe_card',
+    this.paymentReference = '',
+    this.paymentSender = '',
+    this.hasIntakeBlocker = false,
+  }) : selectedDate = selectedDate ?? DateTime.now().add(const Duration(days: 1));
 
   double calculateTotalPrice() {
     if (selectedService == null) return 0.0;
@@ -68,10 +90,25 @@ class BookingWizardState {
     return selectedService!.price;
   }
 
+  /*
   // Gene - Nov, 04, 2026: Added deposit and balance calculations to wizard state
   double get dueTodayAmount {
     if (selectedService == null) return 0.0;
     return selectedService!.calculateDepositAmount();
+  }
+  */
+
+  // Gene - Nov, 7, 2026: Compute dueTodayAmount against calculateTotalPrice() so multi-day dateRange stays calculate accurate upfront/percentage deposits
+  double get dueTodayAmount {
+    if (selectedService == null) return 0.0;
+    final total = calculateTotalPrice();
+    final srv = selectedService!;
+    if (srv.paymentPolicy == 'full_upfront') return total;
+    if (srv.paymentPolicy == 'pay_at_venue') return 0.0;
+    if (srv.depositType == 'percentage') {
+      return double.parse((total * (srv.depositAmount / 100)).toStringAsFixed(2));
+    }
+    return srv.depositAmount > total ? total : srv.depositAmount;
   }
 
   double get dueAtVenueAmount {
@@ -110,6 +147,7 @@ class BookingWizardState {
   }
   */
 
+  /*
   // Gene - Nov, 04, 2026: Updated canProceed to support Step 3 payment review step
   bool canProceed(BookingModelType modelType) {
     switch (currentStep) {
@@ -125,6 +163,29 @@ class BookingWizardState {
         }
       case 2: // Intake notes
         return true;
+      case 3: // Payment review
+        return true;
+      default:
+        return false;
+    }
+  }
+  */
+
+  // Gene - Nov, 7, 2026: Gate Step 2 progression when hasIntakeBlocker is active
+  bool canProceed(BookingModelType modelType) {
+    switch (currentStep) {
+      case 0: // Select Service
+        return selectedService != null;
+      case 1: // Scheduling Step
+        if (modelType == BookingModelType.slotBased) {
+          return selectedSlot != null;
+        } else if (modelType == BookingModelType.dateRange) {
+          return dateRangeStart != null && dateRangeEnd != null && dateRangeEnd!.isAfter(dateRangeStart!);
+        } else {
+          return true; // daily: selectedDate is always set
+        }
+      case 2: // Intake notes
+        return !hasIntakeBlocker;
       case 3: // Payment review
         return true;
       default:
@@ -161,6 +222,7 @@ class BookingWizardState {
   }
   */
 
+  /*
   // Gene - Nov 07, 2026: Extended copyWith supporting selectedPaymentMethod, paymentReference, and paymentSender
   BookingWizardState copyWith({
     int? currentStep,
@@ -192,6 +254,43 @@ class BookingWizardState {
       selectedPaymentMethod: selectedPaymentMethod ?? this.selectedPaymentMethod,
       paymentReference: paymentReference ?? this.paymentReference,
       paymentSender: paymentSender ?? this.paymentSender,
+    );
+  }
+  */
+
+  // Gene - Nov, 7, 2026: Extended copyWith supporting hasIntakeBlocker
+  BookingWizardState copyWith({
+    int? currentStep,
+    ServiceItem? selectedService,
+    BusinessStaff? selectedStaff,
+    DateTime? selectedDate,
+    TimeSlot? selectedSlot,
+    DateTime? dateRangeStart,
+    DateTime? dateRangeEnd,
+    String? clientNotes,
+    bool? isSubmitting,
+    Booking? completedBooking,
+    bool clearSlot = false,
+    String? selectedPaymentMethod,
+    String? paymentReference,
+    String? paymentSender,
+    bool? hasIntakeBlocker,
+  }) {
+    return BookingWizardState(
+      currentStep: currentStep ?? this.currentStep,
+      selectedService: selectedService ?? this.selectedService,
+      selectedStaff: selectedStaff ?? this.selectedStaff,
+      selectedDate: selectedDate ?? this.selectedDate,
+      selectedSlot: clearSlot ? null : (selectedSlot ?? this.selectedSlot),
+      dateRangeStart: dateRangeStart ?? this.dateRangeStart,
+      dateRangeEnd: dateRangeEnd ?? this.dateRangeEnd,
+      clientNotes: clientNotes ?? this.clientNotes,
+      isSubmitting: isSubmitting ?? this.isSubmitting,
+      completedBooking: completedBooking ?? this.completedBooking,
+      selectedPaymentMethod: selectedPaymentMethod ?? this.selectedPaymentMethod,
+      paymentReference: paymentReference ?? this.paymentReference,
+      paymentSender: paymentSender ?? this.paymentSender,
+      hasIntakeBlocker: hasIntakeBlocker ?? this.hasIntakeBlocker,
     );
   }
 }
@@ -237,6 +336,23 @@ class BookingWizardNotifier extends StateNotifier<BookingWizardState> {
 
   void updatePaymentSender(String sender) {
     state = state.copyWith(paymentSender: sender);
+  }
+
+  // Gene - Nov, 7, 2026: Added setIntakeBlocker, goToStep, and reset helpers for wizard lifecycle and step navigation
+  void setIntakeBlocker(bool value) {
+    if (state.hasIntakeBlocker != value) {
+      state = state.copyWith(hasIntakeBlocker: value);
+    }
+  }
+
+  void goToStep(int step) {
+    if (step >= 0 && step < state.currentStep) {
+      state = state.copyWith(currentStep: step);
+    }
+  }
+
+  void reset() {
+    state = BookingWizardState();
   }
 
   void nextStep() {

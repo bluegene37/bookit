@@ -21,6 +21,8 @@ import 'package:bookit/features/booking_engine/presentation/steps/client_intake_
 import 'package:bookit/features/booking_engine/presentation/steps/payment_checkout_step.dart';
 import 'package:bookit/features/booking_engine/presentation/steps/booking_confirmation_step.dart';
 import 'package:bookit/features/auth/presentation/login_screen.dart';
+// Gene - Nov, 7, 2026: Added booking_wizard_provider import for QA Gate 7 flow & state lifecycle tests
+import 'package:bookit/features/booking_engine/providers/booking_wizard_provider.dart';
 
 void main() {
   setUpAll(() {
@@ -655,6 +657,105 @@ void main() {
       await tester.pump();
 
       expect(find.text('Please enter your email and password.'), findsOneWidget);
+    });
+  });
+
+  // Gene - Nov, 7, 2026: QA Gate 7 verifying end-to-end wizard state identity, multi-day deposit math, contraindication gating, and reset lifecycle
+  group('QA Gate 7: End-to-End Flow & Wizard Lifecycle Regression Suite', () {
+    test('Business equality by id ensures bookingWizardProvider resolves identical state across reconstructed instances', () {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+
+      const bizInstanceA = Business(
+        id: '11111111-1111-1111-1111-111111111111',
+        ownerId: 'owner-1',
+        name: 'Apex Dental',
+        slug: 'apex-dental',
+        category: 'Healthcare & Clinics',
+        bookingModel: BookingModelType.slotBased,
+      );
+      final bizInstanceB = bizInstanceA.copyWith(ratingCount: 99);
+
+      const service = ServiceItem(
+        id: 'srv-101',
+        businessId: '11111111-1111-1111-1111-111111111111',
+        name: 'Laser Whitening',
+        price: 180.0,
+      );
+
+      container.read(bookingWizardProvider(bizInstanceA).notifier).selectService(service);
+      final stateFromB = container.read(bookingWizardProvider(bizInstanceB));
+      expect(stateFromB.selectedService?.id, 'srv-101');
+    });
+
+    test('Multi-day dateRange booking calculates percentage deposit against total multi-day stay price', () {
+      const stayService = ServiceItem(
+        id: 'srv-stay',
+        businessId: 'biz-stay',
+        name: 'Private Recovery Suite',
+        price: 300.0,
+        paymentPolicy: 'deposit',
+        depositType: 'percentage',
+        depositAmount: 20.0, // 20%
+      );
+
+      final state = BookingWizardState(
+        selectedService: stayService,
+        dateRangeStart: DateTime(2026, 11, 10),
+        dateRangeEnd: DateTime(2026, 11, 13), // 3 nights -> $900 total
+      );
+
+      expect(state.calculateTotalPrice(), 900.0);
+      expect(state.dueTodayAmount, 180.0); // 20% of $900 = $180
+      expect(state.dueAtVenueAmount, 720.0);
+    });
+
+    test('Clinical contraindication blocker gates Step 2 progression until cleared', () {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+
+      const biz = Business(
+        id: 'biz-derm',
+        ownerId: 'owner-1',
+        name: 'Lumina Dermatology',
+        slug: 'lumina-derm',
+        category: 'Healthcare & Clinics',
+        bookingModel: BookingModelType.daily,
+      );
+      const service = ServiceItem(
+        id: 'srv-laser',
+        businessId: 'biz-derm',
+        name: 'Fractional CO2 Laser',
+        price: 350.0,
+      );
+
+      final notifier = container.read(bookingWizardProvider(biz).notifier);
+      notifier.selectService(service);
+      notifier.nextStep(); // -> Step 1
+      notifier.nextStep(); // -> Step 2 (Intake)
+      expect(container.read(bookingWizardProvider(biz)).currentStep, 2);
+      expect(container.read(bookingWizardProvider(biz)).canProceed(biz.bookingModel), isTrue);
+
+      // Activate contraindication blocker
+      notifier.setIntakeBlocker(true);
+      expect(container.read(bookingWizardProvider(biz)).canProceed(biz.bookingModel), isFalse);
+
+      // Attempt nextStep while blocked — must remain on Step 2
+      notifier.nextStep();
+      expect(container.read(bookingWizardProvider(biz)).currentStep, 2);
+
+      // Clear blocker and advance -> Step 3
+      notifier.setIntakeBlocker(false);
+      notifier.nextStep();
+      expect(container.read(bookingWizardProvider(biz)).currentStep, 3);
+
+      // Test goToStep(1) and reset()
+      notifier.goToStep(1);
+      expect(container.read(bookingWizardProvider(biz)).currentStep, 1);
+
+      notifier.reset();
+      expect(container.read(bookingWizardProvider(biz)).currentStep, 0);
+      expect(container.read(bookingWizardProvider(biz)).selectedService, isNull);
     });
   });
 }

@@ -434,4 +434,13 @@ class Business {
       uiConfig: uiConfig ?? this.uiConfig,
     );
   }
+
+  // Gene - Nov, 7, 2026: Override equality and hashCode by business id so Riverpod family providers (e.g. bookingWizardProvider) resolve consistently across instances
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is Business && runtimeType == other.runtimeType && id == other.id;
+
+  @override
+  int get hashCode => id.hashCode;
 }

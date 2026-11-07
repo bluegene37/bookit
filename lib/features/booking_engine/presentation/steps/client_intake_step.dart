@@ -11,6 +11,8 @@ class ClientIntakeStep extends StatefulWidget {
   final ServiceItem? service;
   final String initialNotes;
   final ValueChanged<String> onNotesChanged;
+  // Gene - Nov, 7, 2026: Added optional onBlockerChanged callback to notify wizard when a clinical contraindication toggle is active
+  final ValueChanged<bool>? onBlockerChanged;
 
   /*
   // Gene - Nov, 03, 2026: Previous constructor without business parameter
@@ -22,6 +24,7 @@ class ClientIntakeStep extends StatefulWidget {
   });
   */
 
+  /*
   // Gene - Nov, 04, 2026: Updated constructor accepting business for template intake fields
   const ClientIntakeStep({
     super.key,
@@ -29,6 +32,17 @@ class ClientIntakeStep extends StatefulWidget {
     required this.service,
     required this.initialNotes,
     required this.onNotesChanged,
+  });
+  */
+
+  // Gene - Nov, 7, 2026: Updated constructor accepting optional onBlockerChanged callback
+  const ClientIntakeStep({
+    super.key,
+    this.business,
+    required this.service,
+    required this.initialNotes,
+    required this.onNotesChanged,
+    this.onBlockerChanged,
   });
 
   @override
@@ -116,8 +130,16 @@ class _ClientIntakeStepState extends State<ClientIntakeStep> {
         buffer.writeln('\nAdditional Notes: $general');
       }
       widget.onNotesChanged(buffer.toString().trim());
+      // Gene - Nov, 7, 2026: Evaluate whether any boolean intake field with blocking_condition is currently toggled ON
+      final hasBlocker = widget.business!.intakeFields.any((field) {
+        final id = field['id'] as String;
+        final isBlocking = field['blocking_condition'] as bool? ?? false;
+        return isBlocking && (_dynamicBooleans[id] == true);
+      });
+      widget.onBlockerChanged?.call(hasBlocker);
     } else {
       widget.onNotesChanged(_notesController.text);
+      widget.onBlockerChanged?.call(false);
     }
   }
 

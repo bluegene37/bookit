@@ -143,6 +143,31 @@ class ProfileScreen extends ConsumerWidget {
                   padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
                   child: Column(
                     children: [
+                      // Gene - Nov, 7, 2026: Added direct quick-navigation links to Browse Clinics and Clinic Admin Workspace
+                      if (user.isBusinessOwner) ...[
+                        ListTile(
+                          leading: Icon(Icons.admin_panel_settings_outlined, color: accent),
+                          title: const Text('Clinic Admin Workspace', style: TextStyle(fontWeight: FontWeight.w600)),
+                          subtitle: const Text('Manage appointments, reception queue, and services'),
+                          trailing: const Icon(Icons.chevron_right),
+                          onTap: () => context.go('/admin'),
+                        ),
+                        Divider(
+                          color: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.08),
+                          height: 1,
+                        ),
+                      ],
+                      ListTile(
+                        leading: Icon(Icons.explore_outlined, color: accent),
+                        title: const Text('Browse Clinics & Services', style: TextStyle(fontWeight: FontWeight.w600)),
+                        subtitle: const Text('Discover practices, recovery stays, and wellness sessions'),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: () => context.go('/'),
+                      ),
+                      Divider(
+                        color: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.08),
+                        height: 1,
+                      ),
                       ListTile(
                         leading: Icon(Icons.calendar_month_outlined, color: accent),
                         title: const Text('My Appointments', style: TextStyle(fontWeight: FontWeight.w600)),

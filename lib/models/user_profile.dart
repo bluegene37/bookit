@@ -18,7 +18,12 @@ class UserProfile {
     required this.createdAt,
   });
 
+  /*
   bool get isBusinessOwner => role == 'business_owner' || role == 'admin';
+  */
+  // Gene - Nov, 7, 2026: Allow clinic staff/practitioners ('staff') alongside owners and admins to access the clinic portal while keeping 'client' role restricted
+  bool get isBusinessOwner => role == 'business_owner' || role == 'admin' || role == 'staff';
+  bool get isStaff => role == 'staff';
   bool get isAdmin => role == 'admin';
 
   /*

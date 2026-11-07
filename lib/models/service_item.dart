@@ -188,4 +188,13 @@ class ServiceItem {
       depositAmount: depositAmount ?? this.depositAmount,
     );
   }
+
+  // Gene - Nov, 7, 2026: Override equality and hashCode by service id for consistent selection state across rebuilds
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ServiceItem && runtimeType == other.runtimeType && id == other.id;
+
+  @override
+  int get hashCode => id.hashCode;
 }

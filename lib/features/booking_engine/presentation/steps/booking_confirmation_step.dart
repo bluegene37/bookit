@@ -13,11 +13,23 @@ import '../../../client_bookings/presentation/widgets/booking_qr_pass_modal.dart
 class BookingConfirmationStep extends StatelessWidget {
   final Booking booking;
   final VoidCallback onViewBookings;
+  // Gene - Nov, 7, 2026: Added optional onBookAnother callback to allow starting a fresh booking directly from the receipt screen
+  final VoidCallback? onBookAnother;
 
+  /*
   const BookingConfirmationStep({
     super.key,
     required this.booking,
     required this.onViewBookings,
+  });
+  */
+
+  // Gene - Nov, 7, 2026: Updated constructor with optional onBookAnother callback
+  const BookingConfirmationStep({
+    super.key,
+    required this.booking,
+    required this.onViewBookings,
+    this.onBookAnother,
   });
 
   @override
@@ -466,6 +478,15 @@ class BookingConfirmationStep extends StatelessWidget {
             onPressed: onViewBookings,
             child: const Text('View in My Bookings'),
           ),
+          // Gene - Nov, 7, 2026: Secondary action allowing patient to start another booking at this clinic
+          if (onBookAnother != null) ...[
+            const SizedBox(height: 12),
+            NeumorphicButton(
+              onPressed: onBookAnother,
+              icon: Icons.add_circle_outline_rounded,
+              child: const Text('Book Another Appointment'),
+            ),
+          ],
         ],
       ),
     );

@@ -231,6 +231,8 @@ class AdminShellScreen extends ConsumerStatefulWidget {
 class _AdminShellScreenState extends ConsumerState<AdminShellScreen> {
   int _selectedTabIndex = 0;
   String? _selectedBusinessId;
+  // Gene - Nov, 7, 2026: Track active owner/persona ID so switching demo personas auto-selects that owner's clinic
+  String? _lastOwnerId;
 
   @override
   Widget build(BuildContext context) {
@@ -270,7 +272,16 @@ class _AdminShellScreenState extends ConsumerState<AdminShellScreen> {
           return _buildZeroStateScreen(context, isDark, accent);
         }
 
+        /*
         _selectedBusinessId ??= businesses.first.id;
+        */
+        // Gene - Nov, 7, 2026: Auto-select the first clinic owned by the active user when initialising or switching personas
+        final currentUserId = authState.user!.id;
+        if (_selectedBusinessId == null || _lastOwnerId != currentUserId) {
+          _lastOwnerId = currentUserId;
+          final ownedBusiness = businesses.where((b) => b.ownerId == currentUserId).firstOrNull;
+          _selectedBusinessId = (ownedBusiness ?? businesses.first).id;
+        }
         final selectedBusiness = businesses.firstWhere(
           (b) => b.id == _selectedBusinessId,
           orElse: () => businesses.first,
