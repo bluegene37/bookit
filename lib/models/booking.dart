@@ -40,6 +40,26 @@ class Booking {
   final DateTime? inServiceAt;
   final String? qrToken;
 
+  // Gene - Nov 07, 2026: Added hybrid payment method, reference number, and sender account fields
+  final String? paymentMethod;
+  final String? paymentReference;
+  final String? paymentSender;
+
+  String get paymentMethodLabel {
+    switch (paymentMethod) {
+      case 'gcash':
+        return 'GCash';
+      case 'maya':
+        return 'Maya';
+      case 'bank_transfer':
+        return 'Bank Transfer';
+      case 'stripe_card':
+        return 'Card (Stripe)';
+      default:
+        return '';
+    }
+  }
+
   /*
   const Booking({
     required this.id,
@@ -97,6 +117,7 @@ class Booking {
   });
   */
 
+  /*
   // Gene - Nov, 05, 2026: Updated constructor supporting check-in timestamps, in_service status, and QR security token
   const Booking({
     required this.id,
@@ -128,6 +149,43 @@ class Booking {
     this.checkedInAt,
     this.inServiceAt,
     this.qrToken,
+  });
+  */
+
+  // Gene - Nov 07, 2026: Updated constructor supporting paymentMethod, paymentReference, and paymentSender
+  const Booking({
+    required this.id,
+    required this.businessId,
+    required this.clientId,
+    this.serviceId,
+    this.staffId,
+    required this.bookingModel,
+    this.startTime,
+    this.endTime,
+    this.dateFrom,
+    this.dateTo,
+    this.status = 'pending',
+    required this.totalPrice,
+    this.clientNotes,
+    this.adminNotes,
+    this.cancellationReason,
+    required this.createdAt,
+    this.businessName,
+    this.serviceName,
+    this.staffName,
+    this.clientName,
+    this.paymentStatus = 'unpaid',
+    this.holdExpiresAt,
+    this.amountPaid = 0.0,
+    this.amountDue = 0.0,
+    this.reminder24hSent,
+    this.reminder2hSent,
+    this.checkedInAt,
+    this.inServiceAt,
+    this.qrToken,
+    this.paymentMethod,
+    this.paymentReference,
+    this.paymentSender,
   });
 
   /*
@@ -191,6 +249,7 @@ class Booking {
   }
   */
 
+  /*
   // Gene - Nov, 05, 2026: Extended copyWith supporting check-in timestamps, in_service status, and QR security token
   Booking copyWith({
     String? id,
@@ -253,6 +312,78 @@ class Booking {
       checkedInAt: checkedInAt ?? this.checkedInAt,
       inServiceAt: inServiceAt ?? this.inServiceAt,
       qrToken: qrToken ?? this.qrToken,
+    );
+  }
+  */
+
+  // Gene - Nov 07, 2026: Extended copyWith supporting paymentMethod, paymentReference, and paymentSender
+  Booking copyWith({
+    String? id,
+    String? businessId,
+    String? clientId,
+    String? serviceId,
+    String? staffId,
+    String? bookingModel,
+    DateTime? startTime,
+    DateTime? endTime,
+    DateTime? dateFrom,
+    DateTime? dateTo,
+    String? status,
+    double? totalPrice,
+    String? clientNotes,
+    String? adminNotes,
+    String? cancellationReason,
+    DateTime? createdAt,
+    String? businessName,
+    String? serviceName,
+    String? staffName,
+    String? clientName,
+    String? paymentStatus,
+    DateTime? holdExpiresAt,
+    double? amountPaid,
+    double? amountDue,
+    DateTime? reminder24hSent,
+    DateTime? reminder2hSent,
+    DateTime? checkedInAt,
+    DateTime? inServiceAt,
+    String? qrToken,
+    String? paymentMethod,
+    String? paymentReference,
+    String? paymentSender,
+  }) {
+    return Booking(
+      id: id ?? this.id,
+      businessId: businessId ?? this.businessId,
+      clientId: clientId ?? this.clientId,
+      serviceId: serviceId ?? this.serviceId,
+      staffId: staffId ?? this.staffId,
+      bookingModel: bookingModel ?? this.bookingModel,
+      startTime: startTime ?? this.startTime,
+      endTime: endTime ?? this.endTime,
+      dateFrom: dateFrom ?? this.dateFrom,
+      dateTo: dateTo ?? this.dateTo,
+      status: status ?? this.status,
+      totalPrice: totalPrice ?? this.totalPrice,
+      clientNotes: clientNotes ?? this.clientNotes,
+      adminNotes: adminNotes ?? this.adminNotes,
+      cancellationReason: cancellationReason ?? this.cancellationReason,
+      createdAt: createdAt ?? this.createdAt,
+      businessName: businessName ?? this.businessName,
+      serviceName: serviceName ?? this.serviceName,
+      staffName: staffName ?? this.staffName,
+      clientName: clientName ?? this.clientName,
+      paymentStatus: paymentStatus ?? this.paymentStatus,
+      holdExpiresAt: holdExpiresAt ?? this.holdExpiresAt,
+      amountPaid: amountPaid ?? this.amountPaid,
+      amountDue: amountDue ?? this.amountDue,
+      reminder24hSent: reminder24hSent ?? this.reminder24hSent,
+      reminder2hSent: reminder2hSent ?? this.reminder2hSent,
+      checkedInAt: checkedInAt ?? this.checkedInAt,
+      inServiceAt: inServiceAt ?? this.inServiceAt,
+      qrToken: qrToken ?? this.qrToken,
+      paymentMethod: paymentMethod ?? this.paymentMethod,
+      paymentReference: paymentReference ?? this.paymentReference,
+      paymentSender: paymentSender ?? this.paymentSender,
     );
   }
 
@@ -497,6 +628,10 @@ class Booking {
       qrToken: (json['qr_token'] as String?)?.isNotEmpty == true
           ? json['qr_token'] as String
           : fallbackToken,
+      // Gene - Nov 07, 2026: Parsed hybrid payment method, reference, and sender fields
+      paymentMethod: json['payment_method'] as String?,
+      paymentReference: json['payment_reference'] as String?,
+      paymentSender: json['payment_sender'] as String?,
     );
   }
 
@@ -533,6 +668,7 @@ class Booking {
   }
   */
 
+  /*
   // Gene - Nov, 05, 2026: Updated toJson serialization with check-in timestamps and QR security token
   Map<String, dynamic> toJson() {
     return {
@@ -561,6 +697,41 @@ class Booking {
       'checked_in_at': checkedInAt?.toIso8601String(),
       'in_service_at': inServiceAt?.toIso8601String(),
       'qr_token': qrToken,
+    };
+  }
+  */
+
+  // Gene - Nov 07, 2026: Updated toJson serialization with payment_method, payment_reference, and payment_sender
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'business_id': businessId,
+      'client_id': clientId,
+      'service_id': serviceId,
+      'staff_id': staffId,
+      'booking_model': bookingModel,
+      'start_time': startTime?.toIso8601String(),
+      'end_time': endTime?.toIso8601String(),
+      'date_from': dateFrom != null ? DateFormat('yyyy-MM-dd').format(dateFrom!) : null,
+      'date_to': dateTo != null ? DateFormat('yyyy-MM-dd').format(dateTo!) : null,
+      'status': status,
+      'total_price': totalPrice,
+      'client_notes': clientNotes,
+      'admin_notes': adminNotes,
+      'cancellation_reason': cancellationReason,
+      'created_at': createdAt.toIso8601String(),
+      'payment_status': paymentStatus,
+      'hold_expires_at': holdExpiresAt?.toIso8601String(),
+      'amount_paid': amountPaid,
+      'amount_due': amountDue,
+      'reminder_24h_sent': reminder24hSent?.toIso8601String(),
+      'reminder_2h_sent': reminder2hSent?.toIso8601String(),
+      'checked_in_at': checkedInAt?.toIso8601String(),
+      'in_service_at': inServiceAt?.toIso8601String(),
+      'qr_token': qrToken,
+      'payment_method': paymentMethod,
+      'payment_reference': paymentReference,
+      'payment_sender': paymentSender,
     };
   }
 

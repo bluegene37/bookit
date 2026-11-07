@@ -139,6 +139,25 @@ class Business {
 
   Map<String, dynamic>? get workingHours => settings['working_hours'] as Map<String, dynamic>?;
 
+  // Gene - Nov 07, 2026: Hybrid payment channels configuration helper (Stripe Card, GCash, Maya, Bank Transfer)
+  Map<String, dynamic> get paymentMethodsConfig {
+    final raw = settings['payment_methods'];
+    final map = raw is Map ? Map<String, dynamic>.from(raw) : <String, dynamic>{};
+    return {
+      'stripe_enabled': map['stripe_enabled'] as bool? ?? true,
+      'gcash_enabled': map['gcash_enabled'] as bool? ?? true,
+      'gcash_account_name': map['gcash_account_name'] as String? ?? name,
+      'gcash_number': map['gcash_number'] as String? ?? '0917-555-0199',
+      'maya_enabled': map['maya_enabled'] as bool? ?? true,
+      'maya_account_name': map['maya_account_name'] as String? ?? name,
+      'maya_number': map['maya_number'] as String? ?? '0918-555-0244',
+      'bank_enabled': map['bank_enabled'] as bool? ?? true,
+      'bank_name': map['bank_name'] as String? ?? 'BDO Unibank / BPI',
+      'bank_account_name': map['bank_account_name'] as String? ?? name,
+      'bank_account_number': map['bank_account_number'] as String? ?? '0042-8819-3021',
+    };
+  }
+
   // Gene - Nov, 04, 2026: Modular UI and resource dynamic helpers for universal booking engine
   String get resourceType => (uiConfig['resource_type'] as String?) ?? 'person';
   String get resourceLabel => (uiConfig['resource_label'] as String?) ?? 'Specialist';

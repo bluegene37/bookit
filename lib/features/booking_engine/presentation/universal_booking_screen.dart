@@ -216,6 +216,7 @@ class UniversalBookingScreen extends ConsumerWidget {
                             }
                             return const Center(child: Text('Booking finalized'));
                           */
+                          /*
                           // Gene - Nov, 04, 2026: Added Step 3 as Payment Review Step and moved Confirmation to Step 4
                           case 3:
                             return PaymentCheckoutStep(
@@ -225,6 +226,28 @@ class UniversalBookingScreen extends ConsumerWidget {
                               dueAtVenue: wizardState.dueAtVenueAmount,
                               practitionerName: wizardState.selectedStaff?.name,
                               isLoading: wizardState.isSubmitting,
+                              onProceed: () async {
+                                final paymentService = ref.read(paymentServiceProvider);
+                                await wizardNotifier.proceedToPaymentAndConfirm(paymentService);
+                              },
+                            );
+                          */
+                          // Gene - Nov 07, 2026: Bound business and hybrid payment method/reference/sender state to PaymentCheckoutStep
+                          case 3:
+                            return PaymentCheckoutStep(
+                              business: business,
+                              service: wizardState.selectedService,
+                              totalPrice: wizardState.calculateTotalPrice(),
+                              dueToday: wizardState.dueTodayAmount,
+                              dueAtVenue: wizardState.dueAtVenueAmount,
+                              practitionerName: wizardState.selectedStaff?.name,
+                              isLoading: wizardState.isSubmitting,
+                              selectedPaymentMethod: wizardState.selectedPaymentMethod,
+                              onPaymentMethodChanged: wizardNotifier.selectPaymentMethod,
+                              initialReferenceNumber: wizardState.paymentReference,
+                              onReferenceNumberChanged: wizardNotifier.updatePaymentReference,
+                              initialSenderAccount: wizardState.paymentSender,
+                              onSenderAccountChanged: wizardNotifier.updatePaymentSender,
                               onProceed: () async {
                                 final paymentService = ref.read(paymentServiceProvider);
                                 await wizardNotifier.proceedToPaymentAndConfirm(paymentService);

@@ -209,4 +209,36 @@ void main() {
     expect(hasPaymentsRail, isTrue);
     expect(hasPaymentsBottomNav, isTrue);
   });
+
+  // Gene - Nov 07, 2026: Verify PaymentsInvoicesView displays GCash and Bank Transfer method & reference numbers in ledger
+  testWidgets('PaymentsInvoicesView renders Method / Ref # column for GCash and Bank Transfer', (tester) async {
+    final mockPayments = [
+      Payment(
+        id: 'p-gcash-1',
+        bookingId: 'b-gcash-1',
+        businessId: 'biz1',
+        clientId: 'u1',
+        grossAmount: 100.0,
+        netAmount: 100.0,
+        paymentMethod: 'gcash',
+        referenceNumber: '9018472615243',
+        createdAt: DateTime.now(),
+      ),
+    ];
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: PaymentsInvoicesView(
+            payments: mockPayments,
+            businessId: 'biz1',
+            stripeConnected: true,
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Method / Ref #'), findsOneWidget);
+    expect(find.text('GCash (9018472615243)'), findsOneWidget);
+  });
 }

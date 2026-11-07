@@ -54,6 +54,7 @@ class PaymentService {
 
   PaymentService(this._client, [this._ref]);
 
+  /*
   Future<void> initiateCheckout({
     required String bookingId,
     required String returnUrl,
@@ -97,6 +98,73 @@ class PaymentService {
       onSuccess(true);
     }
   }
+  */
+
+  // Gene - Nov 07, 2026: Updated initiateCheckout to support hybrid paymentMethod, referenceNumber, and senderAccount
+  Future<void> initiateCheckout({
+    required String bookingId,
+    required String returnUrl,
+    required String cancelUrl,
+    String paymentMethod = 'stripe_card',
+    String? referenceNumber,
+    String? senderAccount,
+    required Function(bool isMock) onSuccess,
+  }) async {
+    // Fast path for local mock mode or direct clinic transfer methods (GCash, Maya, Bank Transfer)
+    if (!SupabaseConfig.isConfigured || paymentMethod != 'stripe_card') {
+      await simulateMockPaymentSuccess(
+        bookingId,
+        paymentMethod: paymentMethod,
+        referenceNumber: referenceNumber,
+        senderAccount: senderAccount,
+      );
+      onSuccess(true);
+      return;
+    }
+
+    try {
+      final res = await _client.functions.invoke(
+        'create-checkout-session',
+        body: {
+          'booking_id': bookingId,
+          'return_url': returnUrl,
+          'cancel_url': cancelUrl,
+          'payment_method': paymentMethod,
+          'reference_number': ?referenceNumber,
+          'sender_account': ?senderAccount,
+        },
+      );
+
+      final data = res.data as Map<String, dynamic>;
+      final url = data['url'] as String?;
+      final isMock = data['is_mock'] as bool? ?? false;
+
+      if (isMock) {
+        // Execute mock checkout completion locally
+        await simulateMockPaymentSuccess(
+          bookingId,
+          paymentMethod: paymentMethod,
+          referenceNumber: referenceNumber,
+          senderAccount: senderAccount,
+        );
+        onSuccess(true);
+        return;
+      }
+
+      if (url != null && await canLaunchUrl(Uri.parse(url))) {
+        await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+      }
+    } catch (e) {
+      // Graceful offline mock fallback
+      await simulateMockPaymentSuccess(
+        bookingId,
+        paymentMethod: paymentMethod,
+        referenceNumber: referenceNumber,
+        senderAccount: senderAccount,
+      );
+      onSuccess(true);
+    }
+  }
 
   /*
   Future<void> simulateMockPaymentSuccess(String bookingId) async {
@@ -121,7 +189,14 @@ class PaymentService {
   */
 
   // Gene - Nov, 04, 2026: Updated simulateMockPaymentSuccess to calculate deposit vs full payment, update in-memory mock state, and insert payments & notifications
-  Future<void> simulateMockPaymentSuccess(String bookingId, {double? amount}) async {
+  // Gene - Nov 07, 2026: Extended simulateMockPaymentSuccess with paymentMethod, referenceNumber, and senderAccount support
+  Future<void> simulateMockPaymentSuccess(
+    String bookingId, {
+    double? amount,
+    String paymentMethod = 'stripe_card',
+    String? referenceNumber,
+    String? senderAccount,
+  }) async {
     // 1. Locate booking in memory (Riverpod state or mockBookings)
     Booking? booking;
     if (_ref != null) {
@@ -161,6 +236,16 @@ class PaymentService {
     final remainingDue = double.parse((totalPrice - paidAmount).clamp(0.0, double.infinity).toStringAsFixed(2));
     final paymentStatus = remainingDue == 0 ? 'paid_in_full' : 'deposit_paid';
 
+    final effectiveRef = (referenceNumber != null && referenceNumber.trim().isNotEmpty)
+        ? referenceNumber.trim()
+        : (paymentMethod == 'gcash'
+            ? 'GC-${DateTime.now().millisecondsSinceEpoch}'
+            : (paymentMethod == 'maya'
+                ? 'MY-${DateTime.now().millisecondsSinceEpoch}'
+                : (paymentMethod == 'bank_transfer'
+                    ? 'BNK-${DateTime.now().millisecondsSinceEpoch}'
+                    : null)));
+
     // 3. Update in-memory booking state
     if (_ref != null) {
       await _ref.read(bookingsProvider.notifier).updateBookingPayment(
@@ -168,6 +253,9 @@ class PaymentService {
         paymentStatus: paymentStatus,
         amountPaid: paidAmount,
         amountDue: remainingDue,
+        paymentMethod: paymentMethod,
+        paymentReference: effectiveRef,
+        paymentSender: senderAccount,
       );
     }
 
@@ -180,30 +268,42 @@ class PaymentService {
         amountPaid: paidAmount,
         amountDue: remainingDue,
         holdExpiresAt: null,
+        paymentMethod: paymentMethod,
+        paymentReference: effectiveRef,
+        paymentSender: senderAccount,
       );
     }
 
     // 4. Create and insert payment record into mock ledger
+    final isDirectTransfer = paymentMethod != 'stripe_card';
     final payment = Payment(
       id: 'pay-mock-${DateTime.now().millisecondsSinceEpoch}',
       bookingId: bookingId,
       businessId: businessId,
       clientId: clientId,
-      stripeSessionId: 'cs_mock_${DateTime.now().millisecondsSinceEpoch}',
-      stripePaymentIntentId: 'pi_mock_${DateTime.now().millisecondsSinceEpoch}',
+      stripeSessionId: isDirectTransfer ? null : 'cs_mock_${DateTime.now().millisecondsSinceEpoch}',
+      stripePaymentIntentId: isDirectTransfer ? effectiveRef : 'pi_mock_${DateTime.now().millisecondsSinceEpoch}',
       grossAmount: paidAmount,
       applicationFeeAmount: double.parse(((paidAmount * 0.025) + 0.30).toStringAsFixed(2)),
-      stripeFeeAmount: double.parse(((paidAmount * 0.029) + 0.30).toStringAsFixed(2)),
-      netAmount: double.parse((paidAmount - ((paidAmount * 0.025) + 0.30)).toStringAsFixed(2)),
+      stripeFeeAmount: isDirectTransfer ? 0.0 : double.parse(((paidAmount * 0.029) + 0.30).toStringAsFixed(2)),
+      netAmount: isDirectTransfer
+          ? paidAmount
+          : double.parse((paidAmount - ((paidAmount * 0.025) + 0.30)).toStringAsFixed(2)),
       currency: 'usd',
       paymentStatus: 'succeeded',
       createdAt: DateTime.now(),
+      paymentMethod: paymentMethod,
+      referenceNumber: effectiveRef,
+      senderAccount: senderAccount,
     );
     SupabaseService.mockPayments.insert(0, payment);
 
     // 5. Create and insert notification record
+    final methodLabel = payment.paymentMethodLabel;
     final notifTitle = paymentStatus == 'deposit_paid' ? 'Deposit Payment Confirmed! 💳' : 'Payment Confirmed! 💳';
-    final notifBody = 'Your payment of \$${paidAmount.toStringAsFixed(2)} was successfully processed.';
+    final notifBody = effectiveRef != null
+        ? 'Your $methodLabel payment of \$${paidAmount.toStringAsFixed(2)} (Ref: $effectiveRef) was recorded.'
+        : 'Your payment of \$${paidAmount.toStringAsFixed(2)} was successfully processed.';
     final notification = NotificationItem(
       id: 'notif-${DateTime.now().millisecondsSinceEpoch}',
       userId: clientId,
@@ -231,6 +331,9 @@ class PaymentService {
           'amount_paid': paidAmount,
           'amount_due': remainingDue,
           'hold_expires_at': null,
+          'payment_method': paymentMethod,
+          'payment_reference': ?effectiveRef,
+          'payment_sender': ?senderAccount,
         }).eq('id', bookingId);
 
         await _client.from('payments').insert({
@@ -245,6 +348,9 @@ class PaymentService {
           'net_amount': payment.netAmount,
           'currency': 'usd',
           'payment_status': 'succeeded',
+          'payment_method': paymentMethod,
+          'reference_number': ?effectiveRef,
+          'sender_account': ?senderAccount,
         });
 
         await _client.from('notifications').insert({
@@ -314,6 +420,10 @@ class PaymentService {
         paymentStatus: newStatus,
         receiptUrl: p.receiptUrl,
         createdAt: p.createdAt,
+        // Gene - Nov 07, 2026: Preserve hybrid payment metadata across refunds
+        paymentMethod: p.paymentMethod,
+        referenceNumber: p.referenceNumber,
+        senderAccount: p.senderAccount,
       );
     }
 

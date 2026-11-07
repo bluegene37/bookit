@@ -249,6 +249,33 @@ class BookingConfirmationStep extends StatelessWidget {
                   ],
                 ),
 
+                // Gene - Nov 07, 2026: Display hybrid payment channel and reference number on confirmation pass
+                if (booking.paymentMethod != null && booking.paymentMethod!.isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Payment Method:',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: isDark ? NeumorphicColors.darkTextSecondary : NeumorphicColors.lightTextSecondary,
+                        ),
+                      ),
+                      Text(
+                        booking.paymentReference != null && booking.paymentReference!.isNotEmpty
+                            ? '${booking.paymentMethodLabel} • Ref #${booking.paymentReference}'
+                            : booking.paymentMethodLabel,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: accent,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+
                 // Gene - Nov, 04, 2026: Integrated PaymentCheckoutStep into universal booking wizard and enhanced confirmation receipt
                 if (booking.paymentStatus == 'deposit_paid' || (booking.amountPaid > 0 && booking.amountDue > 0)) ...[
                   const SizedBox(height: 14),

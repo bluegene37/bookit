@@ -21,7 +21,12 @@ class BookingWizardState {
   final String clientNotes;
   final bool isSubmitting;
   final Booking? completedBooking;
+  // Gene - Nov 07, 2026: Added hybrid payment method, reference number, and sender account fields to wizard state
+  final String selectedPaymentMethod; // 'stripe_card', 'gcash', 'maya', 'bank_transfer'
+  final String paymentReference;
+  final String paymentSender;
 
+  /*
   BookingWizardState({
     this.currentStep = 0,
     this.selectedService,
@@ -33,6 +38,24 @@ class BookingWizardState {
     this.clientNotes = '',
     this.isSubmitting = false,
     this.completedBooking,
+  }) : selectedDate = selectedDate ?? DateTime.now().add(const Duration(days: 1));
+  */
+
+  // Gene - Nov 07, 2026: Updated BookingWizardState constructor supporting selectedPaymentMethod, paymentReference, and paymentSender
+  BookingWizardState({
+    this.currentStep = 0,
+    this.selectedService,
+    this.selectedStaff,
+    DateTime? selectedDate,
+    this.selectedSlot,
+    this.dateRangeStart,
+    this.dateRangeEnd,
+    this.clientNotes = '',
+    this.isSubmitting = false,
+    this.completedBooking,
+    this.selectedPaymentMethod = 'stripe_card',
+    this.paymentReference = '',
+    this.paymentSender = '',
   }) : selectedDate = selectedDate ?? DateTime.now().add(const Duration(days: 1));
 
   double calculateTotalPrice() {
@@ -109,6 +132,7 @@ class BookingWizardState {
     }
   }
 
+  /*
   BookingWizardState copyWith({
     int? currentStep,
     ServiceItem? selectedService,
@@ -133,6 +157,41 @@ class BookingWizardState {
       clientNotes: clientNotes ?? this.clientNotes,
       isSubmitting: isSubmitting ?? this.isSubmitting,
       completedBooking: completedBooking ?? this.completedBooking,
+    );
+  }
+  */
+
+  // Gene - Nov 07, 2026: Extended copyWith supporting selectedPaymentMethod, paymentReference, and paymentSender
+  BookingWizardState copyWith({
+    int? currentStep,
+    ServiceItem? selectedService,
+    BusinessStaff? selectedStaff,
+    DateTime? selectedDate,
+    TimeSlot? selectedSlot,
+    DateTime? dateRangeStart,
+    DateTime? dateRangeEnd,
+    String? clientNotes,
+    bool? isSubmitting,
+    Booking? completedBooking,
+    bool clearSlot = false,
+    String? selectedPaymentMethod,
+    String? paymentReference,
+    String? paymentSender,
+  }) {
+    return BookingWizardState(
+      currentStep: currentStep ?? this.currentStep,
+      selectedService: selectedService ?? this.selectedService,
+      selectedStaff: selectedStaff ?? this.selectedStaff,
+      selectedDate: selectedDate ?? this.selectedDate,
+      selectedSlot: clearSlot ? null : (selectedSlot ?? this.selectedSlot),
+      dateRangeStart: dateRangeStart ?? this.dateRangeStart,
+      dateRangeEnd: dateRangeEnd ?? this.dateRangeEnd,
+      clientNotes: clientNotes ?? this.clientNotes,
+      isSubmitting: isSubmitting ?? this.isSubmitting,
+      completedBooking: completedBooking ?? this.completedBooking,
+      selectedPaymentMethod: selectedPaymentMethod ?? this.selectedPaymentMethod,
+      paymentReference: paymentReference ?? this.paymentReference,
+      paymentSender: paymentSender ?? this.paymentSender,
     );
   }
 }
@@ -165,6 +224,19 @@ class BookingWizardNotifier extends StateNotifier<BookingWizardState> {
 
   void updateNotes(String notes) {
     state = state.copyWith(clientNotes: notes);
+  }
+
+  // Gene - Nov 07, 2026: Added state updaters for hybrid payment method, reference number, and sender account
+  void selectPaymentMethod(String method) {
+    state = state.copyWith(selectedPaymentMethod: method);
+  }
+
+  void updatePaymentReference(String reference) {
+    state = state.copyWith(paymentReference: reference);
+  }
+
+  void updatePaymentSender(String sender) {
+    state = state.copyWith(paymentSender: sender);
   }
 
   void nextStep() {
@@ -312,6 +384,7 @@ class BookingWizardNotifier extends StateNotifier<BookingWizardState> {
         return true;
       }
 
+      /*
       await paymentService.initiateCheckout(
         bookingId: bookingId,
         returnUrl: 'bookit://booking-success?id=$bookingId',
@@ -325,6 +398,36 @@ class BookingWizardNotifier extends StateNotifier<BookingWizardState> {
               paymentStatus: deposit < total ? 'deposit_paid' : 'paid_in_full',
               amountPaid: deposit,
               amountDue: total - deposit,
+            ),
+          );
+          state = state.copyWith(isSubmitting: false, completedBooking: updated, currentStep: 4);
+        },
+      );
+      */
+      // Gene - Nov 07, 2026: Pass selectedPaymentMethod, paymentReference, and paymentSender to initiateCheckout and receipt state
+      final method = state.selectedPaymentMethod;
+      final refNum = state.paymentReference.trim().isNotEmpty ? state.paymentReference.trim() : null;
+      final sender = state.paymentSender.trim().isNotEmpty ? state.paymentSender.trim() : null;
+
+      await paymentService.initiateCheckout(
+        bookingId: bookingId,
+        returnUrl: 'bookit://booking-success?id=$bookingId',
+        cancelUrl: 'bookit://booking-cancel?id=$bookingId',
+        paymentMethod: method,
+        referenceNumber: refNum,
+        senderAccount: sender,
+        onSuccess: (isMock) {
+          final updatedList = ref.read(bookingsProvider);
+          final updated = updatedList.firstWhere(
+            (b) => b.id == bookingId,
+            orElse: () => created.copyWith(
+              status: 'confirmed',
+              paymentStatus: deposit < total ? 'deposit_paid' : 'paid_in_full',
+              amountPaid: deposit,
+              amountDue: total - deposit,
+              paymentMethod: method,
+              paymentReference: refNum,
+              paymentSender: sender,
             ),
           );
           state = state.copyWith(isSubmitting: false, completedBooking: updated, currentStep: 4);

@@ -176,5 +176,57 @@ void main() {
       expect(encoded['platform_fee_percent'], 3.5);
       expect(encoded['platform_fee_fixed'], 0.30);
     });
+
+    // Gene - Nov 07, 2026: Unit tests for hybrid payment methods (GCash, Maya, Bank Transfer) on Payment, Booking, and Business models
+    test('Payment and Booking models serialize hybrid payment_method, reference_number, and sender_account', () {
+      final paymentJson = {
+        'id': 'pay-gcash-1',
+        'booking_id': 'bk-gcash-1',
+        'business_id': 'biz-1',
+        'client_id': 'usr-1',
+        'gross_amount': 50.0,
+        'net_amount': 50.0,
+        'payment_method': 'gcash',
+        'reference_number': '9018472615243',
+        'sender_account': 'Juan Dela Cruz (0917-882-1045)',
+        'created_at': '2026-11-07T10:00:00Z',
+      };
+
+      final payment = Payment.fromJson(paymentJson);
+      expect(payment.paymentMethod, 'gcash');
+      expect(payment.paymentMethodLabel, 'GCash');
+      expect(payment.referenceNumber, '9018472615243');
+      expect(payment.senderAccount, 'Juan Dela Cruz (0917-882-1045)');
+
+      final encodedPay = payment.toJson();
+      expect(encodedPay['payment_method'], 'gcash');
+      expect(encodedPay['reference_number'], '9018472615243');
+
+      final booking = Booking(
+        id: 'bk-gcash-1',
+        businessId: 'biz-1',
+        clientId: 'usr-1',
+        bookingModel: 'slot_based',
+        totalPrice: 100.0,
+        amountPaid: 50.0,
+        amountDue: 50.0,
+        paymentStatus: 'deposit_paid',
+        paymentMethod: 'gcash',
+        paymentReference: '9018472615243',
+        paymentSender: 'Juan Dela Cruz',
+        createdAt: DateTime.now(),
+      );
+      expect(booking.paymentMethodLabel, 'GCash');
+      final encodedBooking = booking.toJson();
+      expect(encodedBooking['payment_method'], 'gcash');
+      expect(encodedBooking['payment_reference'], '9018472615243');
+
+      final biz = Business.fallback(name: 'Manila Dental Studio');
+      final payConfig = biz.paymentMethodsConfig;
+      expect(payConfig['gcash_enabled'], isTrue);
+      expect(payConfig['maya_enabled'], isTrue);
+      expect(payConfig['bank_enabled'], isTrue);
+      expect(payConfig['gcash_account_name'], 'Manila Dental Studio');
+    });
   });
 }

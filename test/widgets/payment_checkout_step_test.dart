@@ -98,6 +98,55 @@ void main() {
 
       expect(proceeded, isTrue);
     });
+
+    // Gene - Nov 07, 2026: Test hybrid GCash, Maya, and Bank Transfer selector and reference number input
+    testWidgets('PaymentCheckoutStep switches between Card, GCash, Maya, and Bank Transfer with reference input', (tester) async {
+      String? selectedMethod;
+      String? capturedRef;
+      const service = ServiceItem(
+        id: 's1',
+        businessId: 'b1',
+        name: 'Dental Cleaning',
+        price: 100.00,
+        paymentPolicy: 'full_upfront',
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: PaymentCheckoutStep(
+              service: service,
+              totalPrice: 100.00,
+              dueToday: 100.00,
+              dueAtVenue: 0.00,
+              onPaymentMethodChanged: (m) => selectedMethod = m,
+              onReferenceNumberChanged: (r) => capturedRef = r,
+              onProceed: () {},
+            ),
+          ),
+        ),
+      );
+
+      // Select GCash
+      await tester.tap(find.text('GCash'));
+      await tester.pumpAndSettle();
+
+      expect(selectedMethod, 'gcash');
+      expect(find.text('GCash Express / QR Ph'), findsOneWidget);
+      expect(find.text('Submit GCash Payment'), findsOneWidget);
+
+      // Tap Auto-Fill Demo Ref #
+      await tester.tap(find.text('Auto-Fill Demo Ref #'));
+      await tester.pumpAndSettle();
+      expect(capturedRef, '9018472615243');
+
+      // Switch to Bank Transfer
+      await tester.tap(find.text('Bank Transfer'));
+      await tester.pumpAndSettle();
+      expect(selectedMethod, 'bank_transfer');
+      expect(find.text('Bank Transfer (InstaPay / PESONet)'), findsOneWidget);
+      expect(find.text('Submit Bank Transfer'), findsOneWidget);
+    });
   });
 
   group('BookingConfirmationStep Enhanced Tests', () {

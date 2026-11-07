@@ -50,6 +50,19 @@ class _BusinessSettingsTabState extends ConsumerState<BusinessSettingsTab> {
     'sunday',
   ];
 
+  // Gene - Nov 07, 2026: Hybrid payment channels state & controllers for GCash, Maya, and Bank Transfer
+  late bool _stripeEnabled;
+  late bool _gcashEnabled;
+  late TextEditingController _gcashNameController;
+  late TextEditingController _gcashNumberController;
+  late bool _mayaEnabled;
+  late TextEditingController _mayaNameController;
+  late TextEditingController _mayaNumberController;
+  late bool _bankEnabled;
+  late TextEditingController _bankNameController;
+  late TextEditingController _bankAccountNameController;
+  late TextEditingController _bankAccountNumberController;
+
   @override
   void initState() {
     super.initState();
@@ -63,6 +76,20 @@ class _BusinessSettingsTabState extends ConsumerState<BusinessSettingsTab> {
     _latitude = widget.business.latitude ?? 37.7749;
     _longitude = widget.business.longitude ?? -122.4194;
     _workingHours = _initWorkingHours(widget.business.workingHours);
+
+    final payCfg = widget.business.paymentMethodsConfig;
+    _stripeEnabled = payCfg['stripe_enabled'] as bool? ?? true;
+    _gcashEnabled = payCfg['gcash_enabled'] as bool? ?? true;
+    _gcashNameController = TextEditingController(text: payCfg['gcash_account_name'] as String? ?? widget.business.name);
+    _gcashNumberController = TextEditingController(text: payCfg['gcash_number'] as String? ?? '0917-555-0199');
+    _mayaEnabled = payCfg['maya_enabled'] as bool? ?? true;
+    _mayaNameController = TextEditingController(text: payCfg['maya_account_name'] as String? ?? widget.business.name);
+    _mayaNumberController = TextEditingController(text: payCfg['maya_number'] as String? ?? '0918-555-0244');
+    _bankEnabled = payCfg['bank_enabled'] as bool? ?? true;
+    _bankNameController = TextEditingController(text: payCfg['bank_name'] as String? ?? 'BDO Unibank / BPI');
+    _bankAccountNameController = TextEditingController(text: payCfg['bank_account_name'] as String? ?? widget.business.name);
+    _bankAccountNumberController = TextEditingController(text: payCfg['bank_account_number'] as String? ?? '0042-8819-3021');
+
     _addressController.addListener(_onAddressChanged);
   }
 
@@ -114,6 +141,14 @@ class _BusinessSettingsTabState extends ConsumerState<BusinessSettingsTab> {
     _nameController.dispose();
     _addressController.dispose();
     _phoneController.dispose();
+    // Gene - Nov 07, 2026: Dispose hybrid payment channel controllers
+    _gcashNameController.dispose();
+    _gcashNumberController.dispose();
+    _mayaNameController.dispose();
+    _mayaNumberController.dispose();
+    _bankNameController.dispose();
+    _bankAccountNameController.dispose();
+    _bankAccountNumberController.dispose();
     super.dispose();
   }
 
@@ -149,6 +184,7 @@ class _BusinessSettingsTabState extends ConsumerState<BusinessSettingsTab> {
         'requires_approval': _requiresApproval,
       },
       */
+      /*
       // Gene - Nov 07, 2026: Persist updated working_hours map alongside slot and buffer settings
       settings: {
         ...widget.business.settings,
@@ -156,6 +192,28 @@ class _BusinessSettingsTabState extends ConsumerState<BusinessSettingsTab> {
         'buffer_minutes': _bufferMinutes,
         'requires_approval': _requiresApproval,
         'working_hours': _workingHours,
+      },
+      */
+      // Gene - Nov 07, 2026: Persist updated working_hours and hybrid payment_methods configuration
+      settings: {
+        ...widget.business.settings,
+        'slot_interval_minutes': _slotInterval,
+        'buffer_minutes': _bufferMinutes,
+        'requires_approval': _requiresApproval,
+        'working_hours': _workingHours,
+        'payment_methods': {
+          'stripe_enabled': _stripeEnabled,
+          'gcash_enabled': _gcashEnabled,
+          'gcash_account_name': _gcashNameController.text.trim(),
+          'gcash_number': _gcashNumberController.text.trim(),
+          'maya_enabled': _mayaEnabled,
+          'maya_account_name': _mayaNameController.text.trim(),
+          'maya_number': _mayaNumberController.text.trim(),
+          'bank_enabled': _bankEnabled,
+          'bank_name': _bankNameController.text.trim(),
+          'bank_account_name': _bankAccountNameController.text.trim(),
+          'bank_account_number': _bankAccountNumberController.text.trim(),
+        },
       },
     );
     await ref.read(businessServiceProvider).updateBusiness(updatedBusiness);
@@ -489,6 +547,138 @@ class _BusinessSettingsTabState extends ConsumerState<BusinessSettingsTab> {
           ),
           const SizedBox(height: 12),
           NeumorphicTextField(controller: _phoneController, labelText: 'Contact Phone'),
+          const SizedBox(height: 28),
+
+          // Gene - Nov 07, 2026: Hybrid Payment Channels & Receiving Accounts Configurator (Stripe, GCash, Maya, Bank Transfer)
+          Text(
+            'Payment Channels & Receiving Accounts',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: isDark ? NeumorphicColors.darkTextPrimary : NeumorphicColors.lightTextPrimary,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Configure accepted payment methods and receiving account numbers displayed to clients during checkout.',
+            style: TextStyle(
+              fontSize: 12,
+              color: isDark ? NeumorphicColors.darkTextSecondary : NeumorphicColors.lightTextSecondary,
+            ),
+          ),
+          const SizedBox(height: 12),
+          NeumorphicContainer(
+            borderRadius: 18.0,
+            padding: const EdgeInsets.all(16),
+            child: Material(
+              type: MaterialType.transparency,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Credit / Debit Card (Stripe)', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+                    subtitle: const Text('Online card checkout via Stripe Express', style: TextStyle(fontSize: 12)),
+                    value: _stripeEnabled,
+                    activeThumbColor: accent,
+                    onChanged: (val) => setState(() => _stripeEnabled = val),
+                  ),
+                  const Divider(height: 20),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('GCash (E-Wallet & QR Ph)', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+                    subtitle: const Text('Clients scan QR or transfer to your GCash number and input their 13-digit Reference No.', style: TextStyle(fontSize: 12)),
+                    value: _gcashEnabled,
+                    activeThumbColor: const Color(0xFF007DFE),
+                    onChanged: (val) => setState(() => _gcashEnabled = val),
+                  ),
+                  if (_gcashEnabled) ...[
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: NeumorphicTextField(
+                            controller: _gcashNameController,
+                            labelText: 'GCash Account Name',
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: NeumorphicTextField(
+                            controller: _gcashNumberController,
+                            labelText: 'GCash Mobile No.',
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                  const Divider(height: 20),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Maya (Digital Wallet)', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+                    subtitle: const Text('Direct transfer via Maya mobile number or QR Ph', style: TextStyle(fontSize: 12)),
+                    value: _mayaEnabled,
+                    activeThumbColor: const Color(0xFF00B14F),
+                    onChanged: (val) => setState(() => _mayaEnabled = val),
+                  ),
+                  if (_mayaEnabled) ...[
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: NeumorphicTextField(
+                            controller: _mayaNameController,
+                            labelText: 'Maya Account Name',
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: NeumorphicTextField(
+                            controller: _mayaNumberController,
+                            labelText: 'Maya Mobile No.',
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                  const Divider(height: 20),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Bank Transfer (InstaPay / PESONet)', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+                    subtitle: const Text('Clients transfer to your clinic bank account (BDO, BPI, UnionBank, etc.)', style: TextStyle(fontSize: 12)),
+                    value: _bankEnabled,
+                    activeThumbColor: accent,
+                    onChanged: (val) => setState(() => _bankEnabled = val),
+                  ),
+                  if (_bankEnabled) ...[
+                    const SizedBox(height: 8),
+                    NeumorphicTextField(
+                      controller: _bankNameController,
+                      labelText: 'Bank Name (e.g. BDO Unibank / BPI / UnionBank)',
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: NeumorphicTextField(
+                            controller: _bankAccountNameController,
+                            labelText: 'Bank Account Name',
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: NeumorphicTextField(
+                            controller: _bankAccountNumberController,
+                            labelText: 'Bank Account Number',
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
           const SizedBox(height: 28),
 
           /*

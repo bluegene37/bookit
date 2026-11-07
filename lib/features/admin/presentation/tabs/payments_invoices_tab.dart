@@ -564,10 +564,24 @@ class _PaymentsInvoicesViewState extends State<PaymentsInvoicesView> {
                 headingRowHeight: 48,
                 dataRowMinHeight: 52,
                 dataRowMaxHeight: 64,
+                /*
                 columns: const [
                   DataColumn(label: Text('Date', style: TextStyle(fontWeight: FontWeight.w800))),
                   DataColumn(label: Text('Client', style: TextStyle(fontWeight: FontWeight.w800))),
                   DataColumn(label: Text('Service / Booking', style: TextStyle(fontWeight: FontWeight.w800))),
+                  DataColumn(label: Text('Total', style: TextStyle(fontWeight: FontWeight.w800))),
+                  DataColumn(label: Text('Paid', style: TextStyle(fontWeight: FontWeight.w800))),
+                  DataColumn(label: Text('Due', style: TextStyle(fontWeight: FontWeight.w800))),
+                  DataColumn(label: Text('Status', style: TextStyle(fontWeight: FontWeight.w800))),
+                  DataColumn(label: Text('Actions', style: TextStyle(fontWeight: FontWeight.w800))),
+                ],
+                */
+                // Gene - Nov 07, 2026: Added Method / Ref # column to Transaction Ledger for GCash, Maya, Bank Transfer, and Stripe auditing
+                columns: const [
+                  DataColumn(label: Text('Date', style: TextStyle(fontWeight: FontWeight.w800))),
+                  DataColumn(label: Text('Client', style: TextStyle(fontWeight: FontWeight.w800))),
+                  DataColumn(label: Text('Service / Booking', style: TextStyle(fontWeight: FontWeight.w800))),
+                  DataColumn(label: Text('Method / Ref #', style: TextStyle(fontWeight: FontWeight.w800))),
                   DataColumn(label: Text('Total', style: TextStyle(fontWeight: FontWeight.w800))),
                   DataColumn(label: Text('Paid', style: TextStyle(fontWeight: FontWeight.w800))),
                   DataColumn(label: Text('Due', style: TextStyle(fontWeight: FontWeight.w800))),
@@ -582,6 +596,9 @@ class _PaymentsInvoicesViewState extends State<PaymentsInvoicesView> {
                       ? 'Booking #${p.bookingId.substring(0, 8)}'
                       : 'Booking #${p.bookingId}';
                   final isRefunded = p.paymentStatus == 'refunded';
+                  final methodDisplay = p.referenceNumber != null && p.referenceNumber!.isNotEmpty
+                      ? '${p.paymentMethodLabel} (${p.referenceNumber})'
+                      : p.paymentMethodLabel;
 
                   return DataRow(
                     cells: [
@@ -603,6 +620,20 @@ class _PaymentsInvoicesViewState extends State<PaymentsInvoicesView> {
                           style: TextStyle(
                             fontSize: 12,
                             color: isDark ? Colors.white70 : Colors.black87,
+                          ),
+                        ),
+                      ),
+                      DataCell(
+                        Text(
+                          methodDisplay,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: p.paymentMethod == 'gcash'
+                                ? const Color(0xFF007DFE)
+                                : (p.paymentMethod == 'maya'
+                                    ? const Color(0xFF00B14F)
+                                    : accent),
                           ),
                         ),
                       ),

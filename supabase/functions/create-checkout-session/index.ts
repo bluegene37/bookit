@@ -24,7 +24,18 @@ serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
   try {
+    /*
     const { booking_id, return_url, cancel_url } = await req.json();
+    */
+    // Gene - Nov 07, 2026: Accept hybrid payment_method, reference_number, and sender_account in checkout request
+    const {
+      booking_id,
+      return_url,
+      cancel_url,
+      payment_method = 'stripe_card',
+      reference_number,
+      sender_account,
+    } = await req.json();
 
     // Gene - Nov, 05, 2026: Enforce URL origin validation
     if (return_url && !isAllowedUrl(return_url)) {
@@ -90,6 +101,51 @@ serve(async (req: Request) => {
     const feePercent = business.platform_fee_percent || 2.50;
     const feeFixed = business.platform_fee_fixed || 0.30;
     const appFeeCents = Math.round((chargeAmount * (feePercent / 100) + feeFixed) * 100);
+
+    // Gene - Nov 07, 2026: Handle direct clinic transfer channels (GCash, Maya, Bank Transfer) with reference tracking
+    if (payment_method && payment_method !== 'stripe_card') {
+      const remainingDue = Math.max(0, Number((service.price - chargeAmount).toFixed(2)));
+      const paymentStatus = remainingDue === 0 ? 'paid_in_full' : 'deposit_paid';
+      const effectiveRef = reference_number || `${payment_method.toUpperCase()}-${Date.now()}`;
+
+      await supabaseAdmin
+        .from('bookings')
+        .update({
+          status: 'confirmed',
+          payment_status: paymentStatus,
+          amount_paid: chargeAmount,
+          amount_due: remainingDue,
+          hold_expires_at: null,
+          payment_method,
+          payment_reference: effectiveRef,
+          payment_sender: sender_account || null,
+        })
+        .eq('id', booking_id);
+
+      await supabaseAdmin.from('payments').insert({
+        booking_id,
+        business_id: business.id,
+        client_id: booking.client_id,
+        gross_amount: chargeAmount,
+        application_fee_amount: Number(((chargeAmount * (feePercent / 100)) + feeFixed).toFixed(2)),
+        stripe_fee_amount: 0,
+        net_amount: chargeAmount,
+        currency: 'usd',
+        payment_status: 'succeeded',
+        payment_method,
+        reference_number: effectiveRef,
+        sender_account: sender_account || null,
+      });
+
+      return new Response(
+        JSON.stringify({
+          url: `${return_url}?booking_id=${booking_id}&method=${payment_method}&ref=${encodeURIComponent(effectiveRef)}`,
+          session_id: effectiveRef,
+          is_mock: true,
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+      );
+    }
 
     // Create Stripe Checkout Session
     const sessionConfig: any = {

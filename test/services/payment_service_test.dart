@@ -175,5 +175,45 @@ void main() {
       final paymentService = container.read(paymentServiceProvider);
       expect(paymentService, isA<PaymentService>());
     });
+
+    // Gene - Nov 07, 2026: Verify GCash and Bank Transfer checkout flows record paymentMethod and referenceNumber
+    test('PaymentService simulateMockPaymentSuccess records GCash reference number and sender account', () async {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+
+      final testBooking = Booking(
+        id: 'bk-gcash-test-1',
+        businessId: '11111111-1111-1111-1111-111111111111',
+        clientId: '00000000-0000-0000-0000-000000000003',
+        bookingModel: 'slot_based',
+        status: 'awaiting_payment',
+        paymentStatus: 'unpaid',
+        totalPrice: 120.00,
+        createdAt: DateTime.now(),
+      );
+      SupabaseService.mockBookings.add(testBooking);
+
+      final paymentService = container.read(paymentServiceProvider);
+      await paymentService.simulateMockPaymentSuccess(
+        'bk-gcash-test-1',
+        amount: 120.00,
+        paymentMethod: 'gcash',
+        referenceNumber: '9018472615243',
+        senderAccount: 'Juan Dela Cruz (0917-882-1045)',
+      );
+
+      final updatedBooking = SupabaseService.mockBookings.firstWhere((b) => b.id == 'bk-gcash-test-1');
+      expect(updatedBooking.status, 'confirmed');
+      expect(updatedBooking.paymentStatus, 'paid_in_full');
+      expect(updatedBooking.paymentMethod, 'gcash');
+      expect(updatedBooking.paymentReference, '9018472615243');
+
+      final newPayment = SupabaseService.mockPayments.first;
+      expect(newPayment.bookingId, 'bk-gcash-test-1');
+      expect(newPayment.paymentMethod, 'gcash');
+      expect(newPayment.paymentMethodLabel, 'GCash');
+      expect(newPayment.referenceNumber, '9018472615243');
+      expect(newPayment.senderAccount, 'Juan Dela Cruz (0917-882-1045)');
+    });
   });
 }

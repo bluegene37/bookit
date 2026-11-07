@@ -300,6 +300,7 @@ class BookingNotifier extends StateNotifier<List<Booking>> {
     return bookingToInsert;
   }
 
+  /*
   // Gene - Nov, 04, 2026: Added updateBookingPayment to update payment status and financial amounts
   Future<void> updateBookingPayment({
     required String bookingId,
@@ -328,6 +329,50 @@ class BookingNotifier extends StateNotifier<List<Booking>> {
           amountPaid: amountPaid,
           amountDue: amountDue,
           holdExpiresAt: null,
+        );
+      }
+      return b;
+    }).toList();
+  }
+  */
+
+  // Gene - Nov 07, 2026: Updated updateBookingPayment to persist paymentMethod, paymentReference, and paymentSender
+  Future<void> updateBookingPayment({
+    required String bookingId,
+    required String paymentStatus,
+    required double amountPaid,
+    required double amountDue,
+    String? paymentMethod,
+    String? paymentReference,
+    String? paymentSender,
+  }) async {
+    final client = SupabaseService.client;
+    if (client != null) {
+      try {
+        await client.from('bookings').update({
+          'status': 'confirmed',
+          'payment_status': paymentStatus,
+          'amount_paid': amountPaid,
+          'amount_due': amountDue,
+          'hold_expires_at': null,
+          'payment_method': ?paymentMethod,
+          'payment_reference': ?paymentReference,
+          'payment_sender': ?paymentSender,
+        }).eq('id', bookingId);
+      } catch (_) {}
+    }
+
+    state = state.map((b) {
+      if (b.id == bookingId) {
+        return b.copyWith(
+          status: 'confirmed',
+          paymentStatus: paymentStatus,
+          amountPaid: amountPaid,
+          amountDue: amountDue,
+          holdExpiresAt: null,
+          paymentMethod: paymentMethod,
+          paymentReference: paymentReference,
+          paymentSender: paymentSender,
         );
       }
       return b;
