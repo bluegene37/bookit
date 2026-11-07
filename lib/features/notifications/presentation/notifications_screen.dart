@@ -2,22 +2,53 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+// Gene - Nov 07, 2026: Added go_router and auth_service imports for notification navigation and Mark All Read
+import 'package:go_router/go_router.dart';
 import '../../../core/theme/neumorphic_colors.dart';
 import '../../../core/widgets/neumorphic_container.dart';
 import '../../../services/notification_service.dart';
+import '../../../services/auth_service.dart';
 
 class NotificationsScreen extends ConsumerWidget {
   const NotificationsScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    /*
     final notifications = ref.watch(notificationsProvider);
+    */
+    // Gene - Nov 07, 2026: Watch userNotificationsProvider and active user for Mark All Read & contextual navigation
+    final notifications = ref.watch(userNotificationsProvider);
+    final authState = ref.watch(authProvider);
+    final hasUnread = notifications.any((n) => !n.isRead);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final accent = isDark ? NeumorphicColors.tealLight : NeumorphicColors.tealPrimary;
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Notifications', style: TextStyle(fontWeight: FontWeight.w700)),
+        actions: [
+          if (hasUnread)
+            TextButton.icon(
+              onPressed: () {
+                ref.read(notificationsProvider.notifier).markAllAsRead(
+                      userId: authState.user?.id,
+                    );
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('All notifications marked as read'),
+                    duration: Duration(seconds: 2),
+                  ),
+                );
+              },
+              icon: Icon(Icons.done_all_rounded, size: 16, color: accent),
+              label: Text(
+                'Mark All Read',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: accent),
+              ),
+            ),
+          const SizedBox(width: 8),
+        ],
       ),
       body: SafeArea(
         child: notifications.isEmpty
@@ -47,8 +78,21 @@ class NotificationsScreen extends ConsumerWidget {
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 14),
                     child: GestureDetector(
+                      /*
                       onTap: () {
                         ref.read(notificationsProvider.notifier).markAsRead(notif.id);
+                      },
+                      */
+                      // Gene - Nov 07, 2026: Mark notification read and navigate to appointments or admin dashboard
+                      onTap: () {
+                        ref.read(notificationsProvider.notifier).markAsRead(notif.id);
+                        if (notif.bookingId != null) {
+                          if (authState.isBusinessOwner) {
+                            context.go('/admin');
+                          } else {
+                            context.push('/my-bookings');
+                          }
+                        }
                       },
                       child: NeumorphicContainer(
                         borderRadius: 18.0,

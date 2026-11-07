@@ -19,6 +19,9 @@ import 'package:bookit/models/service_item.dart';
 import 'package:bookit/services/business_service.dart';
 import 'package:bookit/services/crm_service.dart';
 import 'package:bookit/services/supabase_service.dart';
+// Gene - Nov 07, 2026: Added booking_service and notification_service imports for Pass 2 unit tests
+import 'package:bookit/services/booking_service.dart';
+import 'package:bookit/services/notification_service.dart';
 
 void main() {
   setUp(() {
@@ -153,6 +156,46 @@ void main() {
     profiles = crm.aggregateClients(SupabaseService.mockBookings);
     clientProfile = profiles.firstWhere((p) => p.id == DemoData.clientUserId);
     expect(clientProfile.medicalFlags.contains('Sulfa Allergy'), isFalse);
+  });
+
+  test('Walk-In booking preserves checked_in status and emits lifecycle notifications + markAllAsRead', () async {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+
+    final initialUnread = container.read(unreadNotificationCountProvider);
+    final now = DateTime.now();
+
+    final walkIn = Booking(
+      id: 'bk-walkin-test',
+      businessId: '11111111-1111-1111-1111-111111111111',
+      clientId: DemoData.clientUserId,
+      bookingModel: 'slot_based',
+      startTime: now,
+      endTime: now.add(const Duration(minutes: 45)),
+      status: 'checked_in',
+      checkedInAt: now,
+      totalPrice: 120.0,
+      createdAt: now,
+      businessName: 'Apex Dental & Orthodontic Care',
+      serviceName: 'Emergency Dental Check',
+      clientName: 'Jordan Taylor',
+    );
+
+    final created = await container.read(bookingsProvider.notifier).createBooking(walkIn);
+    expect(created.status, equals('checked_in'));
+    expect(created.holdExpiresAt, isNull);
+
+    // Notification emitted to both client and admin
+    expect(container.read(notificationsProvider).any((n) => n.bookingId == 'bk-walkin-test'), isTrue);
+    expect(container.read(unreadNotificationCountProvider), greaterThan(initialUnread));
+
+    // Mark all read clears unread count for active user
+    final activeUserId = container.read(userNotificationsProvider).first.userId;
+    container.read(notificationsProvider.notifier).markAllAsRead(userId: activeUserId);
+    expect(
+      container.read(notificationsProvider).where((n) => n.userId == activeUserId && !n.isRead),
+      isEmpty,
+    );
   });
 }
 

@@ -5,16 +5,53 @@ import 'supabase_service.dart';
 // Gene - Nov 07, 2026: Added auth_service and demo_data imports for user-scoped clientBookingsProvider filtering
 import 'auth_service.dart';
 import '../core/constants/demo_data.dart';
+// Gene - Nov 07, 2026: Added notification_item and notification_service imports for real-time lifecycle notifications
+import '../models/notification_item.dart';
+import 'notification_service.dart';
 
 class BookingNotifier extends StateNotifier<List<Booking>> {
+  final Ref? _ref;
   /*
   // Gene - Nov, 03, 2026: Initial constructor with mock bookings only
   BookingNotifier() : super(List.from(SupabaseService.mockBookings));
   */
 
+  /*
   // Gene - Nov, 04, 2026: Updated constructor automatically syncing with live Supabase bookings table
   BookingNotifier() : super(List.from(SupabaseService.mockBookings)) {
     loadBookings();
+  }
+  */
+
+  // Gene - Nov 07, 2026: Added optional Ref to dispatch real-time in-app notifications on booking lifecycle events
+  BookingNotifier([this._ref]) : super(List.from(SupabaseService.mockBookings)) {
+    loadBookings();
+  }
+
+  void _emitNotification({
+    required String userId,
+    String? businessId,
+    String? bookingId,
+    required String title,
+    required String body,
+    required String type,
+  }) {
+    final item = NotificationItem(
+      id: 'notif-${DateTime.now().microsecondsSinceEpoch}',
+      userId: userId,
+      businessId: businessId,
+      bookingId: bookingId,
+      title: title,
+      body: body,
+      type: type,
+      isRead: false,
+      createdAt: DateTime.now(),
+    );
+    if (_ref != null) {
+      _ref.read(notificationsProvider.notifier).addNotification(item);
+    } else {
+      SupabaseService.mockNotifications.insert(0, item);
+    }
   }
 
   // Gene - Nov, 04, 2026: Synchronize bookings table with joined relations from Supabase
@@ -93,11 +130,24 @@ class BookingNotifier extends StateNotifier<List<Booking>> {
 
   // Gene - Nov, 04, 2026: Updated createBooking to preserve confirmed status without hold timer for pay_at_venue services
   Future<Booking> createBooking(Booking booking) async {
+    /*
     final isConfirmed = booking.status == 'confirmed';
     final holdExpiresAt = isConfirmed ? null : (booking.holdExpiresAt ?? DateTime.now().add(const Duration(minutes: 15)));
 
     final bookingToInsert = booking.copyWith(
       status: isConfirmed ? 'confirmed' : 'awaiting_payment',
+      holdExpiresAt: holdExpiresAt,
+      paymentStatus: booking.paymentStatus.isNotEmpty ? booking.paymentStatus : 'unpaid',
+      amountDue: booking.amountDue > 0 ? booking.amountDue : booking.totalPrice,
+      amountPaid: booking.amountPaid,
+    );
+    */
+    // Gene - Nov 07, 2026: Preserve 'confirmed' and 'checked_in' statuses (including reception walk-ins) without hold timer
+    final isDirectStatus = booking.status == 'confirmed' || booking.status == 'checked_in';
+    final holdExpiresAt = isDirectStatus ? null : (booking.holdExpiresAt ?? DateTime.now().add(const Duration(minutes: 15)));
+
+    final bookingToInsert = booking.copyWith(
+      status: isDirectStatus ? booking.status : 'awaiting_payment',
       holdExpiresAt: holdExpiresAt,
       paymentStatus: booking.paymentStatus.isNotEmpty ? booking.paymentStatus : 'unpaid',
       amountDue: booking.amountDue > 0 ? booking.amountDue : booking.totalPrice,
@@ -116,6 +166,27 @@ class BookingNotifier extends StateNotifier<List<Booking>> {
 
     // Local mock state update
     state = [bookingToInsert, ...state];
+    // Gene - Nov 07, 2026: Emit real-time in-app notifications for client and business owner upon booking creation
+    _emitNotification(
+      userId: bookingToInsert.clientId,
+      businessId: bookingToInsert.businessId,
+      bookingId: bookingToInsert.id,
+      title: bookingToInsert.status == 'checked_in'
+          ? 'Walk-In Checked In'
+          : (bookingToInsert.status == 'confirmed' ? 'Appointment Confirmed' : 'Booking Request Submitted'),
+      body:
+          '${bookingToInsert.serviceName ?? 'Appointment'} at ${bookingToInsert.businessName ?? 'Clinic'} (${bookingToInsert.formattedSchedule}).',
+      type: 'booking_${bookingToInsert.status}',
+    );
+    _emitNotification(
+      userId: DemoData.adminOwnerId,
+      businessId: bookingToInsert.businessId,
+      bookingId: bookingToInsert.id,
+      title: bookingToInsert.status == 'checked_in' ? 'New Walk-In Checked In' : 'New Booking Received',
+      body:
+          '${bookingToInsert.clientName ?? 'Client'} booked ${bookingToInsert.serviceName ?? 'Appointment'} (${bookingToInsert.formattedSchedule}).',
+      type: 'booking_${bookingToInsert.status}',
+    );
     return bookingToInsert;
   }
 
@@ -262,13 +333,24 @@ class BookingNotifier extends StateNotifier<List<Booking>> {
 
     state = state.map((b) {
       if (b.id == bookingId) {
-        return b.copyWith(
+        final updated = b.copyWith(
           status: 'confirmed',
           startTime: newStartTime ?? b.startTime,
           endTime: newEndTime ?? b.endTime,
           dateFrom: newDateFrom ?? b.dateFrom,
           dateTo: newDateTo ?? b.dateTo,
         );
+        // Gene - Nov 07, 2026: Emit notification when appointment is rescheduled
+        _emitNotification(
+          userId: updated.clientId,
+          businessId: updated.businessId,
+          bookingId: updated.id,
+          title: 'Appointment Rescheduled',
+          body:
+              'Your ${updated.serviceName ?? 'appointment'} at ${updated.businessName ?? 'Clinic'} is now scheduled for ${updated.formattedSchedule}.',
+          type: 'booking_rescheduled',
+        );
+        return updated;
       }
       return b;
     }).toList();
@@ -285,7 +367,18 @@ class BookingNotifier extends StateNotifier<List<Booking>> {
 
     state = state.map((b) {
       if (b.id == bookingId) {
-        return b.copyWith(status: newStatus);
+        final updated = b.copyWith(status: newStatus);
+        // Gene - Nov 07, 2026: Emit notification on booking status transition
+        _emitNotification(
+          userId: updated.clientId,
+          businessId: updated.businessId,
+          bookingId: updated.id,
+          title: 'Booking Status: ${newStatus.replaceAll('_', ' ').toUpperCase()}',
+          body:
+              'Your ${updated.serviceName ?? 'appointment'} at ${updated.businessName ?? 'Clinic'} was updated to ${newStatus.replaceAll('_', ' ')}.',
+          type: 'booking_$newStatus',
+        );
+        return updated;
       }
       return b;
     }).toList();
@@ -306,11 +399,22 @@ class BookingNotifier extends StateNotifier<List<Booking>> {
     state = state.map((b) {
       if (b.id == bookingId) {
         final hasPaid = b.amountPaid > 0;
-        return b.copyWith(
+        final updated = b.copyWith(
           status: 'cancelled',
           cancellationReason: reason,
           paymentStatus: hasPaid ? 'refunded' : b.paymentStatus,
         );
+        // Gene - Nov 07, 2026: Emit notification on booking cancellation
+        _emitNotification(
+          userId: updated.clientId,
+          businessId: updated.businessId,
+          bookingId: updated.id,
+          title: 'Appointment Cancelled',
+          body:
+              'Your ${updated.serviceName ?? 'appointment'} at ${updated.businessName ?? 'Clinic'} has been cancelled ($reason).',
+          type: 'booking_cancelled',
+        );
+        return updated;
       }
       return b;
     }).toList();
@@ -331,7 +435,18 @@ class BookingNotifier extends StateNotifier<List<Booking>> {
     state = [
       for (final b in state)
         if (b.id == bookingId)
-          b.copyWith(status: 'checked_in', checkedInAt: now)
+          () {
+            final updated = b.copyWith(status: 'checked_in', checkedInAt: now);
+            _emitNotification(
+              userId: updated.clientId,
+              businessId: updated.businessId,
+              bookingId: updated.id,
+              title: 'Checked In at Reception',
+              body: 'You are checked in for ${updated.serviceName ?? 'your visit'} at ${updated.businessName ?? 'Clinic'}.',
+              type: 'booking_checked_in',
+            );
+            return updated;
+          }()
         else
           b,
     ];
@@ -352,15 +467,32 @@ class BookingNotifier extends StateNotifier<List<Booking>> {
     state = [
       for (final b in state)
         if (b.id == bookingId)
-          b.copyWith(status: 'in_service', inServiceAt: now)
+          () {
+            final updated = b.copyWith(status: 'in_service', inServiceAt: now);
+            _emitNotification(
+              userId: updated.clientId,
+              businessId: updated.businessId,
+              bookingId: updated.id,
+              title: 'Your Specialist is Ready',
+              body: '${updated.staffName ?? 'Your provider'} is ready for your ${updated.serviceName ?? 'session'} now.',
+              type: 'booking_in_service',
+            );
+            return updated;
+          }()
         else
           b,
     ];
   }
 }
 
+/*
 final bookingsProvider = StateNotifierProvider<BookingNotifier, List<Booking>>((ref) {
   return BookingNotifier();
+});
+*/
+// Gene - Nov 07, 2026: Pass ref into BookingNotifier to dispatch real-time notifications
+final bookingsProvider = StateNotifierProvider<BookingNotifier, List<Booking>>((ref) {
+  return BookingNotifier(ref);
 });
 
 // Gene - Nov, 05, 2026: Provider alias for backwards compatibility

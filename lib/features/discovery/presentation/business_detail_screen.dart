@@ -12,6 +12,8 @@ import '../../../services/business_service.dart';
 import '../../../core/widgets/safe_network_image.dart';
 // Gene - Nov 06, 2026: Added StorefrontDirectionsCard import
 import 'widgets/storefront_directions_card.dart';
+// Gene - Nov 07, 2026: Added booking_wizard_provider import to pre-select tapped service and advance to Schedule step
+import '../../booking_engine/providers/booking_wizard_provider.dart';
 
 class BusinessDetailScreen extends ConsumerWidget {
   final String businessId;
@@ -255,6 +257,7 @@ class BusinessDetailScreen extends ConsumerWidget {
                             ),
                           ),
                           const SizedBox(height: 12),
+                          /*
                           ...services.map((srv) {
                             return Padding(
                               padding: const EdgeInsets.only(bottom: 12),
@@ -296,6 +299,169 @@ class BusinessDetailScreen extends ConsumerWidget {
                               ),
                             );
                           }),
+                          */
+                          // Gene - Nov 07, 2026: Tapping a service card pre-selects that service in the Booking Wizard and jumps to Step 1 (Schedule)
+                          ...services.map((srv) {
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 12),
+                              child: NeumorphicContainer(
+                                borderRadius: 16.0,
+                                padding: const EdgeInsets.all(16),
+                                onTap: () {
+                                  final wizardNotifier = ref.read(bookingWizardProvider(business).notifier);
+                                  wizardNotifier.selectService(srv);
+                                  wizardNotifier.nextStep();
+                                  context.push('/book/${business.id}');
+                                },
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            srv.name,
+                                            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                                          ),
+                                          if (srv.description != null) ...[
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              srv.description!,
+                                              style: TextStyle(fontSize: 12, color: isDark ? Colors.white60 : Colors.black54),
+                                            ),
+                                          ],
+                                          const SizedBox(height: 6),
+                                          Text(
+                                            srv.formattedDuration,
+                                            style: TextStyle(fontSize: 11, color: isDark ? Colors.white38 : Colors.black38),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Column(
+                                      crossAxisAlignment: CrossAxisAlignment.end,
+                                      children: [
+                                        Text(
+                                          srv.formattedPrice,
+                                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: accent),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                          decoration: BoxDecoration(
+                                            color: accent.withValues(alpha: 0.12),
+                                            borderRadius: BorderRadius.circular(8),
+                                          ),
+                                          child: Text(
+                                            'Book →',
+                                            style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: accent),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          }),
+
+                          // Gene - Nov 07, 2026: Storefront Clinic Operating Hours Card with Open/Closed Today indicator
+                          if (business.workingHours != null && business.workingHours!.isNotEmpty) ...[
+                            const SizedBox(height: 12),
+                            Builder(
+                              builder: (context) {
+                                final todayName = DateFormat('EEEE').format(DateTime.now()).toLowerCase();
+                                final todayCfg = business.workingHours![todayName] as Map<String, dynamic>?;
+                                final isOpenToday = todayCfg != null && todayCfg['is_open'] == true;
+                                return Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Text(
+                                          'Operating Hours',
+                                          style: TextStyle(
+                                            fontSize: 17,
+                                            fontWeight: FontWeight.w700,
+                                            color: isDark ? NeumorphicColors.darkTextPrimary : NeumorphicColors.lightTextPrimary,
+                                          ),
+                                        ),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                          decoration: BoxDecoration(
+                                            color: (isOpenToday ? NeumorphicColors.success : NeumorphicColors.error)
+                                                .withValues(alpha: 0.14),
+                                            borderRadius: BorderRadius.circular(8),
+                                          ),
+                                          child: Text(
+                                            isOpenToday ? 'Open Today' : 'Closed Today',
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w700,
+                                              color: isOpenToday ? NeumorphicColors.success : NeumorphicColors.error,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 10),
+                                    NeumorphicContainer(
+                                      borderRadius: 16.0,
+                                      padding: const EdgeInsets.all(14),
+                                      child: Column(
+                                        children: const [
+                                          'monday',
+                                          'tuesday',
+                                          'wednesday',
+                                          'thursday',
+                                          'friday',
+                                          'saturday',
+                                          'sunday',
+                                        ].map((day) {
+                                          final cfg = business.workingHours![day] as Map<String, dynamic>?;
+                                          final isOpen = cfg != null && cfg['is_open'] == true;
+                                          final isToday = day == todayName;
+                                          final dayLabel = day[0].toUpperCase() + day.substring(1);
+                                          return Padding(
+                                            padding: const EdgeInsets.symmetric(vertical: 3),
+                                            child: Row(
+                                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                              children: [
+                                                Text(
+                                                  dayLabel,
+                                                  style: TextStyle(
+                                                    fontSize: 12,
+                                                    fontWeight: isToday ? FontWeight.w800 : FontWeight.w500,
+                                                    color: isToday
+                                                        ? accent
+                                                        : (isDark ? Colors.white70 : Colors.black87),
+                                                  ),
+                                                ),
+                                                Text(
+                                                  isOpen
+                                                      ? '${cfg['open'] ?? '09:00'} – ${cfg['close'] ?? '17:00'}'
+                                                      : 'Closed',
+                                                  style: TextStyle(
+                                                    fontSize: 12,
+                                                    fontWeight: isToday ? FontWeight.w800 : FontWeight.w500,
+                                                    color: isOpen
+                                                        ? (isToday ? accent : (isDark ? Colors.white70 : Colors.black87))
+                                                        : (isDark ? Colors.white38 : Colors.black38),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          );
+                                        }).toList(),
+                                      ),
+                                    ),
+                                  ],
+                                );
+                              },
+                            ),
+                          ],
                           // Gene - Nov 07, 2026: Verified Customer Reviews & Star Distribution Section
                           const SizedBox(height: 16),
                           Row(

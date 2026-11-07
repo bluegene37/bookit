@@ -38,6 +38,17 @@ class _BusinessSettingsTabState extends ConsumerState<BusinessSettingsTab> {
   late double? _longitude;
   final GlobalKey<LocationPinPickerState> _pinPickerKey = GlobalKey<LocationPinPickerState>();
   Timer? _addressDebounce;
+  // Gene - Nov 07, 2026: Weekly clinic working hours map for editing open/close schedule per day
+  late Map<String, Map<String, dynamic>> _workingHours;
+  static const List<String> _weekdays = [
+    'monday',
+    'tuesday',
+    'wednesday',
+    'thursday',
+    'friday',
+    'saturday',
+    'sunday',
+  ];
 
   @override
   void initState() {
@@ -51,7 +62,30 @@ class _BusinessSettingsTabState extends ConsumerState<BusinessSettingsTab> {
     _requiresApproval = widget.business.requiresApproval;
     _latitude = widget.business.latitude ?? 37.7749;
     _longitude = widget.business.longitude ?? -122.4194;
+    _workingHours = _initWorkingHours(widget.business.workingHours);
     _addressController.addListener(_onAddressChanged);
+  }
+
+  Map<String, Map<String, dynamic>> _initWorkingHours(Map<String, dynamic>? existing) {
+    final result = <String, Map<String, dynamic>>{};
+    for (final day in _weekdays) {
+      final raw = existing != null ? existing[day] : null;
+      if (raw is Map) {
+        result[day] = {
+          'open': raw['open']?.toString() ?? '09:00',
+          'close': raw['close']?.toString() ?? '17:00',
+          'is_open': raw['is_open'] == true,
+        };
+      } else {
+        final isWeekend = day == 'saturday' || day == 'sunday';
+        result[day] = {
+          'open': '09:00',
+          'close': '17:00',
+          'is_open': !isWeekend,
+        };
+      }
+    }
+    return result;
   }
 
   void _onAddressChanged() {
@@ -107,14 +141,26 @@ class _BusinessSettingsTabState extends ConsumerState<BusinessSettingsTab> {
       bookingModel: _selectedModel,
       latitude: _latitude,
       longitude: _longitude,
+      /*
       settings: {
         ...widget.business.settings,
         'slot_interval_minutes': _slotInterval,
         'buffer_minutes': _bufferMinutes,
         'requires_approval': _requiresApproval,
       },
+      */
+      // Gene - Nov 07, 2026: Persist updated working_hours map alongside slot and buffer settings
+      settings: {
+        ...widget.business.settings,
+        'slot_interval_minutes': _slotInterval,
+        'buffer_minutes': _bufferMinutes,
+        'requires_approval': _requiresApproval,
+        'working_hours': _workingHours,
+      },
     );
     await ref.read(businessServiceProvider).updateBusiness(updatedBusiness);
+    ref.invalidate(businessDetailProvider(widget.business.id));
+    ref.invalidate(businessListProvider);
     if (mounted) {
       setState(() => _saved = true);
       ScaffoldMessenger.of(context).showSnackBar(
@@ -260,6 +306,119 @@ class _BusinessSettingsTabState extends ConsumerState<BusinessSettingsTab> {
                   ),
                 ),
               ],
+            ),
+            const SizedBox(height: 24),
+          ],
+
+          // Gene - Nov 07, 2026: Weekly Clinic Operating Hours Editor Card
+          if (_selectedModel != BookingModelType.dateRange) ...[
+            Text(
+              'Weekly Clinic Operating Hours',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: isDark ? NeumorphicColors.darkTextPrimary : NeumorphicColors.lightTextPrimary,
+              ),
+            ),
+            const SizedBox(height: 12),
+            NeumorphicContainer(
+              borderRadius: 18.0,
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                children: _weekdays.map((day) {
+                  final dayCfg = _workingHours[day]!;
+                  final isOpen = dayCfg['is_open'] == true;
+                  final openTime = dayCfg['open'] as String? ?? '09:00';
+                  final closeTime = dayCfg['close'] as String? ?? '17:00';
+                  final label = day[0].toUpperCase() + day.substring(1);
+
+                  const openOptions = ['07:00', '08:00', '08:30', '09:00', '09:30', '10:00', '11:00'];
+                  const closeOptions = ['14:00', '15:00', '16:00', '17:00', '17:30', '18:00', '19:00', '20:00'];
+
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    child: Row(
+                      children: [
+                        SizedBox(
+                          width: 100,
+                          child: Text(
+                            label,
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: isOpen
+                                  ? (isDark ? Colors.white : Colors.black87)
+                                  : (isDark ? Colors.white38 : Colors.black38),
+                            ),
+                          ),
+                        ),
+                        Switch(
+                          value: isOpen,
+                          activeThumbColor: accent,
+                          onChanged: (val) {
+                            setState(() {
+                              _workingHours[day] = {
+                                ...dayCfg,
+                                'is_open': val,
+                              };
+                            });
+                          },
+                        ),
+                        const SizedBox(width: 8),
+                        if (!isOpen)
+                          Text(
+                            'Closed',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontStyle: FontStyle.italic,
+                              color: isDark ? Colors.white38 : Colors.black38,
+                            ),
+                          )
+                        else
+                          Expanded(
+                            child: Wrap(
+                              spacing: 8,
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              children: [
+                                DropdownButton<String>(
+                                  value: openOptions.contains(openTime) ? openTime : openOptions[3],
+                                  isDense: true,
+                                  underline: const SizedBox(),
+                                  items: openOptions
+                                      .map((t) => DropdownMenuItem(value: t, child: Text(t, style: const TextStyle(fontSize: 12))))
+                                      .toList(),
+                                  onChanged: (val) {
+                                    if (val != null) {
+                                      setState(() {
+                                        _workingHours[day] = {...dayCfg, 'open': val};
+                                      });
+                                    }
+                                  },
+                                ),
+                                const Text('to', style: TextStyle(fontSize: 12)),
+                                DropdownButton<String>(
+                                  value: closeOptions.contains(closeTime) ? closeTime : closeOptions[3],
+                                  isDense: true,
+                                  underline: const SizedBox(),
+                                  items: closeOptions
+                                      .map((t) => DropdownMenuItem(value: t, child: Text(t, style: const TextStyle(fontSize: 12))))
+                                      .toList(),
+                                  onChanged: (val) {
+                                    if (val != null) {
+                                      setState(() {
+                                        _workingHours[day] = {...dayCfg, 'close': val};
+                                      });
+                                    }
+                                  },
+                                ),
+                              ],
+                            ),
+                          ),
+                      ],
+                    ),
+                  );
+                }).toList(),
+              ),
             ),
             const SizedBox(height: 24),
           ],

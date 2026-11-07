@@ -9,6 +9,10 @@ import '../../../../core/widgets/status_badge.dart';
 import '../../../../models/business.dart';
 // import '../../../../models/booking.dart';
 import '../../../../services/booking_service.dart';
+// Gene - Nov 07, 2026: Added Booking model and AdminWalkInBookingDialog imports for calendar event dots & manual bookings
+import '../../../../models/booking.dart';
+import '../../../../core/widgets/neumorphic_button.dart';
+import 'widgets/admin_walk_in_booking_dialog.dart';
 
 class CalendarAgendaTab extends ConsumerStatefulWidget {
   final Business business;
@@ -22,6 +26,23 @@ class CalendarAgendaTab extends ConsumerStatefulWidget {
 class _CalendarAgendaTabState extends ConsumerState<CalendarAgendaTab> {
   DateTime _focusedDay = DateTime.now();
   DateTime _selectedDay = DateTime.now();
+
+  // Gene - Nov 07, 2026: Helper returning bookings falling on a given calendar day for TableCalendar event dots
+  List<Booking> _bookingsForDay(List<Booking> bookings, DateTime day) {
+    return bookings.where((b) {
+      if (b.status == 'cancelled' || b.status == 'rejected') return false;
+      if (b.startTime != null) {
+        return DateUtils.isSameDay(b.startTime!, day);
+      } else if (b.dateFrom != null) {
+        if (b.dateTo != null) {
+          return (day.isAfter(b.dateFrom!) || DateUtils.isSameDay(day, b.dateFrom!)) &&
+              (day.isBefore(b.dateTo!) || DateUtils.isSameDay(day, b.dateTo!));
+        }
+        return DateUtils.isSameDay(b.dateFrom!, day);
+      }
+      return false;
+    }).toList();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -47,6 +68,7 @@ class _CalendarAgendaTabState extends ConsumerState<CalendarAgendaTab> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          /*
           Text(
             'Appointment Agenda & Calendar',
             style: TextStyle(
@@ -55,17 +77,57 @@ class _CalendarAgendaTabState extends ConsumerState<CalendarAgendaTab> {
               color: isDark ? NeumorphicColors.darkTextPrimary : NeumorphicColors.lightTextPrimary,
             ),
           ),
+          */
+          // Gene - Nov 07, 2026: Header with '+ Walk-In / Appointment' button
+          Wrap(
+            spacing: 12,
+            runSpacing: 10,
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              Text(
+                'Appointment Agenda & Calendar',
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800,
+                  color: isDark ? NeumorphicColors.darkTextPrimary : NeumorphicColors.lightTextPrimary,
+                ),
+              ),
+              NeumorphicButton(
+                isPrimary: true,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                onPressed: () => AdminWalkInBookingDialog.show(
+                  context,
+                  business: widget.business,
+                  initialDate: _selectedDay,
+                  initialWalkInMode: false,
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.add_circle_outline, size: 16, color: Colors.white),
+                    SizedBox(width: 6),
+                    Text(
+                      'New Walk-In / Appointment',
+                      style: TextStyle(fontSize: 12, color: Colors.white, fontWeight: FontWeight.w700),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
           const SizedBox(height: 16),
 
           // Neumorphic Calendar Container
           NeumorphicContainer(
             borderRadius: 22.0,
             padding: const EdgeInsets.all(16),
-            child: TableCalendar(
+            child: TableCalendar<Booking>(
               firstDay: DateTime.now().subtract(const Duration(days: 30)),
               lastDay: DateTime.now().add(const Duration(days: 365)),
               focusedDay: _focusedDay,
               selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
+              eventLoader: (day) => _bookingsForDay(bookings, day),
               calendarFormat: CalendarFormat.month,
               headerStyle: HeaderStyle(
                 formatButtonVisible: false,
@@ -85,6 +147,11 @@ class _CalendarAgendaTabState extends ConsumerState<CalendarAgendaTab> {
                   color: accent,
                   shape: BoxShape.circle,
                 ),
+                markerDecoration: BoxDecoration(
+                  color: accent,
+                  shape: BoxShape.circle,
+                ),
+                markersMaxCount: 3,
               ),
               onDaySelected: (selectedDay, focusedDay) {
                 setState(() {

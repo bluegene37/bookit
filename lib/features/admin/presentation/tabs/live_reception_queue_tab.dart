@@ -7,6 +7,9 @@ import '../../../../models/booking.dart';
 import '../../../../models/business.dart';
 import '../../../../services/booking_service.dart';
 import '../widgets/reception_qr_scanner_modal.dart';
+// Gene - Nov 07, 2026: Added AdminWalkInBookingDialog and SupabaseService imports for 1-tap Walk-In patient check-in
+import '../../../../services/supabase_service.dart';
+import '../widgets/admin_walk_in_booking_dialog.dart';
 
 class LiveReceptionQueueTab extends ConsumerStatefulWidget {
   final String businessId;
@@ -210,6 +213,7 @@ class _LiveReceptionQueueTabState extends ConsumerState<LiveReceptionQueueTab> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    /*
                     Text(
                       'Live Reception Queue',
                       style: TextStyle(
@@ -225,9 +229,72 @@ class _LiveReceptionQueueTabState extends ConsumerState<LiveReceptionQueueTab> {
                         color: isDark ? NeumorphicColors.darkTextSecondary : NeumorphicColors.lightTextSecondary,
                       ),
                     ),
+                    */
+                    // Gene - Nov 07, 2026: Prevent header title/subtitle wrapping when action buttons are present
+                    Text(
+                      'Live Reception Queue',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        color: isDark ? NeumorphicColors.darkTextPrimary : NeumorphicColors.lightTextPrimary,
+                      ),
+                    ),
+                    Text(
+                      'Real-time patient waiting room & SLA tracking',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: isDark ? NeumorphicColors.darkTextSecondary : NeumorphicColors.lightTextSecondary,
+                      ),
+                    ),
                   ],
                 ),
               ),
+              // Gene - Nov 07, 2026: Quick '+ Walk-In' action button alongside Scan Check-In
+              Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: () {
+                    final resolvedBusiness = widget.business ??
+                        SupabaseService.mockBusinesses
+                            .where((b) => b.id == widget.businessId)
+                            .firstOrNull ??
+                        Business.fallback(id: widget.businessId);
+                    AdminWalkInBookingDialog.show(
+                      context,
+                      business: resolvedBusiness,
+                      initialWalkInMode: true,
+                    );
+                  },
+                  borderRadius: BorderRadius.circular(10),
+                  child: Ink(
+                    decoration: BoxDecoration(
+                      color: accent,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.person_add_alt_1_rounded, size: 15, color: Colors.white),
+                        SizedBox(width: 6),
+                        Text(
+                          '+ Walk-In',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
               Material(
                 color: Colors.transparent,
                 child: InkWell(
