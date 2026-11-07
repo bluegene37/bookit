@@ -11,6 +11,9 @@ import '../models/business_template.dart';
 // Gene - Nov, 04, 2026: Added Review import for reviews synchronization
 import '../models/review.dart';
 import 'supabase_service.dart';
+// Gene - Nov 07, 2026: Added PaginatedResult and AppErrorLogger imports for high-scale discovery pagination and telemetry
+import '../core/utils/paginated_result.dart';
+import '../core/utils/app_error_logger.dart';
 
 class BusinessService {
   /*
@@ -42,6 +45,7 @@ class BusinessService {
   }
   */
 
+  /*
   // Gene - Nov, 05, 2026: Resilient getBusinesses combining remote data with local mock fallback and newly registered practices
   Future<List<Business>> getBusinesses({String? category, String? query}) async {
     final client = SupabaseService.client;
@@ -79,6 +83,89 @@ class BusinessService {
 
     // If remote table is empty or unseeded, fall back to rich demo & newly registered businesses
     return filteredMock;
+  }
+  */
+
+  // Gene - Nov 07, 2026: Upgraded getBusinesses with optional range pagination, structured error telemetry, and getBusinessesPaginated
+  Future<List<Business>> getBusinesses({
+    String? category,
+    String? query,
+    int? page,
+    int? pageSize,
+  }) async {
+    final client = SupabaseService.client;
+    List<Business> remoteList = [];
+    if (client != null) {
+      try {
+        var queryBuilder = client.from('businesses').select().eq('is_active', true);
+        if (category != null && category != 'All') {
+          queryBuilder = queryBuilder.ilike('category', '%$category%');
+        }
+        if (query != null && query.trim().isNotEmpty) {
+          queryBuilder = queryBuilder.ilike('name', '%$query%');
+        }
+        final dynamic data;
+        if (page != null && pageSize != null && page >= 0 && pageSize > 0) {
+          final from = page * pageSize;
+          final to = from + pageSize - 1;
+          data = await queryBuilder.order('rating_avg', ascending: false).range(from, to);
+        } else {
+          data = await queryBuilder;
+        }
+        remoteList = (data as List).map((json) => Business.fromJson(json)).toList();
+      } catch (e, st) {
+        AppErrorLogger.report(
+          service: 'BusinessService',
+          operation: 'getBusinesses',
+          error: e,
+          stackTrace: st,
+        );
+      }
+    }
+
+    // Filter local mock businesses against category and query criteria
+    final filteredMock = SupabaseService.mockBusinesses.where((b) {
+      final matchesCategory = category == null || _matchesCategory(b, category);
+      final matchesQuery = query == null ||
+          query.trim().isEmpty ||
+          b.name.toLowerCase().contains(query.toLowerCase()) ||
+          (b.description?.toLowerCase().contains(query.toLowerCase()) ?? false);
+      return matchesCategory && matchesQuery;
+    }).toList();
+
+    List<Business> merged;
+    if (remoteList.isNotEmpty) {
+      final remoteIds = remoteList.map((b) => b.id).toSet();
+      final localOnly = filteredMock.where((b) => !remoteIds.contains(b.id)).toList();
+      merged = [...localOnly, ...remoteList];
+    } else {
+      merged = filteredMock;
+    }
+
+    if (page != null && pageSize != null && page >= 0 && pageSize > 0) {
+      return PaginatedResult.fromFullList(
+        fullList: merged,
+        page: page,
+        pageSize: pageSize,
+      ).items;
+    }
+
+    return merged;
+  }
+
+  // Gene - Nov 07, 2026: Paginated discovery query returning PaginatedResult<Business> metadata (items, hasMore, totalCount)
+  Future<PaginatedResult<Business>> getBusinessesPaginated({
+    String? category,
+    String? query,
+    required int page,
+    int pageSize = 20,
+  }) async {
+    final fullMatching = await getBusinesses(category: category, query: query);
+    return PaginatedResult.fromFullList(
+      fullList: fullMatching,
+      page: page,
+      pageSize: pageSize,
+    );
   }
 
   // Gene - Nov, 04, 2026: Helper matching business against industry category & template links

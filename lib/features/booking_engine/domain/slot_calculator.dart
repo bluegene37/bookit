@@ -285,12 +285,18 @@ class SlotCalculator {
     final slotDuration = (customDurationMinutes != null && customDurationMinutes > 0)
         ? customDurationMinutes
         : stepInterval;
+    // Gene - Nov 07, 2026: Pre-filter existingBookings to target date and practitioner before iterating candidate slots
+    final dayBookings = filterBookingsForDate(
+      existingBookings,
+      date,
+      staffId: filterStaffId,
+    );
 
     if (workingHoursMap == null || !workingHoursMap.containsKey(weekdayName)) {
       return _generateDefaultSlots(
         date,
         stepInterval,
-        existingBookings,
+        dayBookings,
         filterStaffId,
         staffMember: staffMember,
         slotDurationMinutes: slotDuration,
@@ -322,7 +328,7 @@ class SlotCalculator {
       final hasConflict = isSlotOccupied(
         slotStart: current,
         slotEnd: slotEnd,
-        bookings: existingBookings,
+        bookings: dayBookings,
         staffId: filterStaffId,
         bufferMinutes: business.bufferMinutes,
       );
@@ -476,6 +482,64 @@ class SlotCalculator {
       ));
 
       current = current.add(Duration(minutes: stepInterval));
+    }
+    return slots;
+  }
+
+  // Gene - Nov 07, 2026: Pre-filter bookings to target calendar day, business, and practitioner to reduce slot calculation complexity to O(S * N_day)
+  static List<Booking> filterBookingsForDate(
+    List<Booking> bookings,
+    DateTime date, {
+    String? businessId,
+    String? staffId,
+  }) {
+    final dayStart = DateTime(date.year, date.month, date.day);
+    final dayEnd = dayStart.add(const Duration(days: 1));
+
+    return bookings.where((b) {
+      if (businessId != null && b.businessId != businessId) return false;
+      if (staffId != null && b.staffId != null && b.staffId != staffId) return false;
+      if (b.status == 'cancelled' || b.status == 'rejected') return false;
+      if (b.startTime == null || b.endTime == null) return false;
+      return b.startTime!.isBefore(dayEnd) && b.endTime!.isAfter(dayStart);
+    }).toList();
+  }
+
+  // Gene - Nov 07, 2026: Parse PostgreSQL `get_available_slots` RPC rows into TimeSlot objects while enforcing practitioner shift and break rules
+  static List<TimeSlot> fromRpcResponse(
+    List<dynamic> rpcRows, {
+    BusinessStaff? staffMember,
+  }) {
+    final List<TimeSlot> slots = [];
+    for (final raw in rpcRows) {
+      if (raw is! Map) continue;
+      final startRaw = raw['slot_start']?.toString();
+      final endRaw = raw['slot_end']?.toString();
+      if (startRaw == null || endRaw == null) continue;
+
+      final startTime = DateTime.tryParse(startRaw)?.toLocal();
+      final endTime = DateTime.tryParse(endRaw)?.toLocal();
+      if (startTime == null || endTime == null) continue;
+
+      final rpcAvailable = raw['is_available'] as bool? ?? true;
+      final weekdayName = DateFormat('EEEE').format(startTime).toLowerCase();
+
+      final isStaffAvailable = staffMember != null
+          ? isWithinStaffShift(
+              slotStart: startTime,
+              slotEnd: endTime,
+              staff: staffMember,
+              weekdayName: weekdayName,
+            )
+          : true;
+
+      slots.add(
+        TimeSlot(
+          startTime: startTime,
+          endTime: endTime,
+          isAvailable: rpcAvailable && isStaffAvailable,
+        ),
+      );
     }
     return slots;
   }

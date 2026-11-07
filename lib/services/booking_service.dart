@@ -8,6 +8,11 @@ import '../core/constants/demo_data.dart';
 // Gene - Nov 07, 2026: Added notification_item and notification_service imports for real-time lifecycle notifications
 import '../models/notification_item.dart';
 import 'notification_service.dart';
+// Gene - Nov 07, 2026: Added AppErrorLogger, Business, BusinessStaff, and SlotCalculator imports for date-windowed queries and server-side RPC slot calculation
+import '../core/utils/app_error_logger.dart';
+import '../models/business.dart';
+import '../models/business_staff.dart';
+import '../features/booking_engine/domain/slot_calculator.dart';
 
 class BookingNotifier extends StateNotifier<List<Booking>> {
   final Ref? _ref;
@@ -54,6 +59,7 @@ class BookingNotifier extends StateNotifier<List<Booking>> {
     }
   }
 
+  /*
   // Gene - Nov, 04, 2026: Synchronize bookings table with joined relations from Supabase
   Future<void> loadBookings({String? businessId, String? clientId}) async {
     final client = SupabaseService.client;
@@ -81,6 +87,110 @@ class BookingNotifier extends StateNotifier<List<Booking>> {
         }
       } catch (_) {}
     }
+  }
+  */
+
+  // Gene - Nov 07, 2026: Enhanced loadBookings with server-side date-windowing (fromDate/toDate), range pagination (limit/offset), and structured error telemetry
+  Future<void> loadBookings({
+    String? businessId,
+    String? clientId,
+    DateTime? fromDate,
+    DateTime? toDate,
+    int limit = 200,
+    int offset = 0,
+  }) async {
+    final client = SupabaseService.client;
+    if (client != null) {
+      try {
+        var query = client.from('bookings').select('''
+          *,
+          businesses (name),
+          services (name),
+          business_staff (name),
+          profiles:client_id (full_name)
+        ''');
+
+        if (businessId != null) {
+          query = query.eq('business_id', businessId);
+        }
+        if (clientId != null) {
+          query = query.eq('client_id', clientId);
+        }
+        if (fromDate != null) {
+          query = query.gte('start_time', fromDate.toUtc().toIso8601String());
+        }
+        if (toDate != null) {
+          query = query.lte('start_time', toDate.toUtc().toIso8601String());
+        }
+
+        final data = await query
+            .order('created_at', ascending: false)
+            .range(offset, offset + limit - 1);
+        final list = (data as List).map((row) => Booking.fromJson(row)).toList();
+        if (list.isNotEmpty) {
+          state = list;
+        }
+      } catch (e, st) {
+        AppErrorLogger.report(
+          service: 'BookingNotifier',
+          operation: 'loadBookings',
+          error: e,
+          stackTrace: st,
+        );
+      }
+    }
+  }
+
+  // Gene - Nov 07, 2026: Privacy-safe server-side slot calculation via `get_available_slots` RPC with deterministic local fallback
+  Future<List<TimeSlot>> fetchAvailableSlots({
+    required Business business,
+    required DateTime date,
+    int? customDurationMinutes,
+    String? filterStaffId,
+    BusinessStaff? staffMember,
+  }) async {
+    final client = SupabaseService.client;
+    if (client != null) {
+      try {
+        final dateStr =
+            '${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+        final rpcData = await client.rpc(
+          'get_available_slots',
+          params: {
+            'p_business_id': business.id,
+            'p_date': dateStr,
+            'p_duration_minutes': customDurationMinutes,
+            'p_staff_id': filterStaffId,
+          },
+        );
+        if (rpcData is List && rpcData.isNotEmpty) {
+          return SlotCalculator.fromRpcResponse(rpcData, staffMember: staffMember);
+        }
+      } catch (e, st) {
+        AppErrorLogger.report(
+          service: 'BookingNotifier',
+          operation: 'fetchAvailableSlots',
+          error: e,
+          stackTrace: st,
+        );
+      }
+    }
+
+    final dayScopedBookings = SlotCalculator.filterBookingsForDate(
+      state,
+      date,
+      businessId: business.id,
+      staffId: filterStaffId,
+    );
+
+    return SlotCalculator.calculateAvailableSlots(
+      business: business,
+      date: date,
+      existingBookings: dayScopedBookings,
+      customDurationMinutes: customDurationMinutes,
+      filterStaffId: filterStaffId,
+      staffMember: staffMember,
+    );
   }
 
   /*
@@ -531,4 +641,19 @@ final clientBookingsProvider = Provider<List<Booking>>((ref) {
 final adminBookingsProvider = Provider.family<List<Booking>, String>((ref, businessId) {
   final all = ref.watch(bookingsProvider);
   return all.where((b) => b.businessId == businessId).toList();
+});
+
+// Gene - Nov 07, 2026: Date-windowed bookings provider scoping agenda/calendar views to [from, to]
+typedef DateWindowBookingFilter = ({String businessId, DateTime from, DateTime to});
+
+final dateWindowedBookingsProvider =
+    Provider.family<List<Booking>, DateWindowBookingFilter>((ref, filter) {
+  final all = ref.watch(bookingsProvider);
+  return all.where((b) {
+    if (b.businessId != filter.businessId) return false;
+    final effectiveStart = b.startTime ?? b.dateFrom;
+    final effectiveEnd = b.endTime ?? b.dateTo ?? effectiveStart;
+    if (effectiveStart == null || effectiveEnd == null) return false;
+    return !effectiveStart.isAfter(filter.to) && !effectiveEnd.isBefore(filter.from);
+  }).toList();
 });

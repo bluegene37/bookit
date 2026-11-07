@@ -51,7 +51,11 @@ class _ClientDossierModalState extends ConsumerState<ClientDossierModal> {
         Navigator.pop(dialogCtx);
         return;
       }
+      /*
       ref.read(crmServiceProvider).addMedicalFlag(_profile.id, text);
+      */
+      // Gene - Nov 07, 2026: Pass businessId to persist medical flag in Supabase `client_crm_dossiers`
+      ref.read(crmServiceProvider).addMedicalFlag(_profile.id, text, businessId: widget.businessId);
       setState(() {
         _profile = _profile.copyWith(
           medicalFlags: [..._profile.medicalFlags, text],
@@ -118,7 +122,11 @@ class _ClientDossierModalState extends ConsumerState<ClientDossierModal> {
   }
 
   void _removeFlag(String flag) {
+    /*
     ref.read(crmServiceProvider).removeMedicalFlag(_profile.id, flag);
+    */
+    // Gene - Nov 07, 2026: Pass businessId to sync flag removal in Supabase `client_crm_dossiers`
+    ref.read(crmServiceProvider).removeMedicalFlag(_profile.id, flag, businessId: widget.businessId);
     setState(() {
       _profile = _profile.copyWith(
         medicalFlags: _profile.medicalFlags.where((f) => f != flag).toList(),
@@ -147,7 +155,11 @@ class _ClientDossierModalState extends ConsumerState<ClientDossierModal> {
             onPressed: () {
               final text = noteController.text.trim();
               if (text.isNotEmpty) {
+                /*
                 ref.read(crmServiceProvider).addInternalNote(_profile.id, text);
+                */
+                // Gene - Nov 07, 2026: Pass businessId to persist clinical note in Supabase `client_crm_dossiers`
+                ref.read(crmServiceProvider).addInternalNote(_profile.id, text, businessId: widget.businessId);
                 setState(() {
                   final timestamp = DateFormat('yyyy-MM-dd').format(DateTime.now());
                   _profile = _profile.copyWith(
