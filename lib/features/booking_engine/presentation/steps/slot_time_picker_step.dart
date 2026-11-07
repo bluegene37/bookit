@@ -19,7 +19,10 @@ class SlotTimePickerStep extends StatelessWidget {
   final ValueChanged<DateTime> onDateSelected;
   final ValueChanged<TimeSlot> onSlotSelected;
   final ValueChanged<BusinessStaff?> onStaffSelected;
+  // Gene - Nov 07, 2026: Added selected service duration to calculate accurate slot end times and buffer overlap
+  final int? serviceDurationMinutes;
 
+  /*
   const SlotTimePickerStep({
     super.key,
     required this.business,
@@ -31,6 +34,21 @@ class SlotTimePickerStep extends StatelessWidget {
     required this.onDateSelected,
     required this.onSlotSelected,
     required this.onStaffSelected,
+  });
+  */
+  // Gene - Nov 07, 2026: Added optional serviceDurationMinutes parameter
+  const SlotTimePickerStep({
+    super.key,
+    required this.business,
+    required this.staffList,
+    required this.existingBookings,
+    required this.selectedDate,
+    required this.selectedSlot,
+    required this.selectedStaff,
+    required this.onDateSelected,
+    required this.onSlotSelected,
+    required this.onStaffSelected,
+    this.serviceDurationMinutes,
   });
 
   @override
@@ -48,11 +66,23 @@ class SlotTimePickerStep extends StatelessWidget {
     );
     */
 
+    /*
     // Gene - Nov 06, 2026: Pass staffMember to enforce practitioner shift matrix & lunch breaks
     final availableSlots = SlotCalculator.calculateAvailableSlots(
       business: business,
       date: selectedDate,
       existingBookings: existingBookings,
+      filterStaffId: selectedStaff?.id,
+      staffMember: selectedStaff,
+    );
+    */
+
+    // Gene - Nov 07, 2026: Pass customDurationMinutes from selectedService to enforce service duration & buffer time
+    final availableSlots = SlotCalculator.calculateAvailableSlots(
+      business: business,
+      date: selectedDate,
+      existingBookings: existingBookings,
+      customDurationMinutes: serviceDurationMinutes,
       filterStaffId: selectedStaff?.id,
       staffMember: selectedStaff,
     );

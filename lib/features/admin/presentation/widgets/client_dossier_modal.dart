@@ -32,6 +32,101 @@ class _ClientDossierModalState extends ConsumerState<ClientDossierModal> {
     _profile = widget.client;
   }
 
+  // Gene - Nov 07, 2026: Added interactive dialog to attach clinical/medical flags with common presets and custom text
+  void _showAddFlagDialog() {
+    final flagController = TextEditingController();
+    const presets = [
+      'Penicillin Allergy',
+      'Latex Sensitivity',
+      'Blood Thinners',
+      'High Dental Anxiety',
+      'Lidocaine Sensitivity',
+      'Pregnancy / Nursing',
+    ];
+
+    void addFlagValue(String rawFlag, BuildContext dialogCtx) {
+      final text = rawFlag.trim();
+      if (text.isEmpty) return;
+      if (_profile.medicalFlags.any((f) => f.toLowerCase() == text.toLowerCase())) {
+        Navigator.pop(dialogCtx);
+        return;
+      }
+      ref.read(crmServiceProvider).addMedicalFlag(_profile.id, text);
+      setState(() {
+        _profile = _profile.copyWith(
+          medicalFlags: [..._profile.medicalFlags, text],
+        );
+      });
+      ref.invalidate(businessClientsProvider(widget.businessId));
+      Navigator.pop(dialogCtx);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Medical flag "$text" added to patient record.'),
+          backgroundColor: NeumorphicColors.error,
+        ),
+      );
+    }
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Add Medical / Clinical Flag'),
+        content: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 420),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Quick Presets:',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: presets.map((preset) {
+                  return ActionChip(
+                    avatar: const Icon(Icons.warning_amber_rounded, size: 14, color: NeumorphicColors.error),
+                    label: Text(preset, style: const TextStyle(fontSize: 11)),
+                    onPressed: () => addFlagValue(preset, ctx),
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: flagController,
+                decoration: const InputDecoration(
+                  labelText: 'Custom Clinical Alert / Contraindication',
+                  hintText: 'e.g. Pacemaker, Sulfa Allergy, Glaucoma...',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: NeumorphicColors.error),
+            onPressed: () => addFlagValue(flagController.text, ctx),
+            child: const Text('Add Alert Flag', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _removeFlag(String flag) {
+    ref.read(crmServiceProvider).removeMedicalFlag(_profile.id, flag);
+    setState(() {
+      _profile = _profile.copyWith(
+        medicalFlags: _profile.medicalFlags.where((f) => f != flag).toList(),
+      );
+    });
+    ref.invalidate(businessClientsProvider(widget.businessId));
+  }
+
   void _showAddNoteDialog() {
     final noteController = TextEditingController();
     showDialog(
@@ -165,6 +260,7 @@ class _ClientDossierModalState extends ConsumerState<ClientDossierModal> {
               Expanded(
                 child: ListView(
                   children: [
+                    /*
                     // Clinical & Medical Flags Section
                     if (_profile.medicalFlags.isNotEmpty) ...[
                       Text(
@@ -207,6 +303,75 @@ class _ClientDossierModalState extends ConsumerState<ClientDossierModal> {
                       ),
                       const SizedBox(height: 18),
                     ],
+                    */
+                    // Gene - Nov 07, 2026: Always show Medical & Clinical Flags header with '+ Add Flag' action and removable alert chips
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Medical & Clinical Flags',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: isDark ? NeumorphicColors.darkTextPrimary : NeumorphicColors.lightTextPrimary,
+                          ),
+                        ),
+                        TextButton.icon(
+                          onPressed: _showAddFlagDialog,
+                          icon: const Icon(Icons.add_moderator_outlined, size: 15, color: NeumorphicColors.error),
+                          label: const Text(
+                            'Add Flag',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: NeumorphicColors.error,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    if (_profile.medicalFlags.isEmpty)
+                      Text(
+                        'No medical allergies or clinical flags on file.',
+                        style: TextStyle(fontSize: 12, color: isDark ? Colors.white38 : Colors.black38),
+                      )
+                    else
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 6,
+                        children: _profile.medicalFlags.map((flag) {
+                          return Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                            decoration: BoxDecoration(
+                              color: NeumorphicColors.error.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: NeumorphicColors.error.withValues(alpha: 0.4)),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.warning_amber_rounded, size: 14, color: NeumorphicColors.error),
+                                const SizedBox(width: 5),
+                                Text(
+                                  flag,
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    color: NeumorphicColors.error,
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                GestureDetector(
+                                  onTap: () => _removeFlag(flag),
+                                  child: const Icon(Icons.close, size: 13, color: NeumorphicColors.error),
+                                ),
+                              ],
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    const SizedBox(height: 18),
 
                     // Internal Clinical Notes Section
                     Row(

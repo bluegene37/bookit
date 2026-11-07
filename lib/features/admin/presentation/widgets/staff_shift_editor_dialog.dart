@@ -116,6 +116,11 @@ class _StaffShiftEditorDialogState extends ConsumerState<StaffShiftEditorDialog>
       );
 
       await ref.read(businessServiceProvider).updateStaff(updatedStaff);
+      /*
+      ref.invalidate(businessStaffProvider(widget.businessId));
+      */
+      // Gene - Nov 07, 2026: Invalidate both admin and client staff providers so shift updates reflect immediately
+      ref.invalidate(adminBusinessStaffProvider(widget.businessId));
       ref.invalidate(businessStaffProvider(widget.businessId));
 
       if (mounted) {

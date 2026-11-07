@@ -47,11 +47,27 @@ class CrmService {
       int totalVisits = 0;
       int noShowCount = 0;
 
+      /*
       for (final b in clientBookings) {
         if (b.status == 'completed' || b.status == 'confirmed' || b.status == 'arrived' || b.status == 'in_session') {
           totalSpend += b.totalPrice;
           totalVisits++;
         } else if (b.status == 'no_show') {
+          noShowCount++;
+        }
+      }
+      */
+      // Gene - Nov 07, 2026: Aligned booking status strings ('checked_in', 'in_service', 'rejected') for accurate LTV and no-show calculation
+      for (final b in clientBookings) {
+        if (b.status == 'completed' ||
+            b.status == 'confirmed' ||
+            b.status == 'checked_in' ||
+            b.status == 'arrived' ||
+            b.status == 'in_service' ||
+            b.status == 'in_session') {
+          totalSpend += b.totalPrice;
+          totalVisits++;
+        } else if (b.status == 'no_show' || b.status == 'rejected') {
           noShowCount++;
         }
       }
@@ -115,9 +131,27 @@ class CrmService {
     _clientInternalNotes.putIfAbsent(clientId, () => []).insert(0, '[$timestamp] $note');
   }
 
+  /*
   void addMedicalFlag(String clientId, String flag) {
     if (flag.trim().isEmpty) return;
     _clientMedicalFlags.putIfAbsent(clientId, () => []).add(flag.trim());
+  }
+  */
+  // Gene - Nov 07, 2026: Deduplicated addMedicalFlag and added removeMedicalFlag for interactive clinical dossier management
+  void addMedicalFlag(String clientId, String flag) {
+    final trimmed = flag.trim();
+    if (trimmed.isEmpty) return;
+    final list = _clientMedicalFlags.putIfAbsent(clientId, () => []);
+    if (!list.any((f) => f.toLowerCase() == trimmed.toLowerCase())) {
+      list.add(trimmed);
+    }
+  }
+
+  void removeMedicalFlag(String clientId, String flag) {
+    final list = _clientMedicalFlags[clientId];
+    if (list != null) {
+      list.removeWhere((f) => f.toLowerCase() == flag.trim().toLowerCase());
+    }
   }
 }
 

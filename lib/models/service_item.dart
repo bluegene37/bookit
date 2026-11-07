@@ -159,4 +159,33 @@ class ServiceItem {
       'deposit_amount': depositAmount,
     };
   }
+
+  // Gene - Nov 07, 2026: Added copyWith to support editing procedure details, payment policies, and active/archive toggles
+  ServiceItem copyWith({
+    String? id,
+    String? businessId,
+    String? name,
+    String? description,
+    int? durationMinutes,
+    double? price,
+    String? currency,
+    bool? isActive,
+    String? paymentPolicy,
+    String? depositType,
+    double? depositAmount,
+  }) {
+    return ServiceItem(
+      id: id ?? this.id,
+      businessId: businessId ?? this.businessId,
+      name: name ?? this.name,
+      description: description ?? this.description,
+      durationMinutes: durationMinutes ?? this.durationMinutes,
+      price: price ?? this.price,
+      currency: currency ?? this.currency,
+      isActive: isActive ?? this.isActive,
+      paymentPolicy: paymentPolicy ?? this.paymentPolicy,
+      depositType: depositType ?? this.depositType,
+      depositAmount: depositAmount ?? this.depositAmount,
+    );
+  }
 }

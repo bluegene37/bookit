@@ -759,7 +759,11 @@ class DemoData {
       id: 'rev-demo-1',
       businessId: '11111111-1111-1111-1111-111111111111',
       clientId: clientUserId,
+      /*
       bookingId: 'bk-demo-3',
+      */
+      // Gene - Nov 07, 2026: Keep bk-demo-3 unreviewed initially so it remains eligible for 'Leave a Review' in ClientBookingsScreen
+      bookingId: 'bk-historical-100',
       rating: 5,
       comment: 'Dr. Alexander Vance and Dr. Martinez made the teeth whitening process completely painless. The results exceeded my expectations!',
       clientName: 'Michael Chen',

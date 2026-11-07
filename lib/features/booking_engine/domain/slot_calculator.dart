@@ -24,6 +24,7 @@ class TimeSlot {
 class SlotCalculator {
   SlotCalculator._();
 
+  /*
   // Gene - Nov, 04, 2026: Enhanced slot availability to check 15-minute reservation hold on awaiting_payment
   static bool isSlotOccupied({
     required DateTime slotStart,
@@ -50,6 +51,43 @@ class SlotCalculator {
       if (b.startTime != null && b.endTime != null) {
         // Overlap check: start1 < end2 && end1 > start2
         if (slotStart.isBefore(b.endTime!) && slotEnd.isAfter(b.startTime!)) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+  */
+
+  // Gene - Nov 07, 2026: Enhanced slot occupancy check to enforce post-appointment turnaround bufferMinutes
+  static bool isSlotOccupied({
+    required DateTime slotStart,
+    required DateTime slotEnd,
+    required List<Booking> bookings,
+    String? staffId,
+    int bufferMinutes = 0,
+  }) {
+    final now = DateTime.now();
+    final effectiveSlotEnd = slotEnd.add(Duration(minutes: bufferMinutes));
+    for (final b in bookings) {
+      if (staffId != null && b.staffId != null && b.staffId != staffId) {
+        continue;
+      }
+
+      // Ignore cancelled or rejected bookings
+      if (b.status == 'cancelled' || b.status == 'rejected') continue;
+
+      // Check awaiting_payment expiration
+      if (b.status == 'awaiting_payment') {
+        if (b.holdExpiresAt == null || b.holdExpiresAt!.isBefore(now)) {
+          continue; // Expired lock, slot is free
+        }
+      }
+
+      if (b.startTime != null && b.endTime != null) {
+        final effectiveBookingEnd = b.endTime!.add(Duration(minutes: bufferMinutes));
+        // Overlap check including post-appointment buffer: start1 < (end2 + buffer) && (end1 + buffer) > start2
+        if (slotStart.isBefore(effectiveBookingEnd) && effectiveSlotEnd.isAfter(b.startTime!)) {
           return true;
         }
       }
@@ -158,6 +196,7 @@ class SlotCalculator {
   }
   */
 
+  /*
   // Gene - Nov 06, 2026: Enhanced calculateAvailableSlots with practitioner shift hours and lunch break suppression
   static List<TimeSlot> calculateAvailableSlots({
     required Business business,
@@ -229,6 +268,85 @@ class SlotCalculator {
 
     return slots;
   }
+  */
+
+  // Gene - Nov 07, 2026: Step start times by slotIntervalMinutes while sizing candidate slots by customDurationMinutes and enforcing business.bufferMinutes
+  static List<TimeSlot> calculateAvailableSlots({
+    required Business business,
+    required DateTime date,
+    required List<Booking> existingBookings,
+    int? customDurationMinutes,
+    String? filterStaffId,
+    BusinessStaff? staffMember,
+  }) {
+    final weekdayName = DateFormat('EEEE').format(date).toLowerCase();
+    final workingHoursMap = business.workingHours;
+    final stepInterval = business.slotIntervalMinutes > 0 ? business.slotIntervalMinutes : 30;
+    final slotDuration = (customDurationMinutes != null && customDurationMinutes > 0)
+        ? customDurationMinutes
+        : stepInterval;
+
+    if (workingHoursMap == null || !workingHoursMap.containsKey(weekdayName)) {
+      return _generateDefaultSlots(
+        date,
+        stepInterval,
+        existingBookings,
+        filterStaffId,
+        staffMember: staffMember,
+        slotDurationMinutes: slotDuration,
+        bufferMinutes: business.bufferMinutes,
+      );
+    }
+
+    final dayConfig = workingHoursMap[weekdayName] as Map<String, dynamic>?;
+    if (dayConfig == null || dayConfig['is_open'] == false) {
+      return []; // Business closed on this day
+    }
+
+    final openStr = dayConfig['open'] as String? ?? '09:00';
+    final closeStr = dayConfig['close'] as String? ?? '18:00';
+
+    final openParts = openStr.split(':').map(int.parse).toList();
+    final closeParts = closeStr.split(':').map(int.parse).toList();
+
+    final dayStart = DateTime(date.year, date.month, date.day, openParts[0], openParts[1]);
+    final dayEnd = DateTime(date.year, date.month, date.day, closeParts[0], closeParts[1]);
+
+    final List<TimeSlot> slots = [];
+
+    DateTime current = dayStart;
+    while (current.add(Duration(minutes: slotDuration)).isBefore(dayEnd) ||
+        current.add(Duration(minutes: slotDuration)).isAtSameMomentAs(dayEnd)) {
+      final slotEnd = current.add(Duration(minutes: slotDuration));
+
+      final hasConflict = isSlotOccupied(
+        slotStart: current,
+        slotEnd: slotEnd,
+        bookings: existingBookings,
+        staffId: filterStaffId,
+        bufferMinutes: business.bufferMinutes,
+      );
+
+      final isStaffAvailable = staffMember != null
+          ? isWithinStaffShift(
+              slotStart: current,
+              slotEnd: slotEnd,
+              staff: staffMember,
+              weekdayName: weekdayName,
+            )
+          : true;
+
+      slots.add(TimeSlot(
+        startTime: current,
+        endTime: slotEnd,
+        isAvailable: !hasConflict && isStaffAvailable,
+      ));
+
+      current = current.add(Duration(minutes: stepInterval));
+    }
+
+    return slots;
+  }
 
   /*
   // Gene - Nov, 04, 2026: Previous _generateDefaultSlots without staff shift and lunch break awareness
@@ -266,6 +384,7 @@ class SlotCalculator {
   }
   */
 
+  /*
   // Gene - Nov 06, 2026: Enhanced _generateDefaultSlots with practitioner shift hours and lunch break suppression
   static List<TimeSlot> _generateDefaultSlots(
     DateTime date,
@@ -307,6 +426,56 @@ class SlotCalculator {
       ));
 
       current = current.add(Duration(minutes: interval));
+    }
+    return slots;
+  }
+  */
+
+  // Gene - Nov 07, 2026: Enhanced _generateDefaultSlots to support custom service duration and post-appointment bufferMinutes
+  static List<TimeSlot> _generateDefaultSlots(
+    DateTime date,
+    int stepInterval,
+    List<Booking> existingBookings,
+    String? filterStaffId, {
+    BusinessStaff? staffMember,
+    int? slotDurationMinutes,
+    int bufferMinutes = 0,
+  }) {
+    final dayStart = DateTime(date.year, date.month, date.day, 9, 0);
+    final dayEnd = DateTime(date.year, date.month, date.day, 17, 0);
+    final weekdayName = DateFormat('EEEE').format(date).toLowerCase();
+    final duration = slotDurationMinutes ?? stepInterval;
+
+    final List<TimeSlot> slots = [];
+    DateTime current = dayStart;
+    while (current.add(Duration(minutes: duration)).isBefore(dayEnd) ||
+        current.add(Duration(minutes: duration)).isAtSameMomentAs(dayEnd)) {
+      final slotEnd = current.add(Duration(minutes: duration));
+
+      final hasConflict = isSlotOccupied(
+        slotStart: current,
+        slotEnd: slotEnd,
+        bookings: existingBookings,
+        staffId: filterStaffId,
+        bufferMinutes: bufferMinutes,
+      );
+
+      final isStaffAvailable = staffMember != null
+          ? isWithinStaffShift(
+              slotStart: current,
+              slotEnd: slotEnd,
+              staff: staffMember,
+              weekdayName: weekdayName,
+            )
+          : true;
+
+      slots.add(TimeSlot(
+        startTime: current,
+        endTime: slotEnd,
+        isAvailable: !hasConflict && isStaffAvailable,
+      ));
+
+      current = current.add(Duration(minutes: stepInterval));
     }
     return slots;
   }

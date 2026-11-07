@@ -130,7 +130,11 @@ class Business {
   });
 
   int get slotIntervalMinutes => (settings['slot_interval_minutes'] as num?)?.toInt() ?? 30;
+  /*
   int get bufferMinutes => (settings['buffer_minutes'] as num?)?.toInt() ?? 10;
+  */
+  // Gene - Nov 07, 2026: Default bufferMinutes to 0 when not explicitly configured in business settings
+  int get bufferMinutes => (settings['buffer_minutes'] as num?)?.toInt() ?? 0;
   bool get requiresApproval => (settings['requires_approval'] as bool?) ?? false;
 
   Map<String, dynamic>? get workingHours => settings['working_hours'] as Map<String, dynamic>?;

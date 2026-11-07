@@ -16,6 +16,9 @@ import '../../../core/widgets/demo_persona_switcher.dart';
 import '../../../services/calendar_sync_service.dart';
 // Gene - Nov, 05, 2026: Added digital QR boarding pass modal and pass preview
 import 'widgets/booking_qr_pass_modal.dart';
+// Gene - Nov 07, 2026: Added business_service and supabase_service imports to check if a completed booking was already reviewed
+import '../../../services/business_service.dart';
+import '../../../services/supabase_service.dart';
 
 class ClientBookingsScreen extends ConsumerStatefulWidget {
   const ClientBookingsScreen({super.key});
@@ -358,6 +361,7 @@ class _ClientBookingsScreenState extends ConsumerState<ClientBookingsScreen> {
                                             child: const Text('Cancel', style: TextStyle(color: NeumorphicColors.error, fontSize: 13)),
                                           ),
                                         ],
+                                        /*
                                         if (booking.status == 'completed') ...[
                                           ElevatedButton.icon(
                                             icon: const Icon(Icons.star_rate_rounded, size: 15, color: Colors.amber),
@@ -370,6 +374,63 @@ class _ClientBookingsScreenState extends ConsumerState<ClientBookingsScreen> {
                                               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                                             ),
                                             onPressed: () => ReviewSubmissionDialog.show(context, booking),
+                                          ),
+                                        ],
+                                        */
+                                        // Gene - Nov 07, 2026: Duplicate-review guard showing a 'Reviewed ★' badge once a review is submitted
+                                        if (booking.status == 'completed') ...[
+                                          Builder(
+                                            builder: (context) {
+                                              final businessReviews = ref.watch(businessReviewsProvider(booking.businessId)).value ?? [];
+                                              final existingReview = businessReviews
+                                                  .where((r) => r.bookingId == booking.id)
+                                                  .firstOrNull ??
+                                                  SupabaseService.mockReviews
+                                                      .where((r) => r.bookingId == booking.id)
+                                                      .firstOrNull;
+
+                                              if (existingReview != null) {
+                                                return Container(
+                                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                                  decoration: BoxDecoration(
+                                                    color: Colors.amber.withValues(alpha: 0.14),
+                                                    borderRadius: BorderRadius.circular(10),
+                                                    border: Border.all(color: Colors.amber.withValues(alpha: 0.45)),
+                                                  ),
+                                                  child: Row(
+                                                    mainAxisSize: MainAxisSize.min,
+                                                    children: [
+                                                      const Icon(Icons.star_rounded, size: 14, color: Colors.amber),
+                                                      const SizedBox(width: 4),
+                                                      Text(
+                                                        'Reviewed (${existingReview.rating}★)',
+                                                        style: TextStyle(
+                                                          fontSize: 12,
+                                                          fontWeight: FontWeight.w700,
+                                                          color: isDark ? Colors.amberAccent : Colors.amber.shade900,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                );
+                                              }
+
+                                              return ElevatedButton.icon(
+                                                icon: const Icon(Icons.star_rate_rounded, size: 15, color: Colors.amber),
+                                                label: const Text('Leave a Review', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                                                style: ElevatedButton.styleFrom(
+                                                  backgroundColor: isDark ? NeumorphicColors.darkHighlight : Colors.white,
+                                                  foregroundColor: textPrimary,
+                                                  elevation: 2,
+                                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                                ),
+                                                onPressed: () async {
+                                                  await ReviewSubmissionDialog.show(context, booking);
+                                                  if (mounted) setState(() {});
+                                                },
+                                              );
+                                            },
                                           ),
                                         ],
                                       ],

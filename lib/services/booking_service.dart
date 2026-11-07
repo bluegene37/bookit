@@ -2,6 +2,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/booking.dart';
 import 'supabase_service.dart';
+// Gene - Nov 07, 2026: Added auth_service and demo_data imports for user-scoped clientBookingsProvider filtering
+import 'auth_service.dart';
+import '../core/constants/demo_data.dart';
 
 class BookingNotifier extends StateNotifier<List<Booking>> {
   /*
@@ -363,9 +366,34 @@ final bookingsProvider = StateNotifierProvider<BookingNotifier, List<Booking>>((
 // Gene - Nov, 05, 2026: Provider alias for backwards compatibility
 final bookingProvider = bookingsProvider;
 
+/*
 final clientBookingsProvider = Provider<List<Booking>>((ref) {
   final all = ref.watch(bookingsProvider);
   return all;
+});
+*/
+// Gene - Nov 07, 2026: Filter clientBookingsProvider by authenticated client user ID (with Demo Client fallback when previewing as Demo Admin)
+final clientBookingsProvider = Provider<List<Booking>>((ref) {
+  final all = ref.watch(bookingsProvider);
+  final user = ref.watch(authProvider).user;
+
+  if (user == null) {
+    return all
+        .where((b) => b.clientId == DemoData.clientUserId || b.clientId.startsWith('guest-client-'))
+        .toList();
+  }
+
+  final userBookings = all
+      .where((b) => b.clientId == user.id || b.clientId.startsWith('guest-client-'))
+      .toList();
+
+  if (userBookings.isNotEmpty || !user.isBusinessOwner) {
+    return userBookings.isNotEmpty
+        ? userBookings
+        : all.where((b) => b.clientId == DemoData.clientUserId).toList();
+  }
+
+  return all.where((b) => b.clientId == DemoData.clientUserId).toList();
 });
 
 final adminBookingsProvider = Provider.family<List<Booking>, String>((ref, businessId) {

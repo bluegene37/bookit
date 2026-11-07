@@ -293,7 +293,18 @@ class _DashboardOverviewTabState extends ConsumerState<DashboardOverviewTab> {
     final textSecondary = isDark ? NeumorphicColors.darkTextSecondary : NeumorphicColors.lightTextSecondary;
 
     final pendingBookings = bookings.where((b) => b.status == 'pending').toList();
+    /*
     final confirmedBookings = bookings.where((b) => b.status == 'confirmed' || b.status == 'arrived' || b.status == 'in_service').toList();
+    */
+    // Gene - Nov 07, 2026: Included 'checked_in' and 'in_session' alongside 'confirmed', 'arrived', and 'in_service'
+    final confirmedBookings = bookings
+        .where((b) =>
+            b.status == 'confirmed' ||
+            b.status == 'checked_in' ||
+            b.status == 'arrived' ||
+            b.status == 'in_service' ||
+            b.status == 'in_session')
+        .toList();
 
     // Financial Metrics Calculation
     final payments = paymentsAsync.value ?? [];

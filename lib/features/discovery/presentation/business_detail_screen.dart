@@ -2,6 +2,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+// Gene - Nov 07, 2026: Added intl import for formatting review timestamps on storefront
+import 'package:intl/intl.dart';
 import '../../../core/theme/neumorphic_colors.dart';
 import '../../../core/widgets/neumorphic_container.dart';
 import '../../../core/widgets/neumorphic_button.dart';
@@ -21,6 +23,8 @@ class BusinessDetailScreen extends ConsumerWidget {
     final businessAsync = ref.watch(businessDetailProvider(businessId));
     final servicesAsync = ref.watch(businessServicesProvider(businessId));
     final staffAsync = ref.watch(businessStaffProvider(businessId));
+    // Gene - Nov 07, 2026: Watch businessReviewsProvider to display verified customer reviews on storefront
+    final reviewsAsync = ref.watch(businessReviewsProvider(businessId));
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final accent = isDark ? NeumorphicColors.tealLight : NeumorphicColors.tealPrimary;
@@ -35,6 +39,7 @@ class BusinessDetailScreen extends ConsumerWidget {
 
         final services = servicesAsync.value ?? [];
         final staff = staffAsync.value ?? [];
+        final reviews = reviewsAsync.value ?? [];
 
         return Scaffold(
           body: Stack(
@@ -291,6 +296,201 @@ class BusinessDetailScreen extends ConsumerWidget {
                               ),
                             );
                           }),
+                          // Gene - Nov 07, 2026: Verified Customer Reviews & Star Distribution Section
+                          const SizedBox(height: 16),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'Verified Reviews',
+                                style: TextStyle(
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.w700,
+                                  color: isDark ? NeumorphicColors.darkTextPrimary : NeumorphicColors.lightTextPrimary,
+                                ),
+                              ),
+                              Text(
+                                '${reviews.isNotEmpty ? reviews.length : business.ratingCount} total',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: accent,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          NeumorphicContainer(
+                            borderRadius: 18.0,
+                            padding: const EdgeInsets.all(16),
+                            child: Row(
+                              children: [
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.center,
+                                  children: [
+                                    Text(
+                                      business.ratingAvg.toStringAsFixed(1),
+                                      style: TextStyle(
+                                        fontSize: 32,
+                                        fontWeight: FontWeight.w900,
+                                        color: isDark ? NeumorphicColors.darkTextPrimary : NeumorphicColors.lightTextPrimary,
+                                      ),
+                                    ),
+                                    Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: List.generate(5, (i) {
+                                        return Icon(
+                                          i < business.ratingAvg.round() ? Icons.star_rounded : Icons.star_outline_rounded,
+                                          color: Colors.amber,
+                                          size: 15,
+                                        );
+                                      }),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      '${business.ratingCount} ratings',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: isDark ? Colors.white54 : Colors.black54,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(width: 20),
+                                Expanded(
+                                  child: Column(
+                                    children: [5, 4, 3, 2, 1].map((star) {
+                                      final count = reviews.where((r) => r.rating == star).length;
+                                      final ratio = reviews.isEmpty
+                                          ? (star == 5 ? 0.8 : (star == 4 ? 0.2 : 0.0))
+                                          : count / reviews.length;
+                                      return Padding(
+                                        padding: const EdgeInsets.symmetric(vertical: 2),
+                                        child: Row(
+                                          children: [
+                                            SizedBox(
+                                              width: 14,
+                                              child: Text(
+                                                '$star',
+                                                style: TextStyle(
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: isDark ? Colors.white70 : Colors.black87,
+                                                ),
+                                              ),
+                                            ),
+                                            const Icon(Icons.star_rounded, size: 12, color: Colors.amber),
+                                            const SizedBox(width: 6),
+                                            Expanded(
+                                              child: ClipRRect(
+                                                borderRadius: BorderRadius.circular(4),
+                                                child: LinearProgressIndicator(
+                                                  value: ratio,
+                                                  minHeight: 6,
+                                                  backgroundColor: isDark ? Colors.white10 : Colors.black12,
+                                                  valueColor: AlwaysStoppedAnimation<Color>(accent),
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      );
+                                    }).toList(),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          if (reviews.isEmpty) ...[
+                            NeumorphicContainer(
+                              borderRadius: 14.0,
+                              isInset: true,
+                              padding: const EdgeInsets.all(16),
+                              child: Center(
+                                child: Text(
+                                  'No written reviews yet. Complete an appointment to leave the first review!',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(fontSize: 12, color: isDark ? Colors.white54 : Colors.black54),
+                                ),
+                              ),
+                            ),
+                          ] else ...[
+                            ...reviews.map((rev) {
+                              final authorName = (rev.clientName != null && rev.clientName!.trim().isNotEmpty)
+                                  ? rev.clientName!
+                                  : 'Verified Client';
+                              return Padding(
+                                padding: const EdgeInsets.only(bottom: 10),
+                                child: NeumorphicContainer(
+                                  borderRadius: 16.0,
+                                  padding: const EdgeInsets.all(14),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          CircleAvatar(
+                                            radius: 15,
+                                            backgroundColor: accent.withValues(alpha: 0.15),
+                                            child: Text(
+                                              authorName[0].toUpperCase(),
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w800,
+                                                color: accent,
+                                              ),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 10),
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  authorName,
+                                                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+                                                ),
+                                                Text(
+                                                  DateFormat('MMM d, yyyy').format(rev.createdAt),
+                                                  style: TextStyle(
+                                                    fontSize: 11,
+                                                    color: isDark ? Colors.white38 : Colors.black45,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                          Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: List.generate(5, (i) {
+                                              return Icon(
+                                                i < rev.rating ? Icons.star_rounded : Icons.star_outline_rounded,
+                                                size: 14,
+                                                color: Colors.amber,
+                                              );
+                                            }),
+                                          ),
+                                        ],
+                                      ),
+                                      if (rev.comment != null && rev.comment!.trim().isNotEmpty) ...[
+                                        const SizedBox(height: 8),
+                                        Text(
+                                          rev.comment!,
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            height: 1.4,
+                                            color: isDark ? Colors.white70 : Colors.black87,
+                                          ),
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                ),
+                              );
+                            }),
+                          ],
+
                           // Gene - Nov 06, 2026: Storefront Directions & Interactive Map Card with Google/Apple Maps launcher
                           const SizedBox(height: 12),
                           StorefrontDirectionsCard(business: business),

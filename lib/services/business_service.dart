@@ -161,12 +161,39 @@ class BusinessService {
   }
   */
 
+  /*
   // Gene - Nov, 05, 2026: Defensive getServices falling back to mock services when remote table has 0 rows for business
   Future<List<ServiceItem>> getServices(String businessId) async {
     final client = SupabaseService.client;
     if (client != null) {
       try {
         final data = await client.from('services').select().eq('business_id', businessId).eq('is_active', true);
+        final list = (data as List).map((json) => ServiceItem.fromJson(json)).toList();
+        if (list.isNotEmpty) return list;
+      } catch (_) {}
+    }
+    return SupabaseService.mockServices.where((s) => s.businessId == businessId).toList();
+  }
+  */
+
+  // Gene - Nov 07, 2026: Filter getServices to active-only for Client views and add getAdminServices returning all items for Admin catalog
+  Future<List<ServiceItem>> getServices(String businessId) async {
+    final client = SupabaseService.client;
+    if (client != null) {
+      try {
+        final data = await client.from('services').select().eq('business_id', businessId).eq('is_active', true);
+        final list = (data as List).map((json) => ServiceItem.fromJson(json)).toList();
+        if (list.isNotEmpty) return list;
+      } catch (_) {}
+    }
+    return SupabaseService.mockServices.where((s) => s.businessId == businessId && s.isActive).toList();
+  }
+
+  Future<List<ServiceItem>> getAdminServices(String businessId) async {
+    final client = SupabaseService.client;
+    if (client != null) {
+      try {
+        final data = await client.from('services').select().eq('business_id', businessId);
         final list = (data as List).map((json) => ServiceItem.fromJson(json)).toList();
         if (list.isNotEmpty) return list;
       } catch (_) {}
@@ -188,12 +215,39 @@ class BusinessService {
   }
   */
 
+  /*
   // Gene - Nov, 05, 2026: Defensive getStaff falling back to mock staff when remote table has 0 rows for business
   Future<List<BusinessStaff>> getStaff(String businessId) async {
     final client = SupabaseService.client;
     if (client != null) {
       try {
         final data = await client.from('business_staff').select().eq('business_id', businessId).eq('is_active', true);
+        final list = (data as List).map((json) => BusinessStaff.fromJson(json)).toList();
+        if (list.isNotEmpty) return list;
+      } catch (_) {}
+    }
+    return SupabaseService.mockStaff.where((st) => st.businessId == businessId).toList();
+  }
+  */
+
+  // Gene - Nov 07, 2026: Filter getStaff to active-only for Client views and add getAdminStaff returning all practitioners for Admin roster
+  Future<List<BusinessStaff>> getStaff(String businessId) async {
+    final client = SupabaseService.client;
+    if (client != null) {
+      try {
+        final data = await client.from('business_staff').select().eq('business_id', businessId).eq('is_active', true);
+        final list = (data as List).map((json) => BusinessStaff.fromJson(json)).toList();
+        if (list.isNotEmpty) return list;
+      } catch (_) {}
+    }
+    return SupabaseService.mockStaff.where((st) => st.businessId == businessId && st.isActive).toList();
+  }
+
+  Future<List<BusinessStaff>> getAdminStaff(String businessId) async {
+    final client = SupabaseService.client;
+    if (client != null) {
+      try {
+        final data = await client.from('business_staff').select().eq('business_id', businessId);
         final list = (data as List).map((json) => BusinessStaff.fromJson(json)).toList();
         if (list.isNotEmpty) return list;
       } catch (_) {}
@@ -370,6 +424,67 @@ class BusinessService {
     return staff;
   }
 
+  // Gene - Nov 07, 2026: Added addStaff, addService, and updateService for full Admin catalog & practitioner CRUD
+  Future<BusinessStaff> addStaff(BusinessStaff staff) async {
+    final existingIdx = SupabaseService.mockStaff.indexWhere((st) => st.id == staff.id);
+    if (existingIdx != -1) {
+      SupabaseService.mockStaff[existingIdx] = staff;
+    } else {
+      SupabaseService.mockStaff.add(staff);
+    }
+
+    final client = SupabaseService.client;
+    if (client != null) {
+      try {
+        final data = await client.from('business_staff').insert(staff.toJson()).select().single();
+        return BusinessStaff.fromJson(data);
+      } catch (e) {
+        debugPrint('[BusinessService] addStaff remote sync note (using memory state): $e');
+      }
+    }
+    return staff;
+  }
+
+  Future<ServiceItem> addService(ServiceItem service) async {
+    final existingIdx = SupabaseService.mockServices.indexWhere((s) => s.id == service.id);
+    if (existingIdx != -1) {
+      SupabaseService.mockServices[existingIdx] = service;
+    } else {
+      SupabaseService.mockServices.add(service);
+    }
+
+    final client = SupabaseService.client;
+    if (client != null) {
+      try {
+        final data = await client.from('services').insert(service.toJson()).select().single();
+        return ServiceItem.fromJson(data);
+      } catch (e) {
+        debugPrint('[BusinessService] addService remote sync note (using memory state): $e');
+      }
+    }
+    return service;
+  }
+
+  Future<ServiceItem> updateService(ServiceItem service) async {
+    final existingIdx = SupabaseService.mockServices.indexWhere((s) => s.id == service.id);
+    if (existingIdx != -1) {
+      SupabaseService.mockServices[existingIdx] = service;
+    } else {
+      SupabaseService.mockServices.add(service);
+    }
+
+    final client = SupabaseService.client;
+    if (client != null) {
+      try {
+        final data = await client.from('services').update(service.toJson()).eq('id', service.id).select().single();
+        return ServiceItem.fromJson(data);
+      } catch (e) {
+        debugPrint('[BusinessService] updateService remote sync note (using memory state): $e');
+      }
+    }
+    return service;
+  }
+
   /*
   // Gene - Nov, 04, 2026: Synchronize customer reviews from Supabase reviews table
   Future<List<Review>> getReviews(String businessId) async {
@@ -400,6 +515,7 @@ class BusinessService {
   }
   */
 
+  /*
   // Gene - Nov, 05, 2026: Customer reviews with dynamic in-memory store fallback and rating recalculation
   Future<List<Review>> getReviews(String businessId) async {
     final client = SupabaseService.client;
@@ -428,6 +544,35 @@ class BusinessService {
 
     // In-Memory store update
     SupabaseService.mockReviews.insert(0, review);
+  */
+
+  // Gene - Nov 07, 2026: Ensure getReviews falls back to mockReviews when remote table is unseeded, and createReview always updates local memory + ratingAvg
+  Future<List<Review>> getReviews(String businessId) async {
+    final client = SupabaseService.client;
+    if (client != null) {
+      try {
+        final data = await client
+            .from('reviews')
+            .select('*, profiles:client_id (full_name)')
+            .eq('business_id', businessId)
+            .order('created_at', ascending: false);
+        final list = (data as List).map((r) => Review.fromJson(r)).toList();
+        if (list.isNotEmpty) return list;
+      } catch (_) {}
+    }
+    return SupabaseService.mockReviews.where((r) => r.businessId == businessId).toList();
+  }
+
+  Future<bool> createReview(Review review) async {
+    // 1. Always update in-memory store immediately
+    SupabaseService.mockReviews.insert(0, review);
+
+    final client = SupabaseService.client;
+    if (client != null) {
+      try {
+        await client.from('reviews').insert(review.toJson());
+      } catch (_) {}
+    }
 
     // Dynamic rating recalculation on targeted business
     final bizIndex = SupabaseService.mockBusinesses.indexWhere((b) => b.id == review.businessId);
@@ -493,6 +638,17 @@ final businessServicesProvider = FutureProvider.family<List<ServiceItem>, String
 final businessStaffProvider = FutureProvider.family<List<BusinessStaff>, String>((ref, businessId) async {
   final service = ref.watch(businessServiceProvider);
   return service.getStaff(businessId);
+});
+
+// Gene - Nov 07, 2026: Added admin-specific providers returning both active and archived/inactive services and staff
+final adminBusinessServicesProvider = FutureProvider.family<List<ServiceItem>, String>((ref, businessId) async {
+  final service = ref.watch(businessServiceProvider);
+  return service.getAdminServices(businessId);
+});
+
+final adminBusinessStaffProvider = FutureProvider.family<List<BusinessStaff>, String>((ref, businessId) async {
+  final service = ref.watch(businessServiceProvider);
+  return service.getAdminStaff(businessId);
 });
 
 // Gene - Nov, 04, 2026: Providers for categories and templates

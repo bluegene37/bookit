@@ -141,6 +141,7 @@ class UniversalBookingScreen extends ConsumerWidget {
                             // Dynamic Scheduling Step based on business.bookingModel
                             switch (business.bookingModel) {
                               case BookingModelType.slotBased:
+                                /*
                                 return SlotTimePickerStep(
                                   business: business,
                                   staffList: staff,
@@ -148,6 +149,20 @@ class UniversalBookingScreen extends ConsumerWidget {
                                   selectedDate: wizardState.selectedDate,
                                   selectedSlot: wizardState.selectedSlot,
                                   selectedStaff: wizardState.selectedStaff,
+                                  onDateSelected: wizardNotifier.selectDate,
+                                  onSlotSelected: wizardNotifier.selectSlot,
+                                  onStaffSelected: wizardNotifier.selectStaff,
+                                );
+                                */
+                                // Gene - Nov 07, 2026: Pass selectedService?.durationMinutes to SlotTimePickerStep for accurate slot duration & buffer checks
+                                return SlotTimePickerStep(
+                                  business: business,
+                                  staffList: staff,
+                                  existingBookings: allBookings.where((b) => b.businessId == business.id).toList(),
+                                  selectedDate: wizardState.selectedDate,
+                                  selectedSlot: wizardState.selectedSlot,
+                                  selectedStaff: wizardState.selectedStaff,
+                                  serviceDurationMinutes: wizardState.selectedService?.durationMinutes,
                                   onDateSelected: wizardNotifier.selectDate,
                                   onSlotSelected: wizardNotifier.selectSlot,
                                   onStaffSelected: wizardNotifier.selectStaff,
