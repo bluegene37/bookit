@@ -307,7 +307,9 @@ class _DashboardOverviewTabState extends ConsumerState<DashboardOverviewTab> {
         .toList();
 
     // Financial Metrics Calculation
-    final payments = paymentsAsync.value ?? [];
+    // final payments = paymentsAsync.value ?? [];
+    // Gene - Nov, 7, 2026: Use valueOrNull instead of value to prevent rethrowing AsyncError during widget build
+    final payments = paymentsAsync.valueOrNull ?? [];
     double grossRevenue = payments
         .where((p) => p.paymentStatus != 'refunded')
         .fold<double>(0.0, (sum, p) => sum + p.grossAmount);
@@ -326,8 +328,11 @@ class _DashboardOverviewTabState extends ConsumerState<DashboardOverviewTab> {
     final avgTicket = totalAppointmentsCount > 0 ? (grossRevenue / totalAppointmentsCount) : 110.0;
     const occupancyRate = 78.5; // Estimated 78.5% capacity
 
-    final servicesList = servicesAsync.value ?? <ServiceItem>[];
-    final staffList = staffAsync.value ?? <BusinessStaff>[];
+    // final servicesList = servicesAsync.value ?? <ServiceItem>[];
+    // final staffList = staffAsync.value ?? <BusinessStaff>[];
+    // Gene - Nov, 7, 2026: Use valueOrNull instead of value to safely handle error states
+    final servicesList = servicesAsync.valueOrNull ?? <ServiceItem>[];
+    final staffList = staffAsync.valueOrNull ?? <BusinessStaff>[];
 
     // Compute Chart Datasets
     final trendData = _buildTrendData(bookings, grossRevenue);

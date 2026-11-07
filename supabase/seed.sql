@@ -259,7 +259,9 @@ VALUES
         'Dr. Sophia Martinez, DMD',
         'Periodontics & Implants',
         'Harvard Dental alumnus with expertise in micro-surgical implantology and restorative therapy.',
-        'https://images.unsplash.com/photo-1594824813637-b9560f1ad922?auto=format&fit=crop&w=400&q=80'
+        -- 'https://images.unsplash.com/photo-1594824813637-b9560f1ad922?auto=format&fit=crop&w=400&q=80'
+        -- Gene - Nov, 7, 2026: Replaced broken 404 Unsplash avatar URL with verified working portrait URL
+        'https://images.unsplash.com/photo-1594824476967-48c8b964273f?auto=format&fit=crop&w=400&q=80'
     ),
     (
         '44444444-4444-4444-4444-444444444443',

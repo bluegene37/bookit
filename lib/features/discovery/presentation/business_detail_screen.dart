@@ -39,9 +39,13 @@ class BusinessDetailScreen extends ConsumerWidget {
           return const Scaffold(body: Center(child: Text('Business not found')));
         }
 
-        final services = servicesAsync.value ?? [];
-        final staff = staffAsync.value ?? [];
-        final reviews = reviewsAsync.value ?? [];
+        // final services = servicesAsync.value ?? [];
+        // final staff = staffAsync.value ?? [];
+        // final reviews = reviewsAsync.value ?? [];
+        // Gene - Nov, 7, 2026: Use valueOrNull instead of value to prevent rethrowing AsyncError during widget build
+        final services = servicesAsync.valueOrNull ?? [];
+        final staff = staffAsync.valueOrNull ?? [];
+        final reviews = reviewsAsync.valueOrNull ?? [];
 
         return Scaffold(
           body: Stack(
@@ -203,9 +207,17 @@ class BusinessDetailScreen extends ConsumerWidget {
                                       child: Column(
                                         mainAxisAlignment: MainAxisAlignment.center,
                                         children: [
+                                          /*
                                           CircleAvatar(
                                             radius: 24,
                                             backgroundImage: NetworkImage(st.avatarUrl ?? 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?w=200'),
+                                          ),
+                                          */
+                                          // Gene - Nov, 7, 2026: Added onBackgroundImageError handler to prevent uncaught NetworkImageLoadException on broken avatar URLs
+                                          CircleAvatar(
+                                            radius: 24,
+                                            backgroundImage: NetworkImage(st.avatarUrl ?? 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?w=200'),
+                                            onBackgroundImageError: (_, _) {},
                                           ),
                                           const SizedBox(height: 8),
                                           Text(

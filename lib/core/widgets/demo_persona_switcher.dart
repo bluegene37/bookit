@@ -155,9 +155,18 @@ class DemoPersonaSwitcherDialog extends ConsumerWidget {
                           isInset: isSelected,
                           child: Row(
                             children: [
+                              /*
                               CircleAvatar(
                                 radius: 22,
                                 backgroundImage: persona.avatarUrl != null ? NetworkImage(persona.avatarUrl!) : null,
+                                child: persona.avatarUrl == null ? Text(persona.fullName[0]) : null,
+                              ),
+                              */
+                              // Gene - Nov, 7, 2026: Added onBackgroundImageError handler to prevent uncaught NetworkImageLoadException on broken avatar URLs
+                              CircleAvatar(
+                                radius: 22,
+                                backgroundImage: persona.avatarUrl != null ? NetworkImage(persona.avatarUrl!) : null,
+                                onBackgroundImageError: persona.avatarUrl != null ? (_, _) {} : null,
                                 child: persona.avatarUrl == null ? Text(persona.fullName[0]) : null,
                               ),
                               const SizedBox(width: 14),

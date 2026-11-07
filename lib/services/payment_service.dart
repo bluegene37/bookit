@@ -32,6 +32,7 @@ final paymentServiceProvider = Provider<PaymentService>((ref) {
   return PaymentService(ref.watch(supabaseClientProvider), ref);
 });
 
+/*
 final businessPaymentsProvider = StreamProvider.family<List<Payment>, String>((ref, businessId) {
   if (!SupabaseConfig.isConfigured) {
     return Stream.value(
@@ -46,6 +47,59 @@ final businessPaymentsProvider = StreamProvider.family<List<Payment>, String>((r
       .eq('business_id', businessId)
       .order('created_at', ascending: false)
       .map((rows) => rows.map((r) => Payment.fromJson(r)).toList());
+});
+*/
+
+// Gene - Nov, 7, 2026: Resilient businessPaymentsProvider with initial REST + mock fallback and RealtimeSubscribeException handling
+final businessPaymentsProvider = StreamProvider.family<List<Payment>, String>((ref, businessId) async* {
+  final mockList = SupabaseService.mockPayments.where((p) => p.businessId == businessId).toList();
+  if (!SupabaseConfig.isConfigured) {
+    yield mockList;
+    return;
+  }
+
+  final client = SupabaseService.client;
+  if (client == null) {
+    yield mockList;
+    return;
+  }
+
+  List<Payment> currentList = mockList;
+  try {
+    final rows = await client
+        .from('payments')
+        .select()
+        .eq('business_id', businessId)
+        .order('created_at', ascending: false);
+    final remoteList = (rows as List).map((r) => Payment.fromJson(r)).toList();
+    if (remoteList.isNotEmpty) {
+      final remoteIds = remoteList.map((p) => p.id).toSet();
+      final localOnly = mockList.where((p) => !remoteIds.contains(p.id)).toList();
+      currentList = [...localOnly, ...remoteList];
+    }
+  } catch (_) {}
+
+  yield currentList;
+
+  if (client.auth.currentSession != null) {
+    try {
+      await for (final rows in client
+          .from('payments')
+          .stream(primaryKey: ['id'])
+          .eq('business_id', businessId)
+          .order('created_at', ascending: false)) {
+        final remoteList = rows.map((r) => Payment.fromJson(r)).toList();
+        if (remoteList.isNotEmpty) {
+          final liveMock = SupabaseService.mockPayments.where((p) => p.businessId == businessId).toList();
+          final remoteIds = remoteList.map((p) => p.id).toSet();
+          final localOnly = liveMock.where((p) => !remoteIds.contains(p.id)).toList();
+          yield [...localOnly, ...remoteList];
+        }
+      }
+    } catch (_) {
+      // Gracefully absorb RealtimeSubscribeException when Realtime is not enabled for payments or session lacks RLS subscription access
+    }
+  }
 });
 
 class PaymentService {
@@ -297,6 +351,12 @@ class PaymentService {
       senderAccount: senderAccount,
     );
     SupabaseService.mockPayments.insert(0, payment);
+    // Gene - Nov, 7, 2026: Invalidate businessPaymentsProvider so payment streams immediately emit the newly recorded payment
+    if (_ref != null) {
+      try {
+        _ref.invalidate(businessPaymentsProvider(businessId));
+      } catch (_) {}
+    }
 
     // 5. Create and insert notification record
     final methodLabel = payment.paymentMethodLabel;
@@ -425,6 +485,12 @@ class PaymentService {
         referenceNumber: p.referenceNumber,
         senderAccount: p.senderAccount,
       );
+      // Gene - Nov, 7, 2026: Invalidate businessPaymentsProvider so payment streams immediately emit the updated refund status
+      if (_ref != null) {
+        try {
+          _ref.invalidate(businessPaymentsProvider(p.businessId));
+        } catch (_) {}
+      }
     }
 
     // 2. Update booking payment status in mock list

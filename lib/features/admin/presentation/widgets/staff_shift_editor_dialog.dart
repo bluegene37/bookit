@@ -165,12 +165,23 @@ class _StaffShiftEditorDialogState extends ConsumerState<StaffShiftEditorDialog>
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  /*
                   CircleAvatar(
                     radius: 24,
                     backgroundImage: NetworkImage(
                       widget.staff.avatarUrl ??
                           'https://images.unsplash.com/photo-1622253692010-333f2da6031d?w=200',
                     ),
+                  ),
+                  */
+                  // Gene - Nov, 7, 2026: Added onBackgroundImageError handler to prevent uncaught NetworkImageLoadException on broken avatar URLs
+                  CircleAvatar(
+                    radius: 24,
+                    backgroundImage: NetworkImage(
+                      widget.staff.avatarUrl ??
+                          'https://images.unsplash.com/photo-1622253692010-333f2da6031d?w=200',
+                    ),
+                    onBackgroundImageError: (_, _) {},
                   ),
                   const SizedBox(width: 14),
                   Expanded(

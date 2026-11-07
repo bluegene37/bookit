@@ -44,8 +44,11 @@ class UniversalBookingScreen extends ConsumerWidget {
         final wizardState = ref.watch(bookingWizardProvider(business));
         final wizardNotifier = ref.read(bookingWizardProvider(business).notifier);
 
-        final services = servicesAsync.value ?? [];
-        final staff = staffAsync.value ?? [];
+        // final services = servicesAsync.value ?? [];
+        // final staff = staffAsync.value ?? [];
+        // Gene - Nov, 7, 2026: Use valueOrNull instead of value to prevent rethrowing AsyncError during widget build
+        final services = servicesAsync.valueOrNull ?? [];
+        final staff = staffAsync.valueOrNull ?? [];
 
         return Scaffold(
           /*

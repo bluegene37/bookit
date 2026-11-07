@@ -304,12 +304,23 @@ class StaffManagerTab extends ConsumerWidget {
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
+                          /*
                           CircleAvatar(
                             radius: 26,
                             backgroundImage: NetworkImage(
                               st.avatarUrl ??
                                   'https://images.unsplash.com/photo-1622253692010-333f2da6031d?w=200',
                             ),
+                          ),
+                          */
+                          // Gene - Nov, 7, 2026: Added onBackgroundImageError handler to prevent uncaught NetworkImageLoadException on broken avatar URLs
+                          CircleAvatar(
+                            radius: 26,
+                            backgroundImage: NetworkImage(
+                              st.avatarUrl ??
+                                  'https://images.unsplash.com/photo-1622253692010-333f2da6031d?w=200',
+                            ),
+                            onBackgroundImageError: (_, _) {},
                           ),
                           const SizedBox(width: 16),
                           Expanded(

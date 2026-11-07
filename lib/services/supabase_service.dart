@@ -176,7 +176,9 @@ class SupabaseService {
       name: 'Dr. Sophia Martinez, DMD',
       specialty: 'Periodontics & Implants',
       bio: 'Harvard Dental alumnus with expertise in implantology and restorative therapy.',
-      avatarUrl: 'https://images.unsplash.com/photo-1594824813637-b9560f1ad922?auto=format&fit=crop&w=400&q=80',
+      // avatarUrl: 'https://images.unsplash.com/photo-1594824813637-b9560f1ad922?auto=format&fit=crop&w=400&q=80',
+      // Gene - Nov, 7, 2026: Replaced broken 404 Unsplash avatar URL with verified working portrait URL
+      avatarUrl: 'https://images.unsplash.com/photo-1594824476967-48c8b964273f?auto=format&fit=crop&w=400&q=80',
     ),
     const BusinessStaff(
       id: '44444444-4444-4444-4444-444444444443',
