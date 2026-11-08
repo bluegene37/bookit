@@ -78,8 +78,14 @@ task.md
 .env
 *.env
 *.env.*
+# Gene - Nov, 08, 2026: Allow sanitized .env.example template in public repository
+!.env.example
 *.local
 
 # Gene - Nov, 04, 2026: Ignore Supabase CLI temporary files
 supabase/.temp/
+
+# Gene - Nov, 08, 2026: Ignore Vercel CLI project link and build output directories
+.vercel/
+
 

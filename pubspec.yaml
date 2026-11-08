@@ -31,6 +31,9 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  # Gene - Nov, 08, 2026: Added flutter_web_plugins SDK dependency for usePathUrlStrategy() clean URLs on Vercel Web
+  flutter_web_plugins:
+    sdk: flutter
 
   cupertino_icons: ^1.0.8
   flutter_riverpod: ^2.5.1

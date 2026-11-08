@@ -1,11 +1,49 @@
 // Gene - Nov, 05, 2026: Supabase Edge Function for Automated Dual-Stage Reminders (24-Hour Notice & 2-Hour Quick Arrival)
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
-import { supabaseAdmin, corsHeaders } from '../_shared/stripe.ts';
+import { supabaseAdmin, corsHeaders, getCorsHeaders } from '../_shared/stripe.ts';
 
 serve(async (req: Request) => {
-  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
+  const responseCors = getCorsHeaders(req);
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: responseCors });
 
   try {
+    // Gene - Nov, 08, 2026: Enforce authentication / cron secret verification to prevent unauthorized notification spamming (CWE-306)
+    const cronSecret = Deno.env.get('CRON_SECRET');
+    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    const headerCronSecret = req.headers.get('x-cron-secret');
+    const authHeader = req.headers.get('Authorization');
+    const bearerToken = authHeader?.replace('Bearer ', '').trim();
+
+    let isAuthorized = false;
+
+    if (cronSecret && (headerCronSecret === cronSecret || bearerToken === cronSecret)) {
+      isAuthorized = true;
+    } else if (serviceRoleKey && bearerToken === serviceRoleKey) {
+      isAuthorized = true;
+    } else if (bearerToken) {
+      const { data: { user }, error: authErr } = await supabaseAdmin.auth.getUser(bearerToken);
+      if (!authErr && user) {
+        const { data: callerProfile } = await supabaseAdmin
+          .from('profiles')
+          .select('role')
+          .eq('id', user.id)
+          .single();
+        if (callerProfile?.role === 'admin' || callerProfile?.role === 'business_owner') {
+          isAuthorized = true;
+        }
+      }
+    } else if (!cronSecret && !serviceRoleKey) {
+      // Allow local offline mock testing when no secrets are configured
+      isAuthorized = true;
+    }
+
+    if (!isAuthorized) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized: Valid CRON_SECRET, Service Role Key, or Admin/Owner token required' }),
+        { headers: { ...responseCors, 'Content-Type': 'application/json' }, status: 401 }
+      );
+    }
+
     const now = new Date();
     const in24Hours = new Date(now.getTime() + 24 * 60 * 60 * 1000);
     const in2Hours = new Date(now.getTime() + 2 * 60 * 60 * 1000);

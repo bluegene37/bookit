@@ -1,9 +1,13 @@
 // Gene - Nov, 05, 2026: Added reception QR scanner modal, check-in action sheet, and booking state transitions
+/*
 import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart';
+*/
+// Gene - Nov, 08, 2026: Replaced direct dart:io Platform import with conditional test_environment helper for pure Web & Wasm compatibility
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+import '../../../../core/constants/test_environment.dart';
 import '../../../../core/theme/neumorphic_colors.dart';
 import '../../../../core/widgets/neumorphic_container.dart';
 import '../../../../core/widgets/neumorphic_button.dart';
@@ -32,6 +36,7 @@ class _ReceptionQrScannerModalState extends ConsumerState<ReceptionQrScannerModa
   bool _hasProcessed = false;
   String? _errorMessage;
 
+  /*
   bool get _isTestMode {
     if (kIsWeb) return false;
     try {
@@ -40,6 +45,9 @@ class _ReceptionQrScannerModalState extends ConsumerState<ReceptionQrScannerModa
       return false;
     }
   }
+  */
+  // Gene - Nov, 08, 2026: Use cross-platform isFlutterTestRunning() helper instead of dart:io Platform.environment
+  bool get _isTestMode => isFlutterTestRunning();
 
   @override
   void initState() {

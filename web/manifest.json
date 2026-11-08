@@ -1,12 +1,12 @@
 {
-    "name": "bookit",
-    "short_name": "bookit",
-    "start_url": ".",
+    "name": "BookIt — Universal Booking & Clinic Management",
+    "short_name": "BookIt",
+    "start_url": "/",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
-    "orientation": "portrait-primary",
+    "background_color": "#12181F",
+    "theme_color": "#009688",
+    "description": "Multi-tenant booking, live reception queue, and clinic CRM platform.",
+    "orientation": "any",
     "prefer_related_applications": false,
     "icons": [
         {

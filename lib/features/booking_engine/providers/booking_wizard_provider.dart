@@ -1,4 +1,6 @@
 // Gene - Nov, 03, 2026: Universal dynamic booking wizard state manager and provider
+// Gene - Nov, 08, 2026: Imported foundation.dart for kIsWeb origin-aware checkout redirect URLs
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 import '../../../models/business.dart';
@@ -525,10 +527,46 @@ class BookingWizardNotifier extends StateNotifier<BookingWizardState> {
       final refNum = state.paymentReference.trim().isNotEmpty ? state.paymentReference.trim() : null;
       final sender = state.paymentSender.trim().isNotEmpty ? state.paymentSender.trim() : null;
 
+      /*
+      // Gene - Nov 07, 2026: Mobile-only custom scheme returnUrl and cancelUrl
       await paymentService.initiateCheckout(
         bookingId: bookingId,
         returnUrl: 'bookit://booking-success?id=$bookingId',
         cancelUrl: 'bookit://booking-cancel?id=$bookingId',
+        paymentMethod: method,
+        referenceNumber: refNum,
+        senderAccount: sender,
+        onSuccess: (isMock) {
+          final updatedList = ref.read(bookingsProvider);
+          final updated = updatedList.firstWhere(
+            (b) => b.id == bookingId,
+            orElse: () => created.copyWith(
+              status: 'confirmed',
+              paymentStatus: deposit < total ? 'deposit_paid' : 'paid_in_full',
+              amountPaid: deposit,
+              amountDue: total - deposit,
+              paymentMethod: method,
+              paymentReference: refNum,
+              paymentSender: sender,
+            ),
+          );
+          state = state.copyWith(isSubmitting: false, completedBooking: updated, currentStep: 4);
+        },
+      );
+      */
+      // Gene - Nov, 08, 2026: Use origin-based HTTPS return/cancel URLs on Web for Vercel & Stripe Checkout compatibility while preserving deep links on mobile
+      final webOrigin = kIsWeb ? Uri.base.origin : '';
+      final effectiveReturnUrl = kIsWeb && webOrigin.startsWith('http')
+          ? '$webOrigin/my-bookings?booking_id=$bookingId&status=success'
+          : 'bookit://booking-success?id=$bookingId';
+      final effectiveCancelUrl = kIsWeb && webOrigin.startsWith('http')
+          ? '$webOrigin/book/${business.id}?cancelled=true'
+          : 'bookit://booking-cancel?id=$bookingId';
+
+      await paymentService.initiateCheckout(
+        bookingId: bookingId,
+        returnUrl: effectiveReturnUrl,
+        cancelUrl: effectiveCancelUrl,
         paymentMethod: method,
         referenceNumber: refNum,
         senderAccount: sender,

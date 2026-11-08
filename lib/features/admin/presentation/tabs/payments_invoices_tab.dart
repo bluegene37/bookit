@@ -1,4 +1,6 @@
 // Gene - Nov, 04, 2026: Admin Payments & Invoices Tab with KPI summary cards, Stripe Express banner, and Neumorphic transaction ledger
+// Gene - Nov, 08, 2026: Imported foundation.dart for kIsWeb origin-aware Stripe Connect return URLs
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -100,9 +102,20 @@ class _PaymentsInvoicesViewState extends State<PaymentsInvoicesView> {
 
     try {
       final container = ProviderScope.containerOf(context, listen: false);
+      /*
       await container.read(paymentServiceProvider).launchConnectOnboarding(
         businessId: widget.businessId,
         returnUrl: '/admin',
+        action: 'dashboard',
+      );
+      */
+      // Gene - Nov, 08, 2026: Pass full origin URL on Web so Edge Function URL validation succeeds without relative-URL errors
+      final returnUrl = kIsWeb && Uri.base.origin.startsWith('http')
+          ? '${Uri.base.origin}/admin'
+          : 'https://bookit.app/admin';
+      await container.read(paymentServiceProvider).launchConnectOnboarding(
+        businessId: widget.businessId,
+        returnUrl: returnUrl,
         action: 'dashboard',
       );
     } catch (_) {
@@ -118,9 +131,20 @@ class _PaymentsInvoicesViewState extends State<PaymentsInvoicesView> {
 
     try {
       final container = ProviderScope.containerOf(context, listen: false);
+      /*
       await container.read(paymentServiceProvider).launchConnectOnboarding(
         businessId: widget.businessId,
         returnUrl: '/admin',
+        action: 'onboard',
+      );
+      */
+      // Gene - Nov, 08, 2026: Pass full origin URL on Web so Edge Function URL validation succeeds without relative-URL errors
+      final returnUrl = kIsWeb && Uri.base.origin.startsWith('http')
+          ? '${Uri.base.origin}/admin'
+          : 'https://bookit.app/admin';
+      await container.read(paymentServiceProvider).launchConnectOnboarding(
+        businessId: widget.businessId,
+        returnUrl: returnUrl,
         action: 'onboard',
       );
     } catch (_) {

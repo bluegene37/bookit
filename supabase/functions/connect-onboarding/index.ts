@@ -1,7 +1,8 @@
 // Gene - Nov, 04, 2026: Stripe Connect Express account onboarding and login link generator
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
-import { stripe, supabaseAdmin, corsHeaders } from '../_shared/stripe.ts';
+import { stripe, supabaseAdmin, corsHeaders, isAllowedRedirectUrl } from '../_shared/stripe.ts';
 
+/*
 // Gene - Nov, 05, 2026: Validate redirect URLs against trusted origins to prevent Open Redirect attacks (CWE-601)
 function isAllowedUrl(urlStr: string): boolean {
   try {
@@ -18,6 +19,11 @@ function isAllowedUrl(urlStr: string): boolean {
   } catch {
     return false;
   }
+}
+*/
+// Gene - Nov, 08, 2026: Delegate redirect validation to shared isAllowedRedirectUrl (supports Vercel, BookIt, localhost, and bookit:// deep links)
+function isAllowedUrl(urlStr: string): boolean {
+  return isAllowedRedirectUrl(urlStr);
 }
 
 serve(async (req: Request) => {
@@ -73,6 +79,15 @@ serve(async (req: Request) => {
             status: 403,
           });
         }
+      }
+    } else {
+      // Gene - Nov, 08, 2026: Reject missing bearer token when live Stripe credentials are active (CWE-306)
+      const stripeKeyCheck = Deno.env.get('STRIPE_SECRET_KEY');
+      if (stripeKeyCheck && stripeKeyCheck !== 'mock') {
+        return new Response(JSON.stringify({ error: 'Unauthorized: Authentication required for Stripe Connect onboarding' }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 401,
+        });
       }
     }
 

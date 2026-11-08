@@ -18,29 +18,153 @@
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <!--
   <meta name="description" content="A new Flutter project.">
 
-  <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <meta name="apple-mobile-web-app-title" content="bookit">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
-  <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
 
   <title>bookit</title>
   <link rel="manifest" href="manifest.json">
 </head>
 <body>
-  <!--
-    You can customize the "flutter_bootstrap.js" script.
-    This is useful to provide a custom configuration to the Flutter loader
-    or to give the user feedback during the initialization process.
-
-    For more details:
-    * https://docs.flutter.dev/platform-integration/web/initialization
+  <script src="flutter_bootstrap.js" async></script>
+</body>
   -->
+  <!-- Gene - Nov, 08, 2026: Production-ready Web Beta metadata, security meta policies, Open Graph tags, and Neumorphic initial boot splash screen for Vercel deployment -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+  <meta name="description" content="BookIt — Universal Multi-Tenant Booking, Scheduling, Reception Queue, and Clinic CRM Platform for Healthcare, Aesthetics, Wellness, and Service Studios.">
+  <meta name="keywords" content="BookIt, Clinic Booking, Dental Scheduling, Medical Aesthetics CRM, Reception Queue, Supabase, Flutter Web">
+  <meta name="author" content="BookIt Platform">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <meta name="theme-color" content="#009688" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#12181F" media="(prefers-color-scheme: dark)">
+
+  <!-- Open Graph / Social Preview -->
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="BookIt">
+  <meta property="og:title" content="BookIt — Universal Booking & Clinic Management Platform">
+  <meta property="og:description" content="Multi-tenant booking engine supporting slot-based appointments, multi-day recovery stays, live reception queues, and patient CRM dossiers.">
+  <meta property="og:image" content="icons/Icon-512.png">
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="BookIt — Universal Booking & Clinic Management Platform">
+  <meta name="twitter:description" content="Multi-tenant booking engine supporting slot-based appointments, multi-day recovery stays, live reception queues, and patient CRM dossiers.">
+  <meta name="twitter:image" content="icons/Icon-512.png">
+
+  <!-- iOS / PWA meta tags & icons -->
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="BookIt">
+  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="favicon.png"/>
+
+  <title>BookIt — Universal Booking & Clinic Management Platform</title>
+  <link rel="manifest" href="manifest.json">
+
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      background-color: #12181F;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      overflow: hidden;
+    }
+    #bookit-splash {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: radial-gradient(circle at center, #18212B 0%, #12181F 100%);
+      z-index: 999999;
+      transition: opacity 0.35s ease-out;
+    }
+    .splash-logo-card {
+      width: 76px;
+      height: 76px;
+      border-radius: 22px;
+      background: linear-gradient(135deg, #26A69A 0%, #00897B 55%, #00695C 100%);
+      box-shadow: 0 14px 32px rgba(0, 150, 136, 0.35), inset 0 1px 1px rgba(255, 255, 255, 0.25);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 20px;
+    }
+    .splash-title {
+      color: #F1F5F9;
+      font-size: 24px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      margin: 0 0 6px 0;
+    }
+    .splash-subtitle {
+      color: #94A3B8;
+      font-size: 13px;
+      font-weight: 500;
+      margin: 0 0 24px 0;
+    }
+    .splash-progress-track {
+      width: 160px;
+      height: 4px;
+      border-radius: 4px;
+      background: rgba(255, 255, 255, 0.08);
+      overflow: hidden;
+      position: relative;
+    }
+    .splash-progress-bar {
+      width: 45%;
+      height: 100%;
+      border-radius: 4px;
+      background: linear-gradient(90deg, #009688, #4DB6AC);
+      position: absolute;
+      animation: bookit-pulse 1.2s infinite ease-in-out;
+    }
+    @keyframes bookit-pulse {
+      0% { left: -45%; }
+      100% { left: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <div id="bookit-splash" role="status" aria-label="Loading BookIt Platform">
+    <div class="splash-logo-card">
+      <svg width="44" height="44" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M168 128 V384" stroke="#FFFFFF" stroke-width="40" stroke-linecap="round"/>
+        <path d="M168 128 H266 C308 128 336 153 336 191 C336 229 308 254 266 254 H168" stroke="#FFFFFF" stroke-width="40" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M168 254 H276 C322 254 352 282 352 320 C352 358 322 384 268 384 H168" stroke="#FFFFFF" stroke-width="40" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M238 324 L276 362 L368 264" stroke="#A7F3D0" stroke-width="42" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+    <h1 class="splash-title">BookIt</h1>
+    <p class="splash-subtitle">Universal Booking &amp; Clinic Workspace</p>
+    <div class="splash-progress-track">
+      <div class="splash-progress-bar"></div>
+    </div>
+  </div>
+  <script>
+    window.addEventListener('flutter-first-frame', function () {
+      var splash = document.getElementById('bookit-splash');
+      if (splash) {
+        splash.style.opacity = '0';
+        setTimeout(function () {
+          if (splash && splash.parentNode) {
+            splash.parentNode.removeChild(splash);
+          }
+        }, 350);
+      }
+    });
+  </script>
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>

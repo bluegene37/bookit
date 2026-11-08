@@ -42,10 +42,32 @@ class SupabaseConfig {
   // Gene - Nov, 04, 2026: Optional override flag for tests or forced offline mode
   static bool? overrideConfigured;
 
+  /*
   // Gene - Nov, 04, 2026: Uses cross-platform isFlutterTestRunning conditional check so unit/widget tests use mock fixtures without live socket heartbeats, while Flutter web and mobile connect live
   static bool get isConfigured {
     if (overrideConfigured != null) return overrideConfigured!;
     return !isFlutterTestRunning() &&
+        supabaseAnonKey != 'placeholder-anon-key' &&
+        supabaseAnonKey.isNotEmpty;
+  }
+  */
+
+  // Gene - Nov, 08, 2026: Added FORCE_MOCK_MODE build flag and HTTPS/localhost transport security validation (CWE-319) for Vercel Web deployments
+  static const bool forceMockMode = bool.fromEnvironment(
+    'FORCE_MOCK_MODE',
+    defaultValue: false,
+  );
+
+  static bool get isSecureUrl =>
+      supabaseUrl.startsWith('https://') ||
+      supabaseUrl.startsWith('http://localhost') ||
+      supabaseUrl.startsWith('http://127.0.0.1');
+
+  static bool get isConfigured {
+    if (overrideConfigured != null) return overrideConfigured!;
+    if (forceMockMode) return false;
+    return !isFlutterTestRunning() &&
+        isSecureUrl &&
         supabaseAnonKey != 'placeholder-anon-key' &&
         supabaseAnonKey.isNotEmpty;
   }

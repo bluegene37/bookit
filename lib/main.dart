@@ -1,13 +1,26 @@
 // Gene - Nov, 03, 2026: Implemented BookIt entrypoint with Riverpod, NeumorphicTheme (Light/Dark), GoRouter, and Supabase initialization
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+// Gene - Nov, 08, 2026: Added flutter_web_plugins url_strategy import for clean path-based URLs on Vercel Web deployments
+import 'package:flutter_web_plugins/url_strategy.dart';
 import 'core/theme/neumorphic_theme.dart';
 import 'core/theme/theme_mode_provider.dart';
 import 'core/router/app_router.dart';
 import 'services/supabase_service.dart';
 
+/*
+// Gene - Nov, 03, 2026: Original main() without path URL strategy
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await SupabaseService.initialize();
+  runApp(const ProviderScope(child: BookItApp()));
+}
+*/
+
+// Gene - Nov, 08, 2026: Enabled usePathUrlStrategy() so Vercel SPA rewrites serve clean paths (/admin, /my-bookings) without /#/ hash fragments
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  usePathUrlStrategy();
   await SupabaseService.initialize();
   runApp(const ProviderScope(child: BookItApp()));
 }
