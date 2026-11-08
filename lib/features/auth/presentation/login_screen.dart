@@ -7,6 +7,8 @@ import '../../../core/theme/neumorphic_colors.dart';
 import '../../../core/widgets/neumorphic_container.dart';
 import '../../../core/widgets/neumorphic_button.dart';
 import '../../../core/widgets/neumorphic_text_field.dart';
+// Gene - Nov, 08, 2026: Added BookItLogo import for minimalist Geometric 'B' + Checkmark brand mark
+import '../../../core/widgets/bookit_logo.dart';
 import '../../../services/auth_service.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -109,6 +111,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
+                  /*
+                  // Gene - Nov, 03, 2026: Placeholder health_and_safety_rounded brand icon on LoginScreen
                   // Brand Icon
                   NeumorphicContainer(
                     isCircle: true,
@@ -116,6 +120,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     height: 72,
                     child: Icon(Icons.health_and_safety_rounded, color: accent, size: 36),
                   ),
+                  */
+                  // Gene - Nov, 08, 2026: Replaced placeholder icon with minimalist Geometric 'B' + Checkmark BookItLogo
+                  const BookItLogo(size: 72),
                   const SizedBox(height: 20),
 
                   Text(

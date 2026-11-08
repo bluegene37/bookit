@@ -7,6 +7,8 @@ import '../../../core/widgets/neumorphic_container.dart';
 import '../../../core/widgets/neumorphic_button.dart';
 import '../../../core/widgets/neumorphic_text_field.dart';
 import '../../../core/widgets/neumorphic_chip.dart';
+// Gene - Nov, 08, 2026: Added BookItLogo import for minimalist Geometric 'B' + Checkmark brand mark
+import '../../../core/widgets/bookit_logo.dart';
 import '../../../services/auth_service.dart';
 
 class SignupScreen extends ConsumerStatefulWidget {
@@ -126,6 +128,9 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
               constraints: const BoxConstraints(maxWidth: 460),
               child: Column(
                 children: [
+                  // Gene - Nov, 08, 2026: Added minimalist Geometric 'B' + Checkmark BookItLogo above Join BookIt heading
+                  const BookItLogo(size: 60),
+                  const SizedBox(height: 16),
                   Text(
                     'Join BookIt',
                     style: TextStyle(

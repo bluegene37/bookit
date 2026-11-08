@@ -16,6 +16,8 @@ import '../../../core/widgets/demo_persona_switcher.dart';
 import '../../../core/widgets/safe_network_image.dart';
 // Gene - Nov 06, 2026: Added DiscoveryMapView import for interactive map view toggle
 import 'widgets/discovery_map_view.dart';
+// Gene - Nov, 08, 2026: Added BookItLogo import for minimalist Geometric 'B' + Checkmark brand mark
+import '../../../core/widgets/bookit_logo.dart';
 
 class HomeDiscoveryScreen extends ConsumerWidget {
   const HomeDiscoveryScreen({super.key});
@@ -52,6 +54,8 @@ class HomeDiscoveryScreen extends ConsumerWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                 child: Row(
                   children: [
+                    /*
+                    // Gene - Nov, 03, 2026: Placeholder health_and_safety_rounded brand icon
                     // Brand Icon
                     NeumorphicContainer(
                       isCircle: true,
@@ -59,6 +63,9 @@ class HomeDiscoveryScreen extends ConsumerWidget {
                       height: 44,
                       child: Icon(Icons.health_and_safety_rounded, color: accent, size: 24),
                     ),
+                    */
+                    // Gene - Nov, 08, 2026: Replaced placeholder icon with minimalist Geometric 'B' + Checkmark BookItLogo
+                    const BookItLogo(size: 44),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Column(

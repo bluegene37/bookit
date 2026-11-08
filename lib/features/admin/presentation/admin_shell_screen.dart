@@ -27,6 +27,8 @@ import '../../../core/widgets/demo_persona_switcher.dart';
 import 'widgets/reception_qr_scanner_modal.dart';
 // Gene - Nov 06, 2026: Added ClientsCrmTab import for patient directory and clinical visit dossier
 import 'tabs/clients_crm_tab.dart';
+// Gene - Nov, 08, 2026: Added BookItLogo import for minimalist Geometric 'B' + Checkmark brand mark
+import '../../../core/widgets/bookit_logo.dart';
 
 class AdminShellScreen extends ConsumerStatefulWidget {
   const AdminShellScreen({super.key});
@@ -962,12 +964,17 @@ class _AdminShellScreenState extends ConsumerState<AdminShellScreen> {
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
+                      /*
+                      // Gene - Nov, 04, 2026: Placeholder shield_outlined brand icon in Web Top Bar
                       NeumorphicContainer(
                         isCircle: true,
                         width: 40,
                         height: 40,
                         child: Icon(Icons.shield_outlined, color: accent, size: 22),
                       ),
+                      */
+                      // Gene - Nov, 08, 2026: Replaced placeholder shield icon with minimalist Geometric 'B' + Checkmark BookItLogo
+                      const BookItLogo(size: 40),
                       const SizedBox(width: 12),
                       Column(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -1697,12 +1704,17 @@ class _AdminShellScreenState extends ConsumerState<AdminShellScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  /*
+                  // Gene - Nov, 04, 2026: Placeholder storefront_rounded icon in Admin zero-state welcome screen
                   NeumorphicContainer(
                     isCircle: true,
                     width: 80,
                     height: 80,
                     child: Icon(Icons.storefront_rounded, size: 40, color: accent),
                   ),
+                  */
+                  // Gene - Nov, 08, 2026: Replaced zero-state placeholder icon with minimalist Geometric 'B' + Checkmark BookItLogo
+                  const BookItLogo(size: 80),
                   const SizedBox(height: 24),
                   Text(
                     'Welcome to BookIt Workspace',
