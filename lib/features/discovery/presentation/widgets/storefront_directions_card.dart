@@ -154,6 +154,8 @@ class StorefrontDirectionsCard extends StatelessWidget {
           const SizedBox(height: 14),
 
           // Action Buttons: Get Directions & Copy Address
+          /*
+          // Gene - Nov, 06, 2026: Single-row action buttons overflowed horizontally on 320px/375px at 1.5x text scale
           Row(
             children: [
               Expanded(
@@ -190,6 +192,72 @@ class StorefrontDirectionsCard extends StatelessWidget {
                 ),
               ),
             ],
+          ),
+          */
+          // Gene - Nov, 14, 2026: Responsive LayoutBuilder stacks action buttons under narrow/1.5x viewports with Flexible ellipsis labels
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final textScale = MediaQuery.textScalerOf(context).scale(1.0);
+              final stackActions = constraints.maxWidth < 330 * textScale;
+              final directionsBtn = NeumorphicButton(
+                isPrimary: true,
+                onPressed: () => _openDirections(context, lat, lng, fullAddress),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.directions, size: 16, color: Colors.white),
+                    SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        'Get Directions',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Colors.white),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+              final copyBtn = NeumorphicButton(
+                onPressed: () => _copyAddress(context, fullAddress),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.copy_rounded, size: 16, color: accent),
+                    const SizedBox(width: 6),
+                    Flexible(
+                      child: Text(
+                        'Copy',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: accent),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+              if (stackActions) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    directionsBtn,
+                    const SizedBox(height: 10),
+                    copyBtn,
+                  ],
+                );
+              }
+              return Row(
+                children: [
+                  Expanded(child: directionsBtn),
+                  const SizedBox(width: 10),
+                  copyBtn,
+                ],
+              );
+            },
           ),
         ],
       ),

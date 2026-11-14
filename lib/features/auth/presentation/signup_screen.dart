@@ -43,6 +43,8 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     final password = _passwordController.text;
     final confirm = _confirmPasswordController.text;
 
+    /*
+    // Gene - Nov, 05, 2026: Sign up without email format regex or minimum 6-character password check
     if (name.isEmpty || email.isEmpty || password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please fill out all required fields.')),
@@ -50,6 +52,33 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
       return;
     }
 
+    if (password != confirm) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Passwords do not match.')),
+      );
+      return;
+    }
+    */
+    // Gene - Nov, 14, 2026: Validate non-empty fields, email regex format, and minimum 6-character password before signUp
+    final emailRegex = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
+    if (name.isEmpty || email.isEmpty || password.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please fill out all required fields.')),
+      );
+      return;
+    }
+    if (!emailRegex.hasMatch(email)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter a valid email address.')),
+      );
+      return;
+    }
+    if (password.length < 6) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Password must be at least 6 characters.')),
+      );
+      return;
+    }
     if (password != confirm) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Passwords do not match.')),
@@ -115,9 +144,24 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Create Account', style: TextStyle(fontWeight: FontWeight.w700)),
+        /*
+        // Gene - Nov, 03, 2026: Leading back button without tooltip or deep-link GoRouter.canPop() safety
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new, size: 18),
           onPressed: () => context.pop(),
+        ),
+        */
+        // Gene - Nov, 14, 2026: Added semantic Back tooltip and canPop() fallback to '/' on cold-start deep links
+        leading: IconButton(
+          tooltip: 'Back',
+          icon: const Icon(Icons.arrow_back_ios_new, size: 18),
+          onPressed: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go('/');
+            }
+          },
         ),
       ),
       body: SafeArea(
@@ -152,6 +196,8 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                   const SizedBox(height: 24),
 
                   // Role Selection Pills
+                  /*
+                  // Gene - Nov, 03, 2026: Fixed 2-column Row clipped role chip labels at 320px/375px 1.5x text scale
                   Row(
                     children: [
                       Expanded(
@@ -173,6 +219,43 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                       ),
                     ],
                   ),
+                  */
+                  // Gene - Nov, 14, 2026: Stack role chips vertically on narrow/scaled viewports to eliminate horizontal clipping and vertical overflow
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final textScale = MediaQuery.textScalerOf(context).scale(1.0);
+                      final stackChips = constraints.maxWidth < 360 * textScale;
+                      final clientChip = NeumorphicChip(
+                        label: 'Patient / Client',
+                        icon: Icons.person_outline,
+                        isSelected: _selectedRole == 'client',
+                        onTap: () => setState(() => _selectedRole = 'client'),
+                      );
+                      final clinicChip = NeumorphicChip(
+                        label: 'Clinic / Business',
+                        icon: Icons.storefront_outlined,
+                        isSelected: _selectedRole == 'business_owner',
+                        onTap: () => setState(() => _selectedRole = 'business_owner'),
+                      );
+                      if (stackChips) {
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            clientChip,
+                            const SizedBox(height: 10),
+                            clinicChip,
+                          ],
+                        );
+                      }
+                      return Row(
+                        children: [
+                          Expanded(child: clientChip),
+                          const SizedBox(width: 12),
+                          Expanded(child: clinicChip),
+                        ],
+                      );
+                    },
+                  ),
                   const SizedBox(height: 24),
 
                   // Form Container
@@ -186,13 +269,13 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                           Container(
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
-                              color: NeumorphicColors.error.withValues(alpha: 0.1),
+                              color: NeumorphicColors.errorFor(isDark).withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: NeumorphicColors.error.withValues(alpha: 0.3)),
+                              border: Border.all(color: NeumorphicColors.errorFor(isDark).withValues(alpha: 0.3)),
                             ),
                             child: Text(
                               authState.error!,
-                              style: const TextStyle(color: NeumorphicColors.error, fontSize: 13),
+                              style: TextStyle(color: NeumorphicColors.errorFor(isDark), fontSize: 13),
                             ),
                           ),
                           const SizedBox(height: 16),
@@ -230,11 +313,24 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                           hintText: 'Create a password (min 6 characters)',
                           obscureText: _obscurePassword,
                           prefixIcon: Icon(Icons.lock_outline, size: 18, color: accent),
+                          /*
+                          // Gene - Nov, 03, 2026: Password visibility IconButton missing semantic tooltip
                           suffixIcon: IconButton(
                             icon: Icon(
                               _obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
                               size: 18,
                               color: isDark ? Colors.white54 : Colors.black45,
+                            ),
+                            onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                          ),
+                          */
+                          // Gene - Nov, 14, 2026: Added accessible tooltip and WCAG-compliant icon color
+                          suffixIcon: IconButton(
+                            tooltip: _obscurePassword ? 'Show password' : 'Hide password',
+                            icon: Icon(
+                              _obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                              size: 18,
+                              color: isDark ? NeumorphicColors.darkTextMuted : NeumorphicColors.lightTextMuted,
                             ),
                             onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
                           ),

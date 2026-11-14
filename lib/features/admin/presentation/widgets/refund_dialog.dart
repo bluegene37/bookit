@@ -133,15 +133,23 @@ class _RefundDialogState extends State<RefundDialog> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final accent = isDark ? NeumorphicColors.tealLight : NeumorphicColors.tealPrimary;
+    // Gene - Nov, 14, 2026: Compact modal insets/padding, WCAG AA error/muted tokens, and responsive summary card
+    final isNarrowViewport = MediaQuery.sizeOf(context).width < 600;
+    final textScale = MediaQuery.textScalerOf(context).scale(1.0);
+    final secondaryText = isDark ? NeumorphicColors.darkTextSecondary : NeumorphicColors.lightTextSecondary;
+    final mutedText = isDark ? NeumorphicColors.darkTextMuted : NeumorphicColors.lightTextMuted;
+    final errorColor = NeumorphicColors.errorFor(isDark);
 
     return Dialog(
       backgroundColor: Colors.transparent,
-      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+      insetPadding: isNarrowViewport
+          ? const EdgeInsets.symmetric(horizontal: 14, vertical: 20)
+          : const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 520),
         child: NeumorphicContainer(
           borderRadius: 24.0,
-          padding: const EdgeInsets.all(28),
+          padding: EdgeInsets.all(isNarrowViewport ? 18 : 28),
           child: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -154,9 +162,9 @@ class _RefundDialogState extends State<RefundDialog> {
                       isCircle: true,
                       width: 44,
                       height: 44,
-                      child: const Icon(
+                      child: Icon(
                         Icons.replay_rounded,
-                        color: NeumorphicColors.error,
+                        color: errorColor,
                         size: 22,
                       ),
                     ),
@@ -178,7 +186,7 @@ class _RefundDialogState extends State<RefundDialog> {
                             'Stripe Connect Transaction #${widget.payment.id}',
                             style: TextStyle(
                               fontSize: 12,
-                              color: isDark ? Colors.white60 : Colors.black54,
+                              color: secondaryText,
                             ),
                           ),
                         ],
@@ -198,17 +206,16 @@ class _RefundDialogState extends State<RefundDialog> {
                   borderRadius: 16.0,
                   isInset: true,
                   padding: const EdgeInsets.all(16),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    children: [
-                      Column(
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final originalCol = Column(
                         children: [
                           Text(
                             'Original Gross',
                             style: TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.w600,
-                              color: isDark ? Colors.white54 : Colors.black54,
+                              color: mutedText,
                             ),
                           ),
                           const SizedBox(height: 4),
@@ -221,20 +228,15 @@ class _RefundDialogState extends State<RefundDialog> {
                             ),
                           ),
                         ],
-                      ),
-                      Container(
-                        width: 1,
-                        height: 30,
-                        color: isDark ? Colors.white12 : Colors.black12,
-                      ),
-                      Column(
+                      );
+                      final netCol = Column(
                         children: [
                           Text(
                             'Net Paid Out',
                             style: TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.w600,
-                              color: isDark ? Colors.white54 : Colors.black54,
+                              color: mutedText,
                             ),
                           ),
                           const SizedBox(height: 4),
@@ -247,8 +249,34 @@ class _RefundDialogState extends State<RefundDialog> {
                             ),
                           ),
                         ],
-                      ),
-                    ],
+                      );
+                      if (constraints.maxWidth < 260 * textScale) {
+                        return Column(
+                          children: [
+                            originalCol,
+                            const SizedBox(height: 12),
+                            Container(
+                              height: 1,
+                              width: double.infinity,
+                              color: isDark ? Colors.white12 : Colors.black12,
+                            ),
+                            const SizedBox(height: 12),
+                            netCol,
+                          ],
+                        );
+                      }
+                      return Row(
+                        children: [
+                          Expanded(child: originalCol),
+                          Container(
+                            width: 1,
+                            height: 30,
+                            color: isDark ? Colors.white12 : Colors.black12,
+                          ),
+                          Expanded(child: netCol),
+                        ],
+                      );
+                    },
                   ),
                 ),
                 const SizedBox(height: 20),
@@ -365,7 +393,7 @@ class _RefundDialogState extends State<RefundDialog> {
                         prefixText: '\$ ',
                         labelText: 'Partial Refund Amount',
                         labelStyle: TextStyle(
-                          color: isDark ? Colors.white60 : Colors.black54,
+                          color: secondaryText,
                           fontSize: 13,
                         ),
                       ),
@@ -395,7 +423,7 @@ class _RefundDialogState extends State<RefundDialog> {
                       border: InputBorder.none,
                       hintText: 'e.g. Client requested cancellation or scheduling conflict',
                       hintStyle: TextStyle(
-                        color: isDark ? Colors.white38 : Colors.black38,
+                        color: mutedText,
                         fontSize: 13,
                       ),
                     ),
@@ -408,18 +436,18 @@ class _RefundDialogState extends State<RefundDialog> {
                   Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: NeumorphicColors.error.withValues(alpha: 0.1),
+                      color: errorColor.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: NeumorphicColors.error.withValues(alpha: 0.3)),
+                      border: Border.all(color: errorColor.withValues(alpha: 0.3)),
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.error_outline, color: NeumorphicColors.error, size: 18),
+                        Icon(Icons.error_outline, color: errorColor, size: 18),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
                             _errorMessage!,
-                            style: const TextStyle(color: NeumorphicColors.error, fontSize: 12),
+                            style: TextStyle(color: errorColor, fontSize: 12),
                           ),
                         ),
                       ],
@@ -430,23 +458,23 @@ class _RefundDialogState extends State<RefundDialog> {
                 const SizedBox(height: 24),
 
                 // Action buttons
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    TextButton(
+                // Gene - Nov, 14, 2026: Stack refund actions vertically under narrow/scaled viewports and enforce >= 48dp touch height
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final cancelBtn = TextButton(
+                      style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
                       onPressed: _isLoading ? null : () => Navigator.of(context).pop(false),
                       child: Text(
                         'Cancel',
                         style: TextStyle(
-                          color: isDark ? Colors.white70 : Colors.black54,
+                          color: secondaryText,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    NeumorphicButton(
+                    );
+                    final processBtn = NeumorphicButton(
                       isPrimary: true,
-                      height: 44,
+                      height: 48,
                       isLoading: _isLoading,
                       onPressed: _isLoading ? null : _handleProcessRefund,
                       child: const Row(
@@ -454,11 +482,38 @@ class _RefundDialogState extends State<RefundDialog> {
                         children: [
                           Icon(Icons.check_rounded, size: 18),
                           SizedBox(width: 6),
-                          Text('Process Refund', style: TextStyle(fontWeight: FontWeight.w700)),
+                          Flexible(
+                            child: Text(
+                              'Process Refund',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(fontWeight: FontWeight.w700),
+                            ),
+                          ),
                         ],
                       ),
-                    ),
-                  ],
+                    );
+
+                    if (constraints.maxWidth < 300 * textScale) {
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          processBtn,
+                          const SizedBox(height: 10),
+                          cancelBtn,
+                        ],
+                      );
+                    }
+
+                    return Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        cancelBtn,
+                        const SizedBox(width: 12),
+                        Flexible(child: processBtn),
+                      ],
+                    );
+                  },
                 ),
               ],
             ),

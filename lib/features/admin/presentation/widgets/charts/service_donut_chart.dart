@@ -116,6 +116,7 @@ class _ServiceDonutChartState extends State<ServiceDonutChart> {
                     ),
                   ),
                   // Center cutout metric text
+                  // Gene - Nov, 14, 2026: Use textPrimary for cutout metric to guarantee WCAG AA contrast regardless of slice hue
                   Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -126,7 +127,8 @@ class _ServiceDonutChartState extends State<ServiceDonutChart> {
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.w800,
-                          color: activeItem?.color ?? textPrimary,
+                          // color: activeItem?.color ?? textPrimary,
+                          color: textPrimary,
                         ),
                       ),
                       Text(
@@ -155,15 +157,22 @@ class _ServiceDonutChartState extends State<ServiceDonutChart> {
               final pct = totalAmount > 0 ? (item.amount / totalAmount) * 100 : 0.0;
               final isHovered = _hoveredIndex == idx;
 
+              // Gene - Nov, 14, 2026: Add Semantics button/label and >= 48dp touch height on donut legend rows
               return MouseRegion(
                 onEnter: (_) => setState(() => _hoveredIndex = idx),
                 onExit: (_) => setState(() => _hoveredIndex = null),
-                child: GestureDetector(
-                  onTap: () => setState(() => _hoveredIndex = isHovered ? null : idx),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 180),
-                    margin: const EdgeInsets.only(bottom: 8),
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                child: Semantics(
+                  button: true,
+                  selected: isHovered,
+                  excludeSemantics: true,
+                  label: '${item.name}, \$${NumberFormat('#,##0').format(item.amount)}, ${pct.toStringAsFixed(0)} percent',
+                  child: GestureDetector(
+                    onTap: () => setState(() => _hoveredIndex = isHovered ? null : idx),
+                    child: AnimatedContainer(
+                      constraints: const BoxConstraints(minHeight: 48),
+                      duration: const Duration(milliseconds: 180),
+                      margin: const EdgeInsets.only(bottom: 8),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                     decoration: BoxDecoration(
                       color: isHovered
                           ? item.color.withValues(alpha: 0.12)
@@ -214,6 +223,7 @@ class _ServiceDonutChartState extends State<ServiceDonutChart> {
                       ],
                     ),
                   ),
+                ),
                 ),
               );
             }).toList(),

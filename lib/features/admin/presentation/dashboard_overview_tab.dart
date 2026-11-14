@@ -37,8 +37,10 @@ class DashboardOverviewTab extends ConsumerWidget {
     final pendingBookings = bookings.where((b) => b.status == 'pending').toList();
     final confirmedBookings = bookings.where((b) => b.status == 'confirmed').toList();
 
+    // Gene - Nov, 14, 2026: Adjust outer padding for compact mobile viewports (<360px)
+    final viewportWidth = MediaQuery.sizeOf(context).width;
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(viewportWidth < 360 ? 16 : 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -149,11 +151,12 @@ class DashboardOverviewTab extends ConsumerWidget {
                         ),
                       ),
                       const SizedBox(width: 12),
+                      // Gene - Nov, 14, 2026: Use WCAG AA errorFor token and >= 48dp button height on pending booking actions
                       Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           IconButton(
-                            icon: const Icon(Icons.cancel_outlined, color: NeumorphicColors.error),
+                            icon: Icon(Icons.cancel_outlined, color: NeumorphicColors.errorFor(isDark)),
                             tooltip: 'Reject',
                             onPressed: () {
                               ref.read(bookingsProvider.notifier).updateBookingStatus(b.id, 'rejected');
@@ -161,7 +164,7 @@ class DashboardOverviewTab extends ConsumerWidget {
                           ),
                           const SizedBox(width: 6),
                           NeumorphicButton(
-                            height: 40,
+                            height: 48,
                             isPrimary: true,
                             padding: const EdgeInsets.symmetric(horizontal: 14),
                             onPressed: () {
@@ -340,8 +343,10 @@ class _DashboardOverviewTabState extends ConsumerState<DashboardOverviewTab> {
     final hourlyData = _buildHourlyData(bookings);
     final staffUtilizationData = _buildStaffUtilization(staffList, bookings, grossRevenue);
 
+    // Gene - Nov, 14, 2026: Adjust outer padding for compact mobile viewports (<360px)
+    final viewportWidth = MediaQuery.sizeOf(context).width;
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(viewportWidth < 360 ? 16 : 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -431,16 +436,23 @@ class _DashboardOverviewTabState extends ConsumerState<DashboardOverviewTab> {
           const SizedBox(height: 24),
 
           // 2. High-Level KPI Summary Cards
+          // Gene - Nov, 14, 2026: Scale KPI grid geometry with textScaler (1/2/4 cols) and use WCAG AA accent tokens
           LayoutBuilder(
             builder: (context, constraints) {
               final isWide = constraints.maxWidth > 700;
+              final textScale = MediaQuery.textScalerOf(context).scale(1.0).clamp(1.0, 2.0);
+              final useSingleColumn = !isWide && constraints.maxWidth < 310 && textScale >= 1.3;
+              final crossAxisCount = isWide ? 4 : (useSingleColumn ? 1 : 2);
+              final childAspectRatio = isWide
+                  ? (1.4 / textScale)
+                  : (useSingleColumn ? (2.3 / textScale) : (1.10 / math.pow(textScale, 1.15)));
               return GridView.count(
-                crossAxisCount: isWide ? 4 : 2,
+                crossAxisCount: crossAxisCount,
                 crossAxisSpacing: isWide ? 16 : 12,
                 mainAxisSpacing: isWide ? 16 : 12,
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
-                childAspectRatio: isWide ? 1.4 : 1.12,
+                childAspectRatio: childAspectRatio,
                 children: [
                   KpiMetricCard(
                     label: 'Gross Revenue',
@@ -453,21 +465,21 @@ class _DashboardOverviewTabState extends ConsumerState<DashboardOverviewTab> {
                     label: 'Total Appointments',
                     value: '$totalAppointmentsCount',
                     icon: Icons.calendar_today_rounded,
-                    accentColor: NeumorphicColors.cyanLight,
+                    accentColor: isDark ? NeumorphicColors.cyanLight : NeumorphicColors.cyanAccent,
                     subtitle: '${confirmedBookings.length} upcoming scheduled',
                   ),
                   KpiMetricCard(
                     label: 'Bay / Chair Occupancy',
                     value: '${occupancyRate.toStringAsFixed(1)}%',
                     icon: Icons.speed_rounded,
-                    accentColor: NeumorphicColors.warning,
+                    accentColor: NeumorphicColors.warningFor(isDark),
                     subtitle: 'Peak rush: 2:00 PM',
                   ),
                   KpiMetricCard(
                     label: 'Average Ticket Value',
                     value: '\$${avgTicket.toStringAsFixed(0)}',
                     icon: Icons.receipt_long_rounded,
-                    accentColor: Colors.amber,
+                    accentColor: NeumorphicColors.warningFor(isDark),
                     subtitle: '${widget.business.ratingAvg.toStringAsFixed(1)} ★ (${widget.business.ratingCount} reviews)',
                   ),
                 ],
@@ -603,11 +615,12 @@ class _DashboardOverviewTabState extends ConsumerState<DashboardOverviewTab> {
                         ),
                       ),
                       const SizedBox(width: 12),
+                      // Gene - Nov, 14, 2026: Use WCAG AA errorFor token and >= 48dp button height on pending booking actions
                       Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           IconButton(
-                            icon: const Icon(Icons.cancel_outlined, color: NeumorphicColors.error),
+                            icon: Icon(Icons.cancel_outlined, color: NeumorphicColors.errorFor(isDark)),
                             tooltip: 'Reject',
                             onPressed: () {
                               ref.read(bookingsProvider.notifier).updateBookingStatus(b.id, 'rejected');
@@ -615,7 +628,7 @@ class _DashboardOverviewTabState extends ConsumerState<DashboardOverviewTab> {
                           ),
                           const SizedBox(width: 6),
                           NeumorphicButton(
-                            height: 40,
+                            height: 48,
                             isPrimary: true,
                             padding: const EdgeInsets.symmetric(horizontal: 14),
                             onPressed: () {
@@ -647,9 +660,10 @@ class _DashboardOverviewTabState extends ConsumerState<DashboardOverviewTab> {
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 24),
               child: Center(
+                // Gene - Nov, 14, 2026: Upgrade empty state text to WCAG AA muted token
                 child: Text(
                   'No active upcoming appointments scheduled.',
-                  style: TextStyle(color: isDark ? Colors.white54 : Colors.black54),
+                  style: TextStyle(color: isDark ? NeumorphicColors.darkTextMuted : NeumorphicColors.lightTextMuted),
                 ),
               ),
             ),
@@ -660,6 +674,8 @@ class _DashboardOverviewTabState extends ConsumerState<DashboardOverviewTab> {
                 child: NeumorphicContainer(
                   borderRadius: 18.0,
                   padding: const EdgeInsets.all(16),
+                  /*
+                  // Gene - Nov 06, 2026: Horizontal Row compressed StatusBadge below 20px at 320px @ 1.5x
                   child: Row(
                     children: [
                       Expanded(
@@ -713,6 +729,90 @@ class _DashboardOverviewTabState extends ConsumerState<DashboardOverviewTab> {
                       ),
                     ],
                   ),
+                  */
+                  // Gene - Nov, 14, 2026: Stack appointment card footer on narrow scaled widths and add accessible tooltip to PopupMenuButton
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final textScale = MediaQuery.textScalerOf(context).scale(1.0);
+                      final stackFooter = constraints.maxWidth < 320 * textScale;
+                      final infoColumn = Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Wrap(
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            spacing: 8,
+                            runSpacing: 4,
+                            children: [
+                              Text(
+                                b.clientName ?? 'Patient',
+                                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                              ),
+                              StatusBadge(status: b.status),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '${b.serviceName ?? 'Service'} • ${b.formattedSchedule}',
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: isDark ? NeumorphicColors.darkTextSecondary : NeumorphicColors.lightTextSecondary,
+                            ),
+                          ),
+                          if (b.staffName != null) ...[
+                            const SizedBox(height: 2),
+                            Text('With: ${b.staffName}', style: TextStyle(fontSize: 12, color: accent)),
+                          ],
+                        ],
+                      );
+                      final priceText = Text(
+                        '\$${b.totalPrice.toStringAsFixed(2)}',
+                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: accent),
+                      );
+                      final optionsMenu = PopupMenuButton<String>(
+                        tooltip: 'Appointment options',
+                        icon: const Icon(Icons.more_vert, size: 20),
+                        onSelected: (val) {
+                          if (val == 'complete') {
+                            ref.read(bookingsProvider.notifier).updateBookingStatus(b.id, 'completed');
+                          } else if (val == 'cancel') {
+                            ref.read(bookingsProvider.notifier).updateBookingStatus(b.id, 'cancelled');
+                          }
+                        },
+                        itemBuilder: (context) => const [
+                          PopupMenuItem(value: 'complete', child: Text('Mark as Completed')),
+                          PopupMenuItem(value: 'cancel', child: Text('Cancel Appointment')),
+                        ],
+                      );
+
+                      if (stackFooter) {
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            infoColumn,
+                            const SizedBox(height: 8),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                priceText,
+                                optionsMenu,
+                              ],
+                            ),
+                          ],
+                        );
+                      }
+
+                      return Row(
+                        children: [
+                          Expanded(child: infoColumn),
+                          priceText,
+                          const SizedBox(width: 8),
+                          optionsMenu,
+                        ],
+                      );
+                    },
+                  ),
                 ),
               );
             }),
@@ -724,22 +824,35 @@ class _DashboardOverviewTabState extends ConsumerState<DashboardOverviewTab> {
 
   Widget _buildTimeFilterPill(String code, String tooltip, Color accent, bool isDark) {
     final isSelected = _timeRange == code;
-    return Tooltip(
-      message: tooltip,
-      child: GestureDetector(
-        onTap: () => setState(() => _timeRange = code),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          decoration: BoxDecoration(
-            color: isSelected ? accent : Colors.transparent,
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Text(
-            code,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-              color: isSelected ? Colors.white : (isDark ? Colors.white70 : Colors.black87),
+    final textPrimary = isDark ? NeumorphicColors.darkTextPrimary : NeumorphicColors.lightTextPrimary;
+    // Gene - Nov, 14, 2026: Enforce >= 48dp target, button Semantics, and WCAG AA contrast (#FFFFFF on tealPrimary) on active pills
+    return Semantics(
+      button: true,
+      selected: isSelected,
+      label: tooltip,
+      child: Tooltip(
+        message: tooltip,
+        child: GestureDetector(
+          onTap: () => setState(() => _timeRange = code),
+          child: Container(
+            constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+            alignment: Alignment.center,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              // color: isSelected ? accent : Colors.transparent,
+              color: isSelected ? NeumorphicColors.tealPrimary : Colors.transparent,
+              borderRadius: BorderRadius.circular(10),
+              border: isSelected && isDark
+                  ? Border.all(color: NeumorphicColors.tealLight.withValues(alpha: 0.7))
+                  : null,
+            ),
+            child: Text(
+              code,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: isSelected ? Colors.white : textPrimary,
+              ),
             ),
           ),
         ),

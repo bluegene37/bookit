@@ -56,12 +56,36 @@ class BusinessDetailScreen extends ConsumerWidget {
                   SliverAppBar(
                     expandedHeight: 220,
                     pinned: true,
+                    /*
+                    // Gene - Nov, 03, 2026: Sub-48dp leading button missing Semantics/tooltip and safe deep-link pop
                     leading: Padding(
                       padding: const EdgeInsets.all(8.0),
                       child: NeumorphicContainer(
                         isCircle: true,
                         onTap: () => context.pop(),
                         child: const Icon(Icons.arrow_back_ios_new, size: 16),
+                      ),
+                    ),
+                    */
+                    // Gene - Nov, 14, 2026: Enlarged leading Back button to >= 48dp, added Tooltip & semanticLabel, and safe canPop() fallback to '/'
+                    leadingWidth: 64,
+                    leading: Padding(
+                      padding: const EdgeInsets.all(4.0),
+                      child: Tooltip(
+                        message: 'Back',
+                        child: NeumorphicContainer(
+                          isCircle: true,
+                          semanticLabel: 'Back',
+                          constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+                          onTap: () {
+                            if (context.canPop()) {
+                              context.pop();
+                            } else {
+                              context.go('/');
+                            }
+                          },
+                          child: const Icon(Icons.arrow_back_ios_new, size: 18),
+                        ),
                       ),
                     ),
                     flexibleSpace: FlexibleSpaceBar(
@@ -89,13 +113,27 @@ class BusinessDetailScreen extends ConsumerWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
+                          /*
+                          // Gene - Nov, 03, 2026: Unwrapped Row overflowed horizontally at 1.5x text scale
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Container(... business.category ...),
+                              Row(... rating ...),
+                            ],
+                          ),
+                          */
+                          // Gene - Nov, 14, 2026: Wrapped category pill and rating summary in Wrap with >= 4.5:1 text colors
+                          Wrap(
+                            spacing: 10,
+                            runSpacing: 8,
+                            alignment: WrapAlignment.spaceBetween,
+                            crossAxisAlignment: WrapCrossAlignment.center,
                             children: [
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                                 decoration: BoxDecoration(
-                                  color: accent.withValues(alpha: 0.15),
+                                  color: accent.withValues(alpha: 0.12),
                                   borderRadius: BorderRadius.circular(10),
                                 ),
                                 child: Text(
@@ -109,15 +147,31 @@ class BusinessDetailScreen extends ConsumerWidget {
                                 ),
                               ),
                               Row(
+                                mainAxisSize: MainAxisSize.min,
                                 children: [
                                   const Icon(Icons.star, color: Colors.amber, size: 16),
                                   const SizedBox(width: 4),
+                                  /*
                                   Text(
                                     '${business.ratingAvg.toStringAsFixed(1)} (${business.ratingCount} reviews)',
                                     style: TextStyle(
                                       fontWeight: FontWeight.w700,
                                       fontSize: 13,
-                                      color: isDark ? Colors.white70 : Colors.black87,
+                                      color: isDark ? NeumorphicColors.darkTextPrimary : NeumorphicColors.lightTextPrimary,
+                                    ),
+                                  ),
+                                  */
+                                  // Gene - Nov, 14, 2026: Wrapped rating label in Flexible to prevent overflow at 320px @ 1.5x
+                                  Flexible(
+                                    child: Text(
+                                      '${business.ratingAvg.toStringAsFixed(1)} (${business.ratingCount} reviews)',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w700,
+                                        fontSize: 13,
+                                        color: isDark ? NeumorphicColors.darkTextPrimary : NeumorphicColors.lightTextPrimary,
+                                      ),
                                     ),
                                   ),
                                 ],
@@ -238,7 +292,12 @@ class BusinessDetailScreen extends ConsumerWidget {
                                             const SizedBox(height: 2),
                                             Text(
                                               st.specialty!,
-                                              style: TextStyle(fontSize: 10, color: isDark ? Colors.white54 : Colors.black54),
+                                              // style: TextStyle(fontSize: 10, color: isDark ? Colors.white54 : Colors.black54),
+                                              // Gene - Nov, 14, 2026: Upgraded specialist subtitle to WCAG AA secondary text token
+                                              style: TextStyle(
+                                                fontSize: 10,
+                                                color: isDark ? NeumorphicColors.darkTextSecondary : NeumorphicColors.lightTextSecondary,
+                                              ),
                                               maxLines: 1,
                                               overflow: TextOverflow.ellipsis,
                                               textAlign: TextAlign.center,
@@ -297,13 +356,29 @@ class BusinessDetailScreen extends ConsumerWidget {
                                             const SizedBox(height: 4),
                                             Text(
                                               srv.description!,
-                                              style: TextStyle(fontSize: 12, color: isDark ? Colors.white60 : Colors.black54),
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                color: isDark
+                                                    ? NeumorphicColors.darkTextSecondary
+                                                    : NeumorphicColors.lightTextSecondary,
+                                              ),
                                             ),
                                           ],
                                           const SizedBox(height: 6),
+                                          /*
+                                          // Gene - Nov, 03, 2026: Sub-AA white38/black38 duration label
                                           Text(
                                             srv.formattedDuration,
                                             style: TextStyle(fontSize: 11, color: isDark ? Colors.white38 : Colors.black38),
+                                          ),
+                                          */
+                                          // Gene - Nov, 14, 2026: Upgraded duration caption to WCAG AA muted token
+                                          Text(
+                                            srv.formattedDuration,
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              color: isDark ? NeumorphicColors.darkTextMuted : NeumorphicColors.lightTextMuted,
+                                            ),
                                           ),
                                         ],
                                       ),
@@ -348,13 +423,29 @@ class BusinessDetailScreen extends ConsumerWidget {
                                             const SizedBox(height: 4),
                                             Text(
                                               srv.description!,
-                                              style: TextStyle(fontSize: 12, color: isDark ? Colors.white60 : Colors.black54),
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                color: isDark
+                                                    ? NeumorphicColors.darkTextSecondary
+                                                    : NeumorphicColors.lightTextSecondary,
+                                              ),
                                             ),
                                           ],
                                           const SizedBox(height: 6),
+                                          /*
+                                          // Gene - Nov, 03, 2026: Sub-AA white38/black38 duration label
                                           Text(
                                             srv.formattedDuration,
                                             style: TextStyle(fontSize: 11, color: isDark ? Colors.white38 : Colors.black38),
+                                          ),
+                                          */
+                                          // Gene - Nov, 14, 2026: Upgraded duration caption to WCAG AA muted token
+                                          Text(
+                                            srv.formattedDuration,
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              color: isDark ? NeumorphicColors.darkTextMuted : NeumorphicColors.lightTextMuted,
+                                            ),
                                           ),
                                         ],
                                       ),
@@ -398,6 +489,8 @@ class BusinessDetailScreen extends ConsumerWidget {
                                 return Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
+                                    /*
+                                    // Gene - Nov 07, 2026: Single-row header and low-contrast Open/Closed status colors
                                     Row(
                                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                       children: [
@@ -427,6 +520,44 @@ class BusinessDetailScreen extends ConsumerWidget {
                                         ),
                                       ],
                                     ),
+                                    */
+                                    // Gene - Nov, 14, 2026: Wrapped Operating Hours header and applied theme-aware WCAG AA success/error pairs
+                                    Wrap(
+                                      alignment: WrapAlignment.spaceBetween,
+                                      crossAxisAlignment: WrapCrossAlignment.center,
+                                      spacing: 8,
+                                      runSpacing: 6,
+                                      children: [
+                                        Text(
+                                          'Operating Hours',
+                                          style: TextStyle(
+                                            fontSize: 17,
+                                            fontWeight: FontWeight.w700,
+                                            color: isDark ? NeumorphicColors.darkTextPrimary : NeumorphicColors.lightTextPrimary,
+                                          ),
+                                        ),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                          decoration: BoxDecoration(
+                                            color: (isOpenToday
+                                                    ? NeumorphicColors.successFor(isDark)
+                                                    : NeumorphicColors.errorFor(isDark))
+                                                .withValues(alpha: 0.10),
+                                            borderRadius: BorderRadius.circular(8),
+                                          ),
+                                          child: Text(
+                                            isOpenToday ? 'Open Today' : 'Closed Today',
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w700,
+                                              color: isOpenToday
+                                                  ? NeumorphicColors.successFor(isDark)
+                                                  : NeumorphicColors.errorFor(isDark),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                                     const SizedBox(height: 10),
                                     NeumorphicContainer(
                                       borderRadius: 16.0,
@@ -447,32 +578,63 @@ class BusinessDetailScreen extends ConsumerWidget {
                                           final dayLabel = day[0].toUpperCase() + day.substring(1);
                                           return Padding(
                                             padding: const EdgeInsets.symmetric(vertical: 3),
-                                            child: Row(
-                                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                              children: [
-                                                Text(
-                                                  dayLabel,
-                                                  style: TextStyle(
-                                                    fontSize: 12,
-                                                    fontWeight: isToday ? FontWeight.w800 : FontWeight.w500,
-                                                    color: isToday
-                                                        ? accent
-                                                        : (isDark ? Colors.white70 : Colors.black87),
+                                            // Gene - Nov, 14, 2026: Replaced fixed Row with full-width Wrap and WCAG AA primary text color to prevent 320px @ 1.5x working-hours overflow
+                                            // child: Row(
+                                            //   mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                            //   children: [
+                                            //     Text(
+                                            //       dayLabel,
+                                            //       style: TextStyle(
+                                            //         fontSize: 12,
+                                            //         fontWeight: isToday ? FontWeight.w800 : FontWeight.w500,
+                                            //         color: isToday
+                                            //             ? accent
+                                            //             : (isDark ? Colors.white70 : Colors.black87),
+                                            //       ),
+                                            //     ),
+                                            //     Text(...),
+                                            //   ],
+                                            // ),
+                                            child: SizedBox(
+                                              width: double.infinity,
+                                              child: Wrap(
+                                                alignment: WrapAlignment.spaceBetween,
+                                                crossAxisAlignment: WrapCrossAlignment.center,
+                                                spacing: 8,
+                                                runSpacing: 2,
+                                                children: [
+                                                  Text(
+                                                    dayLabel,
+                                                    style: TextStyle(
+                                                      fontSize: 12,
+                                                      fontWeight: isToday ? FontWeight.w800 : FontWeight.w500,
+                                                      color: isToday
+                                                          ? accent
+                                                          : (isDark
+                                                              ? NeumorphicColors.darkTextPrimary
+                                                              : NeumorphicColors.lightTextPrimary),
+                                                    ),
                                                   ),
-                                                ),
-                                                Text(
-                                                  isOpen
-                                                      ? '${cfg['open'] ?? '09:00'} – ${cfg['close'] ?? '17:00'}'
-                                                      : 'Closed',
-                                                  style: TextStyle(
-                                                    fontSize: 12,
-                                                    fontWeight: isToday ? FontWeight.w800 : FontWeight.w500,
-                                                    color: isOpen
-                                                        ? (isToday ? accent : (isDark ? Colors.white70 : Colors.black87))
-                                                        : (isDark ? Colors.white38 : Colors.black38),
+                                                  Text(
+                                                    isOpen
+                                                        ? '${cfg['open'] ?? '09:00'} – ${cfg['close'] ?? '17:00'}'
+                                                        : 'Closed',
+                                                    style: TextStyle(
+                                                      fontSize: 12,
+                                                      fontWeight: isToday ? FontWeight.w800 : FontWeight.w500,
+                                                      color: isOpen
+                                                          ? (isToday
+                                                              ? accent
+                                                              : (isDark
+                                                                  ? NeumorphicColors.darkTextPrimary
+                                                                  : NeumorphicColors.lightTextPrimary))
+                                                          : (isDark
+                                                              ? NeumorphicColors.darkTextMuted
+                                                              : NeumorphicColors.lightTextMuted),
+                                                    ),
                                                   ),
-                                                ),
-                                              ],
+                                                ],
+                                              ),
                                             ),
                                           );
                                         }).toList(),
@@ -485,6 +647,7 @@ class BusinessDetailScreen extends ConsumerWidget {
                           ],
                           // Gene - Nov 07, 2026: Verified Customer Reviews & Star Distribution Section
                           const SizedBox(height: 16),
+                          /*
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
@@ -506,14 +669,46 @@ class BusinessDetailScreen extends ConsumerWidget {
                               ),
                             ],
                           ),
+                          */
+                          // Gene - Nov, 14, 2026: Replaced fixed header Row with responsive Wrap to prevent 320px @ 1.5x overflow
+                          SizedBox(
+                            width: double.infinity,
+                            child: Wrap(
+                              alignment: WrapAlignment.spaceBetween,
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              spacing: 8,
+                              runSpacing: 4,
+                              children: [
+                                Text(
+                                  'Verified Reviews',
+                                  style: TextStyle(
+                                    fontSize: 17,
+                                    fontWeight: FontWeight.w700,
+                                    color: isDark ? NeumorphicColors.darkTextPrimary : NeumorphicColors.lightTextPrimary,
+                                  ),
+                                ),
+                                Text(
+                                  '${reviews.isNotEmpty ? reviews.length : business.ratingCount} total',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: accent,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                           const SizedBox(height: 12),
                           NeumorphicContainer(
                             borderRadius: 18.0,
                             padding: const EdgeInsets.all(16),
-                            child: Row(
-                              children: [
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.center,
+                            // Gene - Nov, 14, 2026: Stack review score & histogram vertically below 260dp*scale and upgrade ratings count contrast
+                            child: LayoutBuilder(
+                              builder: (context, constraints) {
+                                final textScale = MediaQuery.textScalerOf(context).scale(1.0);
+                                final stackSummary = constraints.maxWidth < 260 * textScale;
+                                final scoreColumn = Column(
+                                  crossAxisAlignment: stackSummary ? CrossAxisAlignment.start : CrossAxisAlignment.center,
                                   children: [
                                     Text(
                                       business.ratingAvg.toStringAsFixed(1),
@@ -536,56 +731,72 @@ class BusinessDetailScreen extends ConsumerWidget {
                                     const SizedBox(height: 4),
                                     Text(
                                       '${business.ratingCount} ratings',
+                                      // style: TextStyle(fontSize: 11, color: isDark ? Colors.white54 : Colors.black54),
                                       style: TextStyle(
                                         fontSize: 11,
-                                        color: isDark ? Colors.white54 : Colors.black54,
+                                        color: isDark ? NeumorphicColors.darkTextSecondary : NeumorphicColors.lightTextSecondary,
                                       ),
                                     ),
                                   ],
-                                ),
-                                const SizedBox(width: 20),
-                                Expanded(
-                                  child: Column(
-                                    children: [5, 4, 3, 2, 1].map((star) {
-                                      final count = reviews.where((r) => r.rating == star).length;
-                                      final ratio = reviews.isEmpty
-                                          ? (star == 5 ? 0.8 : (star == 4 ? 0.2 : 0.0))
-                                          : count / reviews.length;
-                                      return Padding(
-                                        padding: const EdgeInsets.symmetric(vertical: 2),
-                                        child: Row(
-                                          children: [
-                                            SizedBox(
-                                              width: 14,
-                                              child: Text(
-                                                '$star',
-                                                style: TextStyle(
-                                                  fontSize: 11,
-                                                  fontWeight: FontWeight.w700,
-                                                  color: isDark ? Colors.white70 : Colors.black87,
-                                                ),
+                                );
+                                final barsColumn = Column(
+                                  children: [5, 4, 3, 2, 1].map((star) {
+                                    final count = reviews.where((r) => r.rating == star).length;
+                                    final ratio = reviews.isEmpty
+                                        ? (star == 5 ? 0.8 : (star == 4 ? 0.2 : 0.0))
+                                        : count / reviews.length;
+                                    return Padding(
+                                      padding: const EdgeInsets.symmetric(vertical: 2),
+                                      child: Row(
+                                        children: [
+                                          SizedBox(
+                                            width: 14,
+                                            child: Text(
+                                              '$star',
+                                              style: TextStyle(
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w700,
+                                                color: isDark ? NeumorphicColors.darkTextPrimary : NeumorphicColors.lightTextPrimary,
                                               ),
                                             ),
-                                            const Icon(Icons.star_rounded, size: 12, color: Colors.amber),
-                                            const SizedBox(width: 6),
-                                            Expanded(
-                                              child: ClipRRect(
-                                                borderRadius: BorderRadius.circular(4),
-                                                child: LinearProgressIndicator(
-                                                  value: ratio,
-                                                  minHeight: 6,
-                                                  backgroundColor: isDark ? Colors.white10 : Colors.black12,
-                                                  valueColor: AlwaysStoppedAnimation<Color>(accent),
-                                                ),
+                                          ),
+                                          const Icon(Icons.star_rounded, size: 12, color: Colors.amber),
+                                          const SizedBox(width: 6),
+                                          Expanded(
+                                            child: ClipRRect(
+                                              borderRadius: BorderRadius.circular(4),
+                                              child: LinearProgressIndicator(
+                                                value: ratio,
+                                                minHeight: 6,
+                                                backgroundColor: isDark ? Colors.white10 : Colors.black12,
+                                                valueColor: AlwaysStoppedAnimation<Color>(accent),
                                               ),
                                             ),
-                                          ],
-                                        ),
-                                      );
-                                    }).toList(),
-                                  ),
-                                ),
-                              ],
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                  }).toList(),
+                                );
+
+                                if (stackSummary) {
+                                  return Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      scoreColumn,
+                                      const SizedBox(height: 12),
+                                      barsColumn,
+                                    ],
+                                  );
+                                }
+                                return Row(
+                                  children: [
+                                    scoreColumn,
+                                    const SizedBox(width: 20),
+                                    Expanded(child: barsColumn),
+                                  ],
+                                );
+                              },
                             ),
                           ),
                           const SizedBox(height: 12),
@@ -598,7 +809,12 @@ class BusinessDetailScreen extends ConsumerWidget {
                                 child: Text(
                                   'No written reviews yet. Complete an appointment to leave the first review!',
                                   textAlign: TextAlign.center,
-                                  style: TextStyle(fontSize: 12, color: isDark ? Colors.white54 : Colors.black54),
+                                  // style: TextStyle(fontSize: 12, color: isDark ? Colors.white54 : Colors.black54),
+                                  // Gene - Nov, 14, 2026: Upgraded empty reviews notice to WCAG AA secondary text token
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: isDark ? NeumorphicColors.darkTextSecondary : NeumorphicColors.lightTextSecondary,
+                                  ),
                                 ),
                               ),
                             ),
@@ -638,11 +854,24 @@ class BusinessDetailScreen extends ConsumerWidget {
                                                   authorName,
                                                   style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
                                                 ),
+                                                /*
+                                                // Gene - Nov 07, 2026: Low contrast white38/black45 review timestamp
                                                 Text(
                                                   DateFormat('MMM d, yyyy').format(rev.createdAt),
                                                   style: TextStyle(
                                                     fontSize: 11,
                                                     color: isDark ? Colors.white38 : Colors.black45,
+                                                  ),
+                                                ),
+                                                */
+                                                // Gene - Nov, 14, 2026: Upgraded review timestamp contrast to WCAG AA muted token
+                                                Text(
+                                                  DateFormat('MMM d, yyyy').format(rev.createdAt),
+                                                  style: TextStyle(
+                                                    fontSize: 11,
+                                                    color: isDark
+                                                        ? NeumorphicColors.darkTextMuted
+                                                        : NeumorphicColors.lightTextMuted,
                                                   ),
                                                 ),
                                               ],
@@ -713,7 +942,12 @@ class BusinessDetailScreen extends ConsumerWidget {
                       }
                       context.push('/book/${business.id}');
                     },
-                    child: Text('Book Appointment (${business.bookingModel.displayName.split('(').first.trim()})'),
+                      // Gene - Nov, 14, 2026: Allow bottom CTA text to wrap/ellipsis cleanly without overflowing narrow mobile screens
+                      child: Text(
+                        'Book Appointment (${business.bookingModel.displayName.split('(').first.trim()})',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                   ),
                 ),
               ),

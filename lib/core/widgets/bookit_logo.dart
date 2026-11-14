@@ -27,6 +27,8 @@ class BookItLogo extends StatelessWidget {
 
     final markSize = showBadge ? size * 0.62 : size;
 
+    /*
+    // Gene - Nov, 08, 2026: Unexcluded vector CustomPaint mark triggered screen-reader unlabeled graphic noise
     final markWidget = SizedBox(
       width: markSize,
       height: markSize,
@@ -35,6 +37,21 @@ class BookItLogo extends StatelessWidget {
           primaryColor: primary,
           accentColor: accent,
           isDark: isDark,
+        ),
+      ),
+    );
+    */
+    // Gene - Nov, 14, 2026: Wrap decorative vector logo mark in ExcludeSemantics to avoid unlabeled graphic semantics
+    final markWidget = ExcludeSemantics(
+      child: SizedBox(
+        width: markSize,
+        height: markSize,
+        child: CustomPaint(
+          painter: BookItLogoPainter(
+            primaryColor: primary,
+            accentColor: accent,
+            isDark: isDark,
+          ),
         ),
       ),
     );

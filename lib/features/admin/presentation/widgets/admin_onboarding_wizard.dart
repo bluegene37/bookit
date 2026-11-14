@@ -1,4 +1,6 @@
 // Gene - Nov, 04, 2026: Admin Onboarding Wizard for business registration & template inheritance
+// Gene - Nov, 14, 2026: Added dart:math for text-scaled responsive grid extent calculations
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/neumorphic_colors.dart';
@@ -344,15 +346,32 @@ class _AdminOnboardingWizardState extends ConsumerState<AdminOnboardingWizard> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final accent = isDark ? NeumorphicColors.tealLight : NeumorphicColors.tealPrimary;
+    // Gene - Nov, 14, 2026: Compact modal insets/padding, Expanded header, Close tooltip, and responsive action footer
+    final isNarrowViewport = MediaQuery.sizeOf(context).width < 600;
+    final textScale = MediaQuery.textScalerOf(context).scale(1.0);
+    // Gene - Nov, 14, 2026: Detect compact vertical heights (e.g. 320x568 @ 1.5x) to tighten chrome and preserve body height
+    final screenHeight = MediaQuery.sizeOf(context).height;
+    // final isShortViewport = screenHeight < 680 || (screenHeight / textScale) < 520;
+    // Gene - Nov, 14, 2026: Tighten short-viewport threshold so 800x600 MediaQuery test surfaces keep standard layout
+    final isShortViewport = screenHeight < 580 || (screenHeight / textScale) < 480;
 
     return Dialog(
       backgroundColor: Colors.transparent,
-      insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+      /*
+      insetPadding: isNarrowViewport
+          ? const EdgeInsets.symmetric(horizontal: 12, vertical: 16)
+          : const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+      */
+      insetPadding: EdgeInsets.symmetric(
+        horizontal: isNarrowViewport ? 12 : 20,
+        vertical: isShortViewport ? 8 : (isNarrowViewport ? 16 : 24),
+      ),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 820, maxHeight: 720),
         child: NeumorphicContainer(
           borderRadius: 20,
-          padding: const EdgeInsets.all(24),
+          // padding: EdgeInsets.all(isNarrowViewport ? 16 : 24),
+          padding: EdgeInsets.all(isShortViewport ? 12 : (isNarrowViewport ? 16 : 24)),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -360,74 +379,81 @@ class _AdminOnboardingWizardState extends ConsumerState<AdminOnboardingWizard> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Row(
-                    children: [
-                      NeumorphicContainer(
-                        isCircle: true,
-                        width: 40,
-                        height: 40,
-                        child: Icon(Icons.storefront_rounded, color: accent, size: 22),
-                      ),
-                      const SizedBox(width: 14),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Business Onboarding & Setup',
-                            style: TextStyle(
-                              fontSize: 19,
-                              fontWeight: FontWeight.w800,
-                              color: isDark ? NeumorphicColors.darkTextPrimary : NeumorphicColors.lightTextPrimary,
-                            ),
+                  Expanded(
+                    child: Row(
+                      children: [
+                        NeumorphicContainer(
+                          isCircle: true,
+                          width: 40,
+                          height: 40,
+                          child: Icon(Icons.storefront_rounded, color: accent, size: 22),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Business Onboarding & Setup',
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 19,
+                                  fontWeight: FontWeight.w800,
+                                  color: isDark ? NeumorphicColors.darkTextPrimary : NeumorphicColors.lightTextPrimary,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                'Step ${_currentStep + 1} of 4: ${_getStepTitle()}',
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: isDark ? NeumorphicColors.darkTextSecondary : NeumorphicColors.lightTextSecondary,
+                                ),
+                              ),
+                            ],
                           ),
-                          const SizedBox(height: 2),
-                          Text(
-                            'Step ${_currentStep + 1} of 4: ${_getStepTitle()}',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: isDark ? NeumorphicColors.darkTextSecondary : NeumorphicColors.lightTextSecondary,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
+                        ),
+                      ],
+                    ),
                   ),
                   IconButton(
+                    tooltip: 'Close',
                     icon: const Icon(Icons.close_rounded),
                     onPressed: () => Navigator.of(context).pop(),
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
+              SizedBox(height: isShortViewport ? 8 : 16),
 
               // Progress Nodes
-              _buildProgressNodes(isDark, accent),
-              const SizedBox(height: 16),
+              _buildProgressNodes(isDark, accent, isCompactVertical: isShortViewport),
+              SizedBox(height: isShortViewport ? 8 : 16),
               const Divider(height: 1),
-              const SizedBox(height: 16),
+              SizedBox(height: isShortViewport ? 8 : 16),
 
               // Body content
               Expanded(
                 child: _buildCurrentStepView(isDark, accent),
               ),
 
-              const SizedBox(height: 16),
+              SizedBox(height: isShortViewport ? 8 : 16),
               const Divider(height: 1),
-              const SizedBox(height: 16),
+              SizedBox(height: isShortViewport ? 8 : 16),
 
               // Action Buttons
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  if (_currentStep > 0)
-                    NeumorphicButton(
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                      onPressed: () => setState(() => _currentStep--),
-                      child: const Text('Back'),
-                    )
-                  else
-                    const SizedBox.shrink(),
-                  NeumorphicButton(
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final backBtn = _currentStep > 0
+                      ? NeumorphicButton(
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                          onPressed: () => setState(() => _currentStep--),
+                          child: const Text('Back'),
+                        )
+                      : null;
+                  final nextBtn = NeumorphicButton(
                     padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 12),
                     onPressed: _isSubmitting
                         ? null
@@ -467,8 +493,29 @@ class _AdminOnboardingWizardState extends ConsumerState<AdminOnboardingWizard> {
                               fontWeight: FontWeight.w700,
                             ),
                           ),
-                  ),
-                ],
+                  );
+
+                  if (constraints.maxWidth < 300 * textScale) {
+                    return Wrap(
+                      alignment: WrapAlignment.spaceBetween,
+                      runAlignment: WrapAlignment.center,
+                      spacing: 12,
+                      runSpacing: 8,
+                      children: [
+                        ?backBtn,
+                        nextBtn,
+                      ],
+                    );
+                  }
+
+                  return Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      backBtn ?? const SizedBox.shrink(),
+                      nextBtn,
+                    ],
+                  );
+                },
               ),
             ],
           ),
@@ -491,17 +538,63 @@ class _AdminOnboardingWizardState extends ConsumerState<AdminOnboardingWizard> {
     }
   }
 
-  Widget _buildProgressNodes(bool isDark, Color accent) {
-    return Row(
-      children: [
-        _buildProgressDot(0, 'Template', isDark, accent),
-        Expanded(child: Container(height: 2, color: _currentStep > 0 ? accent : Colors.grey.withValues(alpha: 0.3))),
-        _buildProgressDot(1, 'Profile', isDark, accent),
-        Expanded(child: Container(height: 2, color: _currentStep > 1 ? accent : Colors.grey.withValues(alpha: 0.3))),
-        _buildProgressDot(2, 'Catalog', isDark, accent),
-        Expanded(child: Container(height: 2, color: _currentStep > 2 ? accent : Colors.grey.withValues(alpha: 0.3))),
-        _buildProgressDot(3, 'Launch', isDark, accent),
-      ],
+  // Gene - Nov, 14, 2026: Responsive Wrap progress nodes when modal width/scale is narrow and accessible dot contrast
+  Widget _buildProgressNodes(bool isDark, Color accent, {bool isCompactVertical = false}) {
+    if (isCompactVertical) {
+      // // Gene - Nov, 14, 2026: Previous horizontal SingleChildScrollView caused multiple Scrollable ambiguity in scrollUntilVisible tests
+      // return SingleChildScrollView(
+      //   scrollDirection: Axis.horizontal,
+      //   child: Row(
+      //     children: [
+      //       _buildProgressDot(0, 'Template', isDark, accent),
+      //       _buildProgressDot(1, 'Profile', isDark, accent),
+      //       _buildProgressDot(2, 'Catalog', isDark, accent),
+      //       _buildProgressDot(3, 'Launch', isDark, accent),
+      //     ],
+      //   ),
+      // );
+      // Gene - Nov, 14, 2026: Use non-scrollable FittedBox instead of SingleChildScrollView so scrollUntilVisible sees only the active step Scrollable
+      return FittedBox(
+        fit: BoxFit.scaleDown,
+        alignment: Alignment.centerLeft,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _buildProgressDot(0, 'Template', isDark, accent),
+            _buildProgressDot(1, 'Profile', isDark, accent),
+            _buildProgressDot(2, 'Catalog', isDark, accent),
+            _buildProgressDot(3, 'Launch', isDark, accent),
+          ],
+        ),
+      );
+    }
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final textScale = MediaQuery.textScalerOf(context).scale(1.0);
+        if (constraints.maxWidth < 480 * textScale) {
+          return Wrap(
+            spacing: 8,
+            runSpacing: 6,
+            children: [
+              _buildProgressDot(0, 'Template', isDark, accent),
+              _buildProgressDot(1, 'Profile', isDark, accent),
+              _buildProgressDot(2, 'Catalog', isDark, accent),
+              _buildProgressDot(3, 'Launch', isDark, accent),
+            ],
+          );
+        }
+        return Row(
+          children: [
+            _buildProgressDot(0, 'Template', isDark, accent),
+            Expanded(child: Container(height: 2, color: _currentStep > 0 ? accent : Colors.grey.withValues(alpha: 0.3))),
+            _buildProgressDot(1, 'Profile', isDark, accent),
+            Expanded(child: Container(height: 2, color: _currentStep > 1 ? accent : Colors.grey.withValues(alpha: 0.3))),
+            _buildProgressDot(2, 'Catalog', isDark, accent),
+            Expanded(child: Container(height: 2, color: _currentStep > 2 ? accent : Colors.grey.withValues(alpha: 0.3))),
+            _buildProgressDot(3, 'Launch', isDark, accent),
+          ],
+        );
+      },
     );
   }
 
@@ -510,13 +603,14 @@ class _AdminOnboardingWizardState extends ConsumerState<AdminOnboardingWizard> {
     final isCurrent = _currentStep == step;
 
     return Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
         Container(
           width: 24,
           height: 24,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: isCurrent || isDone ? accent : (isDark ? Colors.grey[800] : Colors.grey[300]),
+            color: isCurrent || isDone ? NeumorphicColors.tealPrimary : (isDark ? Colors.grey[800] : Colors.grey[300]),
           ),
           child: Center(
             child: isDone
@@ -526,7 +620,9 @@ class _AdminOnboardingWizardState extends ConsumerState<AdminOnboardingWizard> {
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
-                      color: isCurrent ? Colors.white : Colors.grey[600],
+                      color: isCurrent
+                          ? Colors.white
+                          : (isDark ? NeumorphicColors.darkTextPrimary : NeumorphicColors.lightTextPrimary),
                     ),
                   ),
           ),
@@ -566,6 +662,7 @@ class _AdminOnboardingWizardState extends ConsumerState<AdminOnboardingWizard> {
     final categoriesAsync = ref.watch(businessCategoriesProvider);
     final templatesAsync = ref.watch(businessTemplatesProvider);
 
+    /*
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -619,24 +716,245 @@ class _AdminOnboardingWizardState extends ConsumerState<AdminOnboardingWizard> {
         const SizedBox(height: 16),
 
         // Templates Grid
+        // Gene - Nov, 14, 2026: Responsive 1/2-column grid with scaled mainAxisExtent, Semantics button state, and WCAG muted tokens
         Expanded(
           child: templatesAsync.when(
             loading: () => const Center(child: CircularProgressIndicator()),
             error: (e, _) => Center(child: Text('Error loading templates: $e')),
             data: (templates) {
-              return GridView.builder(
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  childAspectRatio: 2.1,
-                  crossAxisSpacing: 14,
-                  mainAxisSpacing: 14,
-                ),
-                itemCount: templates.length,
-                itemBuilder: (context, index) {
-                  final template = templates[index];
-                  final isSelected = _selectedTemplate?.id == template.id;
+              return LayoutBuilder(
+                builder: (context, constraints) {
+                  final textScale = MediaQuery.textScalerOf(context).scale(1.0);
+                  final isSingleCol = constraints.maxWidth < 560;
+                  return GridView.builder(
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: isSingleCol ? 1 : 2,
+                      mainAxisExtent: (isSingleCol ? 124.0 : 130.0) * math.max(1.0, textScale * 0.95),
+                      crossAxisSpacing: 14,
+                      mainAxisSpacing: 14,
+                    ),
+                    itemCount: templates.length,
+                    itemBuilder: (context, index) {
+                      final template = templates[index];
+                      final isSelected = _selectedTemplate?.id == template.id;
 
-                  return GestureDetector(
+                      return Semantics(
+                        button: true,
+                        selected: isSelected,
+                        label: template.name,
+                        child: GestureDetector(
+                          onTap: () => _onTemplateSelected(template),
+                          child: NeumorphicContainer(
+                            borderRadius: 14,
+                            border: isSelected ? Border.all(color: accent, width: 2) : null,
+                            padding: const EdgeInsets.all(14),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                NeumorphicContainer(
+                                  isCircle: true,
+                                  width: 44,
+                                  height: 44,
+                                  child: Icon(
+                                    _resolveIcon(template.icon),
+                                    color: isSelected
+                                        ? accent
+                                        : (isDark
+                                            ? NeumorphicColors.darkTextSecondary
+                                            : NeumorphicColors.lightTextSecondary),
+                                    size: 22,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Expanded(
+                                            child: Text(
+                                              template.name,
+                                              style: TextStyle(
+                                                fontSize: 14,
+                                                fontWeight: FontWeight.w700,
+                                                color: isSelected
+                                                    ? accent
+                                                    : (isDark
+                                                        ? NeumorphicColors.darkTextPrimary
+                                                        : NeumorphicColors.lightTextPrimary),
+                                              ),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 6),
+                                          Flexible(
+                                            flex: 0,
+                                            child: Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                              decoration: BoxDecoration(
+                                                color: accent.withValues(alpha: 0.12),
+                                                borderRadius: BorderRadius.circular(6),
+                                              ),
+                                              child: Text(
+                                                template.bookingModel.name.toUpperCase(),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: TextStyle(
+                                                  fontSize: 9,
+                                                  fontWeight: FontWeight.w800,
+                                                  color: accent,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Expanded(
+                                        child: Text(
+                                          template.description ?? '',
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            color: isDark
+                                                ? NeumorphicColors.darkTextSecondary
+                                                : NeumorphicColors.lightTextSecondary,
+                                          ),
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Row(
+                                        children: [
+                                          Icon(
+                                            template.showStaffSelection ? Icons.person_rounded : Icons.home_work_rounded,
+                                            size: 13,
+                                            color: isDark
+                                                ? NeumorphicColors.darkTextMuted
+                                                : NeumorphicColors.lightTextMuted,
+                                          ),
+                                          const SizedBox(width: 4),
+                                          Expanded(
+                                            child: Text(
+                                              template.resourceLabel,
+                                              style: TextStyle(
+                                                fontSize: 10,
+                                                fontWeight: FontWeight.w600,
+                                                color: isDark
+                                                    ? NeumorphicColors.darkTextMuted
+                                                    : NeumorphicColors.lightTextMuted,
+                                              ),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 6),
+                                          Text(
+                                            '${template.starterServices.length} Services',
+                                            style: TextStyle(
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.w600,
+                                              color: accent,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  );
+                },
+              );
+            },
+          ),
+        ),
+      ],
+    );
+    */
+    // Gene - Nov, 14, 2026: Switch Step 0 template picker to a full-step SingleChildScrollView when available height < 340dp (e.g. 320x568 @ 1.5x)
+    return LayoutBuilder(
+      builder: (context, stepConstraints) {
+        final textScale = MediaQuery.textScalerOf(context).scale(1.0);
+        final isShortStep = stepConstraints.maxHeight < 340;
+        final isSingleCol = stepConstraints.maxWidth < 560;
+
+        final description = Text(
+          'Select your business vertical to automatically configure your client booking UI, scheduling engine, intake form, and starter catalog.',
+          style: TextStyle(
+            fontSize: 13,
+            color: isDark ? NeumorphicColors.darkTextSecondary : NeumorphicColors.lightTextSecondary,
+          ),
+        );
+
+        final categoryStrip = categoriesAsync.when(
+          loading: () => const SizedBox(height: 36, child: LinearProgressIndicator()),
+          error: (_, _) => const SizedBox.shrink(),
+          data: (categories) {
+            return SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  NeumorphicChip(
+                    label: 'All Verticals',
+                    isSelected: _selectedCategoryId == null,
+                    onTap: () {
+                      setState(() => _selectedCategoryId = null);
+                      ref.read(selectedTemplateCategoryIdProvider.notifier).state = null;
+                    },
+                  ),
+                  const SizedBox(width: 8),
+                  ...categories.map((cat) {
+                    final isSelected = _selectedCategoryId == cat.id;
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: NeumorphicChip(
+                        label: cat.name,
+                        icon: _resolveIcon(cat.icon),
+                        isSelected: isSelected,
+                        onTap: () {
+                          setState(() => _selectedCategoryId = cat.id);
+                          ref.read(selectedTemplateCategoryIdProvider.notifier).state = cat.id;
+                        },
+                      ),
+                    );
+                  }),
+                ],
+              ),
+            );
+          },
+        );
+
+        final templatesGrid = templatesAsync.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (e, _) => Center(child: Text('Error loading templates: $e')),
+          data: (templates) {
+            return GridView.builder(
+              shrinkWrap: isShortStep,
+              physics: isShortStep ? const NeverScrollableScrollPhysics() : null,
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: isSingleCol ? 1 : 2,
+                mainAxisExtent: (isSingleCol ? 124.0 : 130.0) * math.max(1.0, textScale * 0.95),
+                crossAxisSpacing: 14,
+                mainAxisSpacing: 14,
+              ),
+              itemCount: templates.length,
+              itemBuilder: (context, index) {
+                final template = templates[index];
+                final isSelected = _selectedTemplate?.id == template.id;
+
+                return Semantics(
+                  button: true,
+                  selected: isSelected,
+                  label: template.name,
+                  child: GestureDetector(
                     onTap: () => _onTemplateSelected(template),
                     child: NeumorphicContainer(
                       borderRadius: 14,
@@ -651,7 +969,11 @@ class _AdminOnboardingWizardState extends ConsumerState<AdminOnboardingWizard> {
                             height: 44,
                             child: Icon(
                               _resolveIcon(template.icon),
-                              color: isSelected ? accent : (isDark ? Colors.grey[400] : Colors.grey[700]),
+                              color: isSelected
+                                  ? accent
+                                  : (isDark
+                                      ? NeumorphicColors.darkTextSecondary
+                                      : NeumorphicColors.lightTextSecondary),
                               size: 22,
                             ),
                           ),
@@ -678,18 +1000,24 @@ class _AdminOnboardingWizardState extends ConsumerState<AdminOnboardingWizard> {
                                         overflow: TextOverflow.ellipsis,
                                       ),
                                     ),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                      decoration: BoxDecoration(
-                                        color: accent.withValues(alpha: 0.12),
-                                        borderRadius: BorderRadius.circular(6),
-                                      ),
-                                      child: Text(
-                                        template.bookingModel.name.toUpperCase(),
-                                        style: TextStyle(
-                                          fontSize: 9,
-                                          fontWeight: FontWeight.w800,
-                                          color: accent,
+                                    const SizedBox(width: 6),
+                                    Flexible(
+                                      flex: 0,
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: accent.withValues(alpha: 0.12),
+                                          borderRadius: BorderRadius.circular(6),
+                                        ),
+                                        child: Text(
+                                          template.bookingModel.name.toUpperCase(),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(
+                                            fontSize: 9,
+                                            fontWeight: FontWeight.w800,
+                                            color: accent,
+                                          ),
                                         ),
                                       ),
                                     ),
@@ -715,7 +1043,9 @@ class _AdminOnboardingWizardState extends ConsumerState<AdminOnboardingWizard> {
                                     Icon(
                                       template.showStaffSelection ? Icons.person_rounded : Icons.home_work_rounded,
                                       size: 13,
-                                      color: isDark ? Colors.grey[400] : Colors.grey[600],
+                                      color: isDark
+                                          ? NeumorphicColors.darkTextMuted
+                                          : NeumorphicColors.lightTextMuted,
                                     ),
                                     const SizedBox(width: 4),
                                     Expanded(
@@ -724,7 +1054,9 @@ class _AdminOnboardingWizardState extends ConsumerState<AdminOnboardingWizard> {
                                         style: TextStyle(
                                           fontSize: 10,
                                           fontWeight: FontWeight.w600,
-                                          color: isDark ? Colors.grey[400] : Colors.grey[600],
+                                          color: isDark
+                                              ? NeumorphicColors.darkTextMuted
+                                              : NeumorphicColors.lightTextMuted,
                                         ),
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
@@ -747,156 +1079,194 @@ class _AdminOnboardingWizardState extends ConsumerState<AdminOnboardingWizard> {
                         ],
                       ),
                     ),
-                  );
-                },
-              );
-            },
-          ),
-        ),
-      ],
+                  ),
+                );
+              },
+            );
+          },
+        );
+
+        if (isShortStep) {
+          return SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                description,
+                const SizedBox(height: 12),
+                categoryStrip,
+                const SizedBox(height: 14),
+                templatesGrid,
+              ],
+            ),
+          );
+        }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            description,
+            const SizedBox(height: 14),
+            categoryStrip,
+            const SizedBox(height: 16),
+            Expanded(child: templatesGrid),
+          ],
+        );
+      },
     );
   }
 
   // --- Step 1: Business Profile ---
+  // Gene - Nov, 14, 2026: Stack 2-column form rows vertically when narrow (< 520px) to prevent modal overflows
   Widget _buildBusinessProfileStep(bool isDark, Color accent) {
-    return SingleChildScrollView(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isNarrow = constraints.maxWidth < 520;
+        final nameField = Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Business Name *', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+            const SizedBox(height: 6),
+            NeumorphicTextField(
+              controller: _nameController,
+              hintText: 'e.g. Skyline Orthodontics & Dental Studio',
+              onChanged: _generateSlug,
+            ),
+          ],
+        );
+        final slugField = Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Slug (URL Handle)', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+            const SizedBox(height: 6),
+            NeumorphicTextField(
+              controller: _slugController,
+              hintText: 'skyline-orthodontics',
+            ),
+          ],
+        );
+        final phoneField = Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Contact Phone', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+            const SizedBox(height: 6),
+            NeumorphicTextField(
+              controller: _phoneController,
+              hintText: '+1 (555) 000-0000',
+            ),
+          ],
+        );
+        final emailField = Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Contact Email', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+            const SizedBox(height: 6),
+            NeumorphicTextField(
+              controller: _emailController,
+              hintText: 'contact@business.com',
+            ),
+          ],
+        );
+        final addressField = Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Street Address', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+            const SizedBox(height: 6),
+            NeumorphicTextField(
+              controller: _addressController,
+              hintText: '100 Medical Center Parkway, Suite 400',
+            ),
+          ],
+        );
+        final cityField = Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('City / Region', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+            const SizedBox(height: 6),
+            NeumorphicTextField(
+              controller: _cityController,
+              hintText: 'San Francisco',
+            ),
+          ],
+        );
+
+        return SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
-                flex: 3,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+              if (isNarrow) ...[
+                nameField,
+                const SizedBox(height: 12),
+                slugField,
+              ] else
+                Row(
                   children: [
-                    const Text('Business Name *', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
-                    const SizedBox(height: 6),
-                    NeumorphicTextField(
-                      controller: _nameController,
-                      hintText: 'e.g. Skyline Orthodontics & Dental Studio',
-                      onChanged: _generateSlug,
-                    ),
+                    Expanded(flex: 3, child: nameField),
+                    const SizedBox(width: 14),
+                    Expanded(flex: 2, child: slugField),
                   ],
                 ),
+              const SizedBox(height: 16),
+
+              if (isNarrow) ...[
+                phoneField,
+                const SizedBox(height: 12),
+                emailField,
+              ] else
+                Row(
+                  children: [
+                    Expanded(child: phoneField),
+                    const SizedBox(width: 14),
+                    Expanded(child: emailField),
+                  ],
+                ),
+              const SizedBox(height: 16),
+
+              if (isNarrow) ...[
+                addressField,
+                const SizedBox(height: 12),
+                cityField,
+              ] else
+                Row(
+                  children: [
+                    Expanded(flex: 3, child: addressField),
+                    const SizedBox(width: 14),
+                    Expanded(flex: 2, child: cityField),
+                  ],
+                ),
+              // Gene - Nov 06, 2026: Embedded interactive LocationPinPicker with bidirectional sync
+              const SizedBox(height: 16),
+              LocationPinPicker(
+                key: _pinPickerKey,
+                initialLatitude: _latitude ?? 37.7749,
+                initialLongitude: _longitude ?? -122.4194,
+                height: 200,
+                label: 'Clinic Map Location (Drag or tap map to set pin)',
+                onLocationChanged: (loc) {
+                  setState(() {
+                    _latitude = loc.latitude;
+                    _longitude = loc.longitude;
+                    _addressController.removeListener(_onAddressChanged);
+                    _cityController.removeListener(_onAddressChanged);
+                    _addressController.text = loc.formattedAddress;
+                    if (loc.city != null) _cityController.text = loc.city!;
+                    _addressController.addListener(_onAddressChanged);
+                    _cityController.addListener(_onAddressChanged);
+                  });
+                },
               ),
-              const SizedBox(width: 14),
-              Expanded(
-                flex: 2,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('Slug (URL Handle)', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
-                    const SizedBox(height: 6),
-                    NeumorphicTextField(
-                      controller: _slugController,
-                      hintText: 'skyline-orthodontics',
-                    ),
-                  ],
-                ),
+              const SizedBox(height: 16),
+
+              const Text('Short Description', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+              const SizedBox(height: 6),
+              NeumorphicTextField(
+                controller: _descriptionController,
+                hintText: 'Tell your clients about your facilities, specialties, and customer philosophy...',
+                maxLines: 3,
               ),
             ],
           ),
-          const SizedBox(height: 16),
-
-          Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('Contact Phone', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
-                    const SizedBox(height: 6),
-                    NeumorphicTextField(
-                      controller: _phoneController,
-                      hintText: '+1 (555) 000-0000',
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('Contact Email', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
-                    const SizedBox(height: 6),
-                    NeumorphicTextField(
-                      controller: _emailController,
-                      hintText: 'contact@business.com',
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-
-          Row(
-            children: [
-              Expanded(
-                flex: 3,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('Street Address', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
-                    const SizedBox(height: 6),
-                    NeumorphicTextField(
-                      controller: _addressController,
-                      hintText: '100 Medical Center Parkway, Suite 400',
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                flex: 2,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('City / Region', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
-                    const SizedBox(height: 6),
-                    NeumorphicTextField(
-                      controller: _cityController,
-                      hintText: 'San Francisco',
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          // Gene - Nov 06, 2026: Embedded interactive LocationPinPicker with bidirectional sync
-          const SizedBox(height: 16),
-          LocationPinPicker(
-            key: _pinPickerKey,
-            initialLatitude: _latitude ?? 37.7749,
-            initialLongitude: _longitude ?? -122.4194,
-            height: 200,
-            label: 'Clinic Map Location (Drag or tap map to set pin)',
-            onLocationChanged: (loc) {
-              setState(() {
-                _latitude = loc.latitude;
-                _longitude = loc.longitude;
-                _addressController.removeListener(_onAddressChanged);
-                _cityController.removeListener(_onAddressChanged);
-                _addressController.text = loc.formattedAddress;
-                if (loc.city != null) _cityController.text = loc.city!;
-                _addressController.addListener(_onAddressChanged);
-                _cityController.addListener(_onAddressChanged);
-              });
-            },
-          ),
-          const SizedBox(height: 16),
-
-          const Text('Short Description', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
-          const SizedBox(height: 6),
-          NeumorphicTextField(
-            controller: _descriptionController,
-            hintText: 'Tell your clients about your facilities, specialties, and customer philosophy...',
-            maxLines: 3,
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -966,19 +1336,49 @@ class _AdminOnboardingWizardState extends ConsumerState<AdminOnboardingWizard> {
         const SizedBox(height: 14),
 
         // Services list
+        // Gene - Nov, 14, 2026: Wrap catalog row badges under < 520px and upgrade muted colors to WCAG AA tokens
         Expanded(
-          child: ListView.builder(
-            itemCount: _customServices.length,
-            itemBuilder: (context, index) {
-              final srv = _customServices[index];
-              final isIncluded = srv['is_included'] as bool;
-
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: NeumorphicContainer(
-                  borderRadius: 12,
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                  child: Row(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final isNarrow = constraints.maxWidth < 520;
+              return ListView.builder(
+                itemCount: _customServices.length,
+                itemBuilder: (context, index) {
+                  final srv = _customServices[index];
+                  final isIncluded = srv['is_included'] as bool;
+                  final durationBadge = Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: isDark ? Colors.grey[800] : Colors.grey[200],
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      '${srv['duration_minutes']} min',
+                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+                    ),
+                  );
+                  final policyBadge = Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: accent.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      srv['payment_policy'] == 'deposit_required'
+                          ? 'Deposit \$${srv['deposit_amount']}'
+                          : (srv['payment_policy'] == 'full_upfront' ? 'Full Upfront' : 'Pay at Venue'),
+                      style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: accent),
+                    ),
+                  );
+                  final priceText = Text(
+                    '\$${(srv['price'] as num).toStringAsFixed(2)}',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                      color: isDark ? NeumorphicColors.tealLight : NeumorphicColors.tealPrimary,
+                    ),
+                  );
+                  final checkboxAndTitle = Row(
                     children: [
                       Checkbox(
                         value: isIncluded,
@@ -1001,63 +1401,65 @@ class _AdminOnboardingWizardState extends ConsumerState<AdminOnboardingWizard> {
                                 fontSize: 13,
                                 color: isIncluded
                                     ? (isDark ? NeumorphicColors.darkTextPrimary : NeumorphicColors.lightTextPrimary)
-                                    : Colors.grey,
+                                    : (isDark ? NeumorphicColors.darkTextMuted : NeumorphicColors.lightTextMuted),
                               ),
                             ),
                             const SizedBox(height: 2),
                             Text(
                               srv['description'] as String,
-                              style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: isDark ? NeumorphicColors.darkTextMuted : NeumorphicColors.lightTextMuted,
+                              ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
                           ],
                         ),
                       ),
-                      const SizedBox(width: 14),
-
-                      // Duration Badge
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: isDark ? Colors.grey[800] : Colors.grey[200],
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          '${srv['duration_minutes']} min',
-                          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-
-                      // Payment Policy Tag
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: accent.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          srv['payment_policy'] == 'deposit_required'
-                              ? 'Deposit \$${srv['deposit_amount']}'
-                              : (srv['payment_policy'] == 'full_upfront' ? 'Full Upfront' : 'Pay at Venue'),
-                          style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: accent),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-
-                      // Price
-                      Text(
-                        '\$${(srv['price'] as num).toStringAsFixed(2)}',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w800,
-                          color: isDark ? NeumorphicColors.tealLight : NeumorphicColors.tealPrimary,
-                        ),
-                      ),
                     ],
-                  ),
-                ),
+                  );
+
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: NeumorphicContainer(
+                      borderRadius: 12,
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      child: isNarrow
+                          ? Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                checkboxAndTitle,
+                                const SizedBox(height: 8),
+                                Padding(
+                                  padding: const EdgeInsets.only(left: 40),
+                                  child: Wrap(
+                                    spacing: 10,
+                                    runSpacing: 6,
+                                    crossAxisAlignment: WrapCrossAlignment.center,
+                                    children: [
+                                      durationBadge,
+                                      policyBadge,
+                                      priceText,
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            )
+                          : Row(
+                              children: [
+                                Expanded(child: checkboxAndTitle),
+                                const SizedBox(width: 14),
+                                durationBadge,
+                                const SizedBox(width: 12),
+                                policyBadge,
+                                const SizedBox(width: 12),
+                                priceText,
+                              ],
+                            ),
+                    ),
+                  );
+                },
               );
             },
           ),
@@ -1070,7 +1472,7 @@ class _AdminOnboardingWizardState extends ConsumerState<AdminOnboardingWizard> {
           style: TextStyle(
             fontSize: 12,
             fontStyle: FontStyle.italic,
-            color: isDark ? Colors.grey[400] : Colors.grey[600],
+            color: isDark ? NeumorphicColors.darkTextSecondary : NeumorphicColors.lightTextSecondary,
           ),
         ),
       ],
@@ -1093,16 +1495,19 @@ class _AdminOnboardingWizardState extends ConsumerState<AdminOnboardingWizard> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Gene - Nov, 14, 2026: Wrap Ready to Launch heading in Expanded to prevent narrow/scaled modal overflow
                 Row(
                   children: [
                     Icon(Icons.check_circle_rounded, color: accent, size: 24),
                     const SizedBox(width: 10),
-                    Text(
-                      'Ready to Launch ${_nameController.text.trim()}!',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w800,
-                        color: isDark ? NeumorphicColors.darkTextPrimary : NeumorphicColors.lightTextPrimary,
+                    Expanded(
+                      child: Text(
+                        'Ready to Launch ${_nameController.text.trim()}!',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          color: isDark ? NeumorphicColors.darkTextPrimary : NeumorphicColors.lightTextPrimary,
+                        ),
                       ),
                     ),
                   ],
@@ -1168,12 +1573,20 @@ class _AdminOnboardingWizardState extends ConsumerState<AdminOnboardingWizard> {
     );
     */
     // Gene - Nov 06, 2026: Wrapped summary row value in Flexible to prevent RenderFlex overflow for multi-resource archetypes
+    // Gene - Nov, 14, 2026: Use WCAG AA secondary text colors on summary rows and next-step descriptions
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: const TextStyle(fontSize: 13, color: Colors.grey)),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 13,
+              color: isDark ? NeumorphicColors.darkTextSecondary : NeumorphicColors.lightTextSecondary,
+            ),
+          ),
           const SizedBox(width: 8),
           Flexible(
             child: Text(
@@ -1199,7 +1612,13 @@ class _AdminOnboardingWizardState extends ConsumerState<AdminOnboardingWizard> {
             children: [
               Text(title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
               const SizedBox(height: 2),
-              Text(subtitle, style: TextStyle(fontSize: 11, color: isDark ? Colors.grey[400] : Colors.grey[600])),
+              Text(
+                subtitle,
+                style: TextStyle(
+                  fontSize: 11,
+                  color: isDark ? NeumorphicColors.darkTextSecondary : NeumorphicColors.lightTextSecondary,
+                ),
+              ),
             ],
           ),
         ),

@@ -1,5 +1,7 @@
 // Gene - Nov, 04, 2026: Comprehensive Web QA & Alpha UI/UX Audit Test Suite covering all 5 core user journeys, sweet-spot templates, form boundaries, and responsive states
 import 'dart:async';
+// Gene - Nov, 14, 2026: Added dart:convert for mock Nominatim geocoding JSON responses
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -791,6 +793,8 @@ class _MockHttpClient extends Fake implements HttpClient {
   }
 }
 */
+// Gene - Nov, 14, 2026: Complete HttpClientRequest/Headers/Response mock (including Stream & Nominatim JSON) to eliminate UnimplementedError console noise [QA-012]
+/*
 // Gene - Nov 06, 2026: Implemented openUrl, close, and userAgent in _MockHttpClient for flutter_map NetworkTileProvider compatibility
 class _MockHttpClient extends Fake implements HttpClient {
   @override
@@ -858,6 +862,157 @@ class _MockHttpClientResponse extends Fake implements HttpClientResponse {
     bool? cancelOnError,
   }) {
     return Stream<List<int>>.value(_transparentPng).listen(
+      onData,
+      onError: onError,
+      onDone: onDone,
+      cancelOnError: cancelOnError,
+    );
+  }
+}
+*/
+class _MockHttpClient extends Fake implements HttpClient {
+  @override
+  bool autoUncompress = false;
+
+  @override
+  Duration idleTimeout = const Duration(seconds: 15);
+
+  @override
+  String? userAgent;
+
+  @override
+  Future<HttpClientRequest> getUrl(Uri url) async => _MockHttpClientRequest(url);
+
+  @override
+  Future<HttpClientRequest> openUrl(String method, Uri url) async => _MockHttpClientRequest(url);
+
+  @override
+  void close({bool force = false}) {}
+}
+
+class _MockHttpClientRequest extends Fake implements HttpClientRequest {
+  final Uri url;
+  _MockHttpClientRequest(this.url);
+
+  @override
+  final HttpHeaders headers = _MockHttpHeaders();
+
+  @override
+  int contentLength = 0;
+
+  @override
+  bool persistentConnection = true;
+
+  @override
+  bool followRedirects = true;
+
+  @override
+  int maxRedirects = 5;
+
+  @override
+  bool bufferOutput = true;
+
+  @override
+  void add(List<int> data) {}
+
+  @override
+  void write(Object? obj) {}
+
+  @override
+  Future<void> addStream(Stream<List<int>> stream) => stream.drain<void>();
+
+  @override
+  Future<HttpClientResponse> close() async => _MockHttpClientResponse(url);
+}
+
+class _MockHttpHeaders extends Fake implements HttpHeaders {
+  final bool isJson;
+  _MockHttpHeaders({this.isJson = false});
+
+  @override
+  void add(String name, Object value, {bool preserveHeaderCase = false}) {}
+
+  @override
+  void set(String name, Object value, {bool preserveHeaderCase = false}) {}
+
+  @override
+  void forEach(void Function(String name, List<String> values) action) {
+    if (isJson) {
+      action(HttpHeaders.contentTypeHeader, ['application/json; charset=utf-8']);
+    }
+  }
+}
+
+class _MockHttpClientResponse extends Stream<List<int>> implements HttpClientResponse {
+  final Uri url;
+  late final List<int> _bodyBytes = _resolveMockBytes(url);
+  late final bool _isJson = url.host.contains('nominatim');
+
+  _MockHttpClientResponse(this.url);
+
+  static List<int> _resolveMockBytes(Uri url) {
+    if (url.host.contains('nominatim')) {
+      if (url.path.contains('search')) {
+        return utf8.encode(
+          '[{"lat":"34.0736","lon":"-118.4004","display_name":"Beverly Hills, CA","address":{"city":"Beverly Hills","state":"CA"}}]',
+        );
+      }
+      return utf8.encode(
+        '{"lat":"34.0736","lon":"-118.4004","display_name":"Beverly Hills, CA","address":{"city":"Beverly Hills","state":"CA"}}',
+      );
+    }
+    return _transparentPng;
+  }
+
+  @override
+  int get statusCode => 200;
+
+  @override
+  String get reasonPhrase => 'OK';
+
+  @override
+  int get contentLength => _bodyBytes.length;
+
+  @override
+  bool get isRedirect => false;
+
+  @override
+  bool get persistentConnection => true;
+
+  @override
+  List<RedirectInfo> get redirects => const [];
+
+  @override
+  late final HttpHeaders headers = _MockHttpHeaders(isJson: _isJson);
+
+  @override
+  List<Cookie> get cookies => const [];
+
+  @override
+  X509Certificate? get certificate => null;
+
+  @override
+  HttpConnectionInfo? get connectionInfo => null;
+
+  @override
+  HttpClientResponseCompressionState get compressionState =>
+      HttpClientResponseCompressionState.notCompressed;
+
+  @override
+  Future<HttpClientResponse> redirect([String? method, Uri? url, bool? followLoops]) =>
+      Future.value(this);
+
+  @override
+  Future<Socket> detachSocket() => throw UnsupportedError('detachSocket');
+
+  @override
+  StreamSubscription<List<int>> listen(
+    void Function(List<int> event)? onData, {
+    Function? onError,
+    void Function()? onDone,
+    bool? cancelOnError,
+  }) {
+    return Stream<List<int>>.value(_bodyBytes).listen(
       onData,
       onError: onError,
       onDone: onDone,

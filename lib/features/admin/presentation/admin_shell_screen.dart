@@ -1,5 +1,6 @@
 // Gene - Nov, 03, 2026: Built full SaaS Web Dashboard layout with Top Bar, Sidebar, and responsive content area
-import 'package:flutter/foundation.dart';
+// Gene - Nov, 14, 2026: Commented out unused foundation import after routing demo checks through AuthNotifier.isDemoModeEnabled
+// import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -10,6 +11,10 @@ import '../../../core/widgets/neumorphic_button.dart';
 import '../../../services/business_service.dart';
 import '../../../services/auth_service.dart';
 import '../../../services/notification_service.dart';
+// Gene - Nov, 14, 2026: Added DemoData, SupabaseService, and BusinessStaff imports for multi-tenant clinic scoping
+import '../../../core/constants/demo_data.dart';
+import '../../../services/supabase_service.dart';
+import '../../../models/business_staff.dart';
 import '../../../models/business.dart';
 import 'dashboard_overview_tab.dart';
 import 'calendar_agenda_tab.dart';
@@ -250,12 +255,18 @@ class _AdminShellScreenState extends ConsumerState<AdminShellScreen> {
     */
 
     // Gene - Nov, 05, 2026: RBAC check - require both active session and business owner role (CWE-285)
+    // Gene - Nov, 14, 2026: Allow staff/practitioners into operational portal via canAccessAdminPortal while restricting financial/settings tabs & isolating clinics
     if (authState.user == null) {
       return _buildAdminAuthGate(context, isDark, accent);
     }
-    if (!authState.user!.isBusinessOwner) {
+    // if (!authState.user!.isBusinessOwner) {
+    if (!authState.user!.canAccessAdminPortal) {
       return _buildUnauthorizedRoleGate(context, isDark, accent);
     }
+
+    final currentUser = authState.user!;
+    final isStaffRole = currentUser.isStaff;
+    final effectiveTabIndex = (isStaffRole && _selectedTabIndex > 5) ? 0 : _selectedTabIndex;
 
     final businessesAsync = ref.watch(businessListProvider);
 
@@ -274,10 +285,40 @@ class _AdminShellScreenState extends ConsumerState<AdminShellScreen> {
           return _buildZeroStateScreen(context, isDark, accent);
         }
 
+        // Gene - Nov, 14, 2026: Multi-tenant clinic isolation (CWE-285 / CWE-639)
+        late final List<Business> accessibleBusinesses;
+        if (currentUser.role == 'admin') {
+          accessibleBusinesses = businesses;
+        } else if (isStaffRole) {
+          final Iterable<BusinessStaff> matchedStaff = SupabaseService.mockStaff.where(
+            (s) => s.userId == currentUser.id || s.name.toLowerCase() == currentUser.fullName.toLowerCase(),
+          );
+          final assignedIds = matchedStaff.map((s) => s.businessId).toSet();
+          if (assignedIds.isEmpty && AuthNotifier.isDemoModeEnabled) {
+            assignedIds.add('11111111-1111-1111-1111-111111111111');
+          }
+          accessibleBusinesses = businesses.where((b) => assignedIds.contains(b.id)).toList();
+        } else {
+          final owned = businesses.where((b) => b.ownerId == currentUser.id).toList();
+          if (owned.isEmpty &&
+              AuthNotifier.isDemoModeEnabled &&
+              currentUser.id == DemoData.adminOwnerId &&
+              businesses.every((b) => b.ownerId != DemoData.retreatOwnerId)) {
+            accessibleBusinesses = businesses;
+          } else {
+            accessibleBusinesses = owned;
+          }
+        }
+
+        if (accessibleBusinesses.isEmpty) {
+          return _buildZeroStateScreen(context, isDark, accent);
+        }
+
         /*
         _selectedBusinessId ??= businesses.first.id;
         */
         // Gene - Nov, 7, 2026: Auto-select the first clinic owned by the active user when initialising or switching personas
+        /*
         final currentUserId = authState.user!.id;
         if (_selectedBusinessId == null || _lastOwnerId != currentUserId) {
           _lastOwnerId = currentUserId;
@@ -287,6 +328,18 @@ class _AdminShellScreenState extends ConsumerState<AdminShellScreen> {
         final selectedBusiness = businesses.firstWhere(
           (b) => b.id == _selectedBusinessId,
           orElse: () => businesses.first,
+        );
+        */
+        final currentUserId = currentUser.id;
+        if (_selectedBusinessId == null ||
+            _lastOwnerId != currentUserId ||
+            !accessibleBusinesses.any((b) => b.id == _selectedBusinessId)) {
+          _lastOwnerId = currentUserId;
+          _selectedBusinessId = accessibleBusinesses.first.id;
+        }
+        final selectedBusiness = accessibleBusinesses.firstWhere(
+          (b) => b.id == _selectedBusinessId,
+          orElse: () => accessibleBusinesses.first,
         );
 
         /*
@@ -371,10 +424,12 @@ class _AdminShellScreenState extends ConsumerState<AdminShellScreen> {
         */
 
         // Gene - Nov 06, 2026: Added ClientsCrmTab at index 3 in Admin tab stack
+        // Gene - Nov, 14, 2026: Use effectiveTabIndex (clamped <= 5 for staff) on IndexedStack
         final tabContent = Container(
           color: isDark ? NeumorphicColors.darkCanvas : NeumorphicColors.lightCanvas,
           child: IndexedStack(
-            index: _selectedTabIndex,
+            // index: _selectedTabIndex,
+            index: effectiveTabIndex,
             children: [
               DashboardOverviewTab(business: selectedBusiness),
               LiveReceptionQueueTab(businessId: selectedBusiness.id, business: selectedBusiness),
@@ -389,12 +444,25 @@ class _AdminShellScreenState extends ConsumerState<AdminShellScreen> {
         );
 
         if (isCompact) {
+          // // Gene - Nov, 14, 2026: Filter BottomNavigationBar items for staff and enforce >= 48dp targets, WCAG labels, and clamped nav scaling
+          // final visibleBottomNavItems = isStaffRole
+          //     ? AdminShellScreen.bottomNavItems.take(6).toList()
+          //     : AdminShellScreen.bottomNavItems;
+          // Gene - Nov, 14, 2026: Curate 5 primary mobile bottom navigation destinations (each >= 48dp wide) and consolidate sub-430px AppBar secondary actions into PopupMenuButton
+          final List<int> mobileTabIndices = isStaffRole ? const [0, 1, 2, 4, 5] : const [0, 2, 4, 5, 6];
+          final visibleBottomNavItems = mobileTabIndices.map((i) => AdminShellScreen.bottomNavItems[i]).toList();
+          final currentBottomIndex = mobileTabIndices.contains(effectiveTabIndex)
+              ? mobileTabIndices.indexOf(effectiveTabIndex)
+              : 0;
+          final isUltraNarrowAppBar = MediaQuery.sizeOf(context).width < 430;
           return Scaffold(
             appBar: AppBar(
               backgroundColor: isDark ? NeumorphicColors.darkSurface : NeumorphicColors.lightSurface,
               elevation: 0,
+              titleSpacing: 4,
               leading: Builder(
                 builder: (ctx) => IconButton(
+                  tooltip: 'Open navigation menu',
                   icon: const Icon(Icons.menu_rounded),
                   onPressed: () => Scaffold.of(ctx).openDrawer(),
                 ),
@@ -423,28 +491,31 @@ class _AdminShellScreenState extends ConsumerState<AdminShellScreen> {
               ),
               */
               // Gene - Nov, 04, 2026: Constrained DropdownButton with isExpanded: true to prevent mobile AppBar overflow
+              // Gene - Nov, 14, 2026: Enforce >= 48dp touch target height and scope selector to accessibleBusinesses
               title: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 160),
-                child: DropdownButton<String>(
-                  isExpanded: true,
-                  value: _selectedBusinessId,
-                  underline: const SizedBox(),
-                  isDense: true,
-                  dropdownColor: isDark ? NeumorphicColors.darkSurface : NeumorphicColors.lightSurface,
-                  icon: const Icon(Icons.arrow_drop_down, size: 20),
-                  items: businesses.map((b) {
-                    return DropdownMenuItem(
-                      value: b.id,
-                      child: Text(
-                        b.name,
-                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    );
-                  }).toList(),
-                  onChanged: (val) {
-                    if (val != null) setState(() => _selectedBusinessId = val);
-                  },
+                constraints: const BoxConstraints(minWidth: 48, maxWidth: 200, minHeight: 48),
+                child: Center(
+                  child: DropdownButton<String>(
+                    isExpanded: true,
+                    value: _selectedBusinessId,
+                    underline: const SizedBox(),
+                    // isDense: true,
+                    dropdownColor: isDark ? NeumorphicColors.darkSurface : NeumorphicColors.lightSurface,
+                    icon: const Icon(Icons.arrow_drop_down, size: 20),
+                    items: accessibleBusinesses.map((b) {
+                      return DropdownMenuItem(
+                        value: b.id,
+                        child: Text(
+                          b.name,
+                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      );
+                    }).toList(),
+                    onChanged: (val) {
+                      if (val != null) setState(() => _selectedBusinessId = val);
+                    },
+                  ),
                 ),
               ),
               /*
@@ -483,46 +554,52 @@ class _AdminShellScreenState extends ConsumerState<AdminShellScreen> {
               ],
               */
               // Gene - Nov, 05, 2026: Added reception QR scanner modal, check-in action sheet, and booking state transitions
+              // Gene - Nov, 14, 2026: Gate Add Business by !isStaffRole and Switch Demo Persona by AuthNotifier.isDemoModeEnabled; add Notifications tooltip & ExcludeSemantics badge; filter mobile drawer/nav for staff
               actions: [
                 IconButton(
                   tooltip: 'Scan Check-In',
                   icon: Icon(Icons.qr_code_scanner_rounded, color: accent),
                   onPressed: () => ReceptionQrScannerModal.show(context),
                 ),
-                IconButton(
-                  tooltip: 'Add Business',
-                  icon: Icon(Icons.add_circle_outline_rounded, color: accent),
-                  onPressed: () {
-                    showDialog<String>(
-                      context: context,
-                      builder: (_) => const AdminOnboardingWizard(),
-                    ).then((newId) {
-                      if (newId != null && mounted) {
-                        setState(() => _selectedBusinessId = newId);
-                      }
-                    });
-                  },
-                ),
-                // Gene - Nov, 05, 2026: Mobile AppBar Demo Persona Switcher action
-                IconButton(
-                  tooltip: 'Switch Demo Persona',
-                  icon: Icon(Icons.switch_account_outlined, color: accent),
-                  onPressed: () => DemoPersonaSwitcherDialog.show(context),
-                ),
-                IconButton(
-                  tooltip: isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode',
-                  icon: Icon(
-                    isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
-                    color: isDark ? Colors.amber : NeumorphicColors.lightTextSecondary,
+                if (!isUltraNarrowAppBar) ...[
+                  if (!isStaffRole)
+                    IconButton(
+                      tooltip: 'Add Business',
+                      icon: Icon(Icons.add_circle_outline_rounded, color: accent),
+                      onPressed: () {
+                        showDialog<String>(
+                          context: context,
+                          builder: (_) => const AdminOnboardingWizard(),
+                        ).then((newId) {
+                          if (newId != null && mounted) {
+                            setState(() => _selectedBusinessId = newId);
+                          }
+                        });
+                      },
+                    ),
+                  // Gene - Nov, 05, 2026: Mobile AppBar Demo Persona Switcher action
+                  if (AuthNotifier.isDemoModeEnabled)
+                    IconButton(
+                      tooltip: 'Switch Demo Persona',
+                      icon: Icon(Icons.switch_account_outlined, color: accent),
+                      onPressed: () => DemoPersonaSwitcherDialog.show(context),
+                    ),
+                  IconButton(
+                    tooltip: isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode',
+                    icon: Icon(
+                      isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
+                      color: isDark ? Colors.amber : NeumorphicColors.lightTextSecondary,
+                    ),
+                    onPressed: () {
+                      ref.read(themeModeProvider.notifier).toggleTheme();
+                    },
                   ),
-                  onPressed: () {
-                    ref.read(themeModeProvider.notifier).toggleTheme();
-                  },
-                ),
+                ],
                 Stack(
                   clipBehavior: Clip.none,
                   children: [
                     IconButton(
+                      tooltip: 'Notifications',
                       icon: const Icon(Icons.notifications_outlined),
                       onPressed: () => context.push('/notifications'),
                     ),
@@ -530,37 +607,104 @@ class _AdminShellScreenState extends ConsumerState<AdminShellScreen> {
                       Positioned(
                         right: 8,
                         top: 8,
-                        child: Container(
-                          padding: const EdgeInsets.all(4),
-                          decoration: const BoxDecoration(
-                            color: NeumorphicColors.error,
-                            shape: BoxShape.circle,
-                          ),
-                          child: Text(
-                            '${ref.watch(unreadNotificationCountProvider)}',
-                            style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                        child: ExcludeSemantics(
+                          child: Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: const BoxDecoration(
+                              color: NeumorphicColors.error,
+                              shape: BoxShape.circle,
+                            ),
+                            child: Text(
+                              '${ref.watch(unreadNotificationCountProvider)}',
+                              style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                            ),
                           ),
                         ),
                       ),
                   ],
                 ),
+                if (isUltraNarrowAppBar)
+                  PopupMenuButton<String>(
+                    tooltip: 'More actions',
+                    icon: const Icon(Icons.more_vert_rounded),
+                    onSelected: (value) {
+                      if (value == 'add_business') {
+                        showDialog<String>(
+                          context: context,
+                          builder: (_) => const AdminOnboardingWizard(),
+                        ).then((newId) {
+                          if (newId != null && mounted) {
+                            setState(() => _selectedBusinessId = newId);
+                          }
+                        });
+                      } else if (value == 'demo_persona') {
+                        DemoPersonaSwitcherDialog.show(context);
+                      } else if (value == 'theme') {
+                        ref.read(themeModeProvider.notifier).toggleTheme();
+                      }
+                    },
+                    itemBuilder: (_) => [
+                      if (!isStaffRole)
+                        const PopupMenuItem(
+                          value: 'add_business',
+                          child: ListTile(
+                            dense: true,
+                            leading: Icon(Icons.add_circle_outline_rounded),
+                            title: Text('Add Business'),
+                          ),
+                        ),
+                      if (AuthNotifier.isDemoModeEnabled)
+                        const PopupMenuItem(
+                          value: 'demo_persona',
+                          child: ListTile(
+                            dense: true,
+                            leading: Icon(Icons.switch_account_outlined),
+                            title: Text('Switch Demo Persona'),
+                          ),
+                        ),
+                      PopupMenuItem(
+                        value: 'theme',
+                        child: ListTile(
+                          dense: true,
+                          leading: Icon(isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined),
+                          title: Text(isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'),
+                        ),
+                      ),
+                    ],
+                  ),
               ],
             ),
             drawer: Drawer(
               backgroundColor: isDark ? NeumorphicColors.darkSurface : NeumorphicColors.lightSurface,
               child: SafeArea(
-                child: _buildWebSidebar(context, isDark, accent, selectedBusiness, isDrawer: true),
+                child: _buildWebSidebar(
+                  context,
+                  isDark,
+                  accent,
+                  selectedBusiness,
+                  isDrawer: true,
+                  isStaffRole: isStaffRole,
+                  selectedTabIndex: effectiveTabIndex,
+                ),
               ),
             ),
             body: tabContent,
-            bottomNavigationBar: BottomNavigationBar(
-              currentIndex: _selectedTabIndex,
-              onTap: (index) => setState(() => _selectedTabIndex = index),
-              type: BottomNavigationBarType.fixed,
-              selectedItemColor: accent,
-              unselectedItemColor: isDark ? Colors.white54 : Colors.black54,
-              backgroundColor: isDark ? NeumorphicColors.darkSurface : NeumorphicColors.lightSurface,
-              items: AdminShellScreen.bottomNavItems,
+            bottomNavigationBar: MediaQuery.withClampedTextScaling(
+              maxScaleFactor: 1.1,
+              child: BottomNavigationBar(
+                // currentIndex: effectiveTabIndex,
+                // onTap: (index) => setState(() => _selectedTabIndex = index),
+                // Gene - Nov, 14, 2026: Map 5-item compact bottom nav selection cleanly onto full tab index space
+                currentIndex: currentBottomIndex,
+                onTap: (index) => setState(() => _selectedTabIndex = mobileTabIndices[index]),
+                type: BottomNavigationBarType.fixed,
+                selectedFontSize: 11,
+                unselectedFontSize: 10,
+                selectedItemColor: accent,
+                unselectedItemColor: isDark ? NeumorphicColors.darkTextSecondary : NeumorphicColors.lightTextSecondary,
+                backgroundColor: isDark ? NeumorphicColors.darkSurface : NeumorphicColors.lightSurface,
+                items: visibleBottomNavItems,
+              ),
             ),
           );
         }
@@ -569,14 +713,32 @@ class _AdminShellScreenState extends ConsumerState<AdminShellScreen> {
           body: Column(
             children: [
               // 1. Web Top Navigation Bar
-              _buildWebTopBar(context, ref, businesses, selectedBusiness, isDark, accent),
+              // Gene - Nov, 14, 2026: Pass accessibleBusinesses and isStaffRole for multi-tenant clinic selector and RBAC actions
+              // _buildWebTopBar(context, ref, businesses, selectedBusiness, isDark, accent),
+              _buildWebTopBar(
+                context,
+                ref,
+                accessibleBusinesses,
+                selectedBusiness,
+                isDark,
+                accent,
+                isStaffRole: isStaffRole,
+              ),
 
               // 2. Web Body: Left Sidebar + Main Dashboard Area
               Expanded(
                 child: Row(
                   children: [
                     // Left Navigation Sidebar
-                    _buildWebSidebar(context, isDark, accent, selectedBusiness),
+                    // _buildWebSidebar(context, isDark, accent, selectedBusiness),
+                    _buildWebSidebar(
+                      context,
+                      isDark,
+                      accent,
+                      selectedBusiness,
+                      isStaffRole: isStaffRole,
+                      selectedTabIndex: effectiveTabIndex,
+                    ),
 
                     // Main Website Dashboard Area
                     Expanded(child: tabContent),
@@ -597,8 +759,9 @@ class _AdminShellScreenState extends ConsumerState<AdminShellScreen> {
     List<Business> businesses,
     Business currentBusiness,
     bool isDark,
-    Color accent,
-  ) {
+    Color accent, {
+    bool isStaffRole = false,
+  }) {
     final unreadCount = ref.watch(unreadNotificationCountProvider);
     final currentUser = ref.watch(authProvider).user;
 
@@ -1037,63 +1200,73 @@ class _AdminShellScreenState extends ConsumerState<AdminShellScreen> {
                               ),
                             ),
                             const SizedBox(width: 8),
-                            DropdownButton<String>(
-                              value: _selectedBusinessId,
-                              underline: const SizedBox(),
-                              isDense: true,
-                              dropdownColor: isDark ? NeumorphicColors.darkSurface : NeumorphicColors.lightSurface,
-                              icon: const Icon(Icons.arrow_drop_down, size: 20),
-                              items: businesses.map((b) {
-                                return DropdownMenuItem(
-                                  value: b.id,
-                                  child: ConstrainedBox(
-                                    constraints: const BoxConstraints(maxWidth: 220),
-                                    child: Text(
-                                      '${b.name} (${b.category})',
-                                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                );
-                              }).toList(),
-                              onChanged: (val) {
-                                if (val != null) setState(() => _selectedBusinessId = val);
-                              },
+                            // Gene - Nov, 14, 2026: Ensure >= 48dp touch target on desktop clinic selector dropdown
+                            ConstrainedBox(
+                              constraints: const BoxConstraints(minWidth: 64, minHeight: 48),
+                              child: Center(
+                                widthFactor: 1.0,
+                                child: DropdownButton<String>(
+                                  value: _selectedBusinessId,
+                                  underline: const SizedBox(),
+                                  // isDense: true,
+                                  dropdownColor: isDark ? NeumorphicColors.darkSurface : NeumorphicColors.lightSurface,
+                                  icon: const Icon(Icons.arrow_drop_down, size: 20),
+                                  items: businesses.map((b) {
+                                    return DropdownMenuItem(
+                                      value: b.id,
+                                      child: ConstrainedBox(
+                                        constraints: const BoxConstraints(maxWidth: 220),
+                                        child: Text(
+                                          '${b.name} (${b.category})',
+                                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    );
+                                  }).toList(),
+                                  onChanged: (val) {
+                                    if (val != null) setState(() => _selectedBusinessId = val);
+                                  },
+                                ),
+                              ),
                             ),
                           ],
                         ),
                       ),
                       /*
                       // Gene - Nov, 04, 2026: Previous actions without Scan Check-In button
-                      const SizedBox(width: 12),
-                      NeumorphicButton(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        onPressed: () {
-                          showDialog<String>(
-                            context: context,
-                            builder: (_) => const AdminOnboardingWizard(),
-                          ).then((newId) {
-                            if (newId != null && mounted) {
-                              setState(() => _selectedBusinessId = newId);
-                            }
-                          });
-                        },
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.add_circle_outline_rounded, size: 16, color: accent),
-                            const SizedBox(width: 6),
-                            Text(
-                              'Add Business',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w700,
-                                color: isDark ? NeumorphicColors.darkTextPrimary : NeumorphicColors.lightTextPrimary,
+                      // Gene - Nov, 14, 2026: Restrict business creation action to owners/admins (hide from staff)
+                      if (!isStaffRole) ...[
+                        const SizedBox(width: 12),
+                        NeumorphicButton(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          onPressed: () {
+                            showDialog<String>(
+                              context: context,
+                              builder: (_) => const AdminOnboardingWizard(),
+                            ).then((newId) {
+                              if (newId != null && mounted) {
+                                setState(() => _selectedBusinessId = newId);
+                              }
+                            });
+                          },
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.add_circle_outline_rounded, size: 16, color: accent),
+                              const SizedBox(width: 6),
+                              Text(
+                                'Add Business',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  color: isDark ? NeumorphicColors.darkTextPrimary : NeumorphicColors.lightTextPrimary,
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ),
+                      ],
                       */
                       // Gene - Nov, 05, 2026: Added reception QR scanner modal, check-in action sheet, and booking state transitions
                       const SizedBox(width: 12),
@@ -1109,35 +1282,38 @@ class _AdminShellScreenState extends ConsumerState<AdminShellScreen> {
                           ],
                         ),
                       ),
-                      const SizedBox(width: 12),
-                      NeumorphicButton(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        onPressed: () {
-                          showDialog<String>(
-                            context: context,
-                            builder: (_) => const AdminOnboardingWizard(),
-                          ).then((newId) {
-                            if (newId != null && mounted) {
-                              setState(() => _selectedBusinessId = newId);
-                            }
-                          });
-                        },
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.add_circle_outline_rounded, size: 16, color: accent),
-                            const SizedBox(width: 6),
-                            Text(
-                              'Add Business',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w700,
-                                color: isDark ? NeumorphicColors.darkTextPrimary : NeumorphicColors.lightTextPrimary,
+                      // Gene - Nov, 14, 2026: Restrict business creation action to owners/admins (hide from staff)
+                      if (!isStaffRole) ...[
+                        const SizedBox(width: 12),
+                        NeumorphicButton(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          onPressed: () {
+                            showDialog<String>(
+                              context: context,
+                              builder: (_) => const AdminOnboardingWizard(),
+                            ).then((newId) {
+                              if (newId != null && mounted) {
+                                setState(() => _selectedBusinessId = newId);
+                              }
+                            });
+                          },
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.add_circle_outline_rounded, size: 16, color: accent),
+                              const SizedBox(width: 6),
+                              Text(
+                                'Add Business',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  color: isDark ? NeumorphicColors.darkTextPrimary : NeumorphicColors.lightTextPrimary,
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ),
+                      ],
                     ],
                   ),
 
@@ -1198,15 +1374,18 @@ class _AdminShellScreenState extends ConsumerState<AdminShellScreen> {
                             Positioned(
                               right: 8,
                               top: 8,
-                              child: Container(
-                                padding: const EdgeInsets.all(4),
-                                decoration: const BoxDecoration(
-                                  color: NeumorphicColors.error,
-                                  shape: BoxShape.circle,
-                                ),
-                                child: Text(
-                                  '$unreadCount',
-                                  style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                              // Gene - Nov, 14, 2026: Exclude decorative unread badge from semantics so Notifications IconButton has a single clean label
+                              child: ExcludeSemantics(
+                                child: Container(
+                                  padding: const EdgeInsets.all(4),
+                                  decoration: const BoxDecoration(
+                                    color: NeumorphicColors.error,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Text(
+                                    '$unreadCount',
+                                    style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                                  ),
                                 ),
                               ),
                             ),
@@ -1282,13 +1461,14 @@ class _AdminShellScreenState extends ConsumerState<AdminShellScreen> {
                             ),
                           ),
                           const PopupMenuDivider(),
-                          const PopupMenuItem(
+                          // Gene - Nov, 14, 2026: Use WCAG AA errorFor token and role-aware subtitle in desktop account menu
+                          PopupMenuItem(
                             value: 'sign_out',
                             child: Row(
                               children: [
-                                Icon(Icons.logout_rounded, size: 18, color: NeumorphicColors.error),
-                                SizedBox(width: 10),
-                                Text('Sign Out', style: TextStyle(color: NeumorphicColors.error)),
+                                Icon(Icons.logout_rounded, size: 18, color: NeumorphicColors.errorFor(isDark)),
+                                const SizedBox(width: 10),
+                                Text('Sign Out', style: TextStyle(color: NeumorphicColors.errorFor(isDark))),
                               ],
                             ),
                           ),
@@ -1312,7 +1492,8 @@ class _AdminShellScreenState extends ConsumerState<AdminShellScreen> {
                                     style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
                                   ),
                                   Text(
-                                    'Administrator ▾',
+                                    // 'Administrator ▾',
+                                    currentUser?.role == 'staff' ? 'Clinic Staff ▾' : 'Administrator ▾',
                                     style: TextStyle(
                                       fontSize: 11,
                                       color: isDark ? NeumorphicColors.darkTextSecondary : NeumorphicColors.lightTextSecondary,
@@ -1353,7 +1534,17 @@ class _AdminShellScreenState extends ConsumerState<AdminShellScreen> {
         children: [
   */
   // Gene - Nov, 04, 2026: Added isDrawer support for responsive mobile & tablet drawer navigation
-  Widget _buildWebSidebar(BuildContext context, bool isDark, Color accent, Business business, {bool isDrawer = false}) {
+  // Gene - Nov, 14, 2026: Added isStaffRole & selectedTabIndex so staff only see operational tabs (0..5) and financial/settings tabs stay hidden
+  Widget _buildWebSidebar(
+    BuildContext context,
+    bool isDark,
+    Color accent,
+    Business business, {
+    bool isDrawer = false,
+    bool isStaffRole = false,
+    int? selectedTabIndex,
+  }) {
+    final activeIndex = selectedTabIndex ?? _selectedTabIndex;
     return Container(
       width: isDrawer ? null : 250,
       decoration: BoxDecoration(
@@ -1407,18 +1598,20 @@ class _AdminShellScreenState extends ConsumerState<AdminShellScreen> {
           */
 
           // Gene - Nov 06, 2026: Added Patients & Clients (CRM) item to sidebar navigation at index 3
-          _buildSidebarItem(0, 'Dashboard Overview', Icons.dashboard_rounded, accent, isDark, isDrawer: isDrawer),
-          _buildSidebarItem(1, 'Live Reception Queue', Icons.people_alt_outlined, accent, isDark, isDrawer: isDrawer),
-          _buildSidebarItem(2, 'Appointments Calendar', Icons.calendar_month_rounded, accent, isDark, isDrawer: isDrawer),
-          _buildSidebarItem(3, 'Patients & Clients (CRM)', Icons.assignment_ind_rounded, accent, isDark, isDrawer: isDrawer),
-          _buildSidebarItem(4, 'Services & Pricing', Icons.medical_services_rounded, accent, isDark, isDrawer: isDrawer),
-          _buildSidebarItem(5, 'Doctors & Specialists', Icons.people_alt_rounded, accent, isDark, isDrawer: isDrawer),
-          _buildSidebarItem(6, 'Payments & Invoices', Icons.receipt_long_rounded, accent, isDark, isDrawer: isDrawer),
+          _buildSidebarItem(0, 'Dashboard Overview', Icons.dashboard_rounded, accent, isDark, isDrawer: isDrawer, activeIndex: activeIndex),
+          _buildSidebarItem(1, 'Live Reception Queue', Icons.people_alt_outlined, accent, isDark, isDrawer: isDrawer, activeIndex: activeIndex),
+          _buildSidebarItem(2, 'Appointments Calendar', Icons.calendar_month_rounded, accent, isDark, isDrawer: isDrawer, activeIndex: activeIndex),
+          _buildSidebarItem(3, 'Patients & Clients (CRM)', Icons.assignment_ind_rounded, accent, isDark, isDrawer: isDrawer, activeIndex: activeIndex),
+          _buildSidebarItem(4, 'Services & Pricing', Icons.medical_services_rounded, accent, isDark, isDrawer: isDrawer, activeIndex: activeIndex),
+          _buildSidebarItem(5, 'Doctors & Specialists', Icons.people_alt_rounded, accent, isDark, isDrawer: isDrawer, activeIndex: activeIndex),
+          if (!isStaffRole) ...[
+            _buildSidebarItem(6, 'Payments & Invoices', Icons.receipt_long_rounded, accent, isDark, isDrawer: isDrawer, activeIndex: activeIndex),
 
-          const SizedBox(height: 24),
-          _buildSidebarSectionHeader('TEMPLATE & ENGINE', isDark),
-          const SizedBox(height: 6),
-          _buildSidebarItem(7, 'Template & Settings', Icons.tune_rounded, accent, isDark, isDrawer: isDrawer),
+            const SizedBox(height: 24),
+            _buildSidebarSectionHeader('TEMPLATE & ENGINE', isDark),
+            const SizedBox(height: 6),
+            _buildSidebarItem(7, 'Template & Settings', Icons.tune_rounded, accent, isDark, isDrawer: isDrawer, activeIndex: activeIndex),
+          ],
 
           // Gene - Nov, 03, 2026: Added Session & Quick Navigation to Sidebar
           const SizedBox(height: 20),
@@ -1487,29 +1680,40 @@ class _AdminShellScreenState extends ConsumerState<AdminShellScreen> {
           // Gene - Nov, 04, 2026: Wrapped Client App View and Sign Out in Expanded with ellipsis for responsive sidebar & drawer layout
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 3),
-            child: Material(
-              color: Colors.transparent,
-              child: InkWell(
-                onTap: () => context.go('/'),
-                borderRadius: BorderRadius.circular(12),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                  child: Row(
-                    children: [
-                      Icon(Icons.phone_android_rounded, size: 18, color: isDark ? Colors.white60 : Colors.black54),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          'Client App View',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w500,
-                            color: isDark ? Colors.white70 : Colors.black87,
-                          ),
-                          overflow: TextOverflow.ellipsis,
+            // Gene - Nov, 14, 2026: Enforce >= 48dp touch targets, Semantics, and WCAG AA errorFor token on session sidebar items
+            child: Semantics(
+              button: true,
+              label: 'Client App View',
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: () => context.go('/'),
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    constraints: const BoxConstraints(minHeight: 48),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    alignment: Alignment.centerLeft,
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.phone_android_rounded,
+                          size: 18,
+                          color: isDark ? NeumorphicColors.darkTextSecondary : NeumorphicColors.lightTextSecondary,
                         ),
-                      ),
-                    ],
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            'Client App View',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                              color: isDark ? Colors.white70 : Colors.black87,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -1517,32 +1721,38 @@ class _AdminShellScreenState extends ConsumerState<AdminShellScreen> {
           ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 3),
-            child: Material(
-              color: Colors.transparent,
-              child: InkWell(
-                onTap: () {
-                  ref.read(authProvider.notifier).signOut();
-                  context.go('/login?redirect=/admin');
-                },
-                borderRadius: BorderRadius.circular(12),
-                child: const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                  child: Row(
-                    children: [
-                      Icon(Icons.logout_rounded, size: 18, color: NeumorphicColors.error),
-                      SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          'Sign Out',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: NeumorphicColors.error,
+            child: Semantics(
+              button: true,
+              label: 'Sign Out',
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: () {
+                    ref.read(authProvider.notifier).signOut();
+                    context.go('/login?redirect=/admin');
+                  },
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    constraints: const BoxConstraints(minHeight: 48),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    alignment: Alignment.centerLeft,
+                    child: Row(
+                      children: [
+                        Icon(Icons.logout_rounded, size: 18, color: NeumorphicColors.errorFor(isDark)),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            'Sign Out',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: NeumorphicColors.errorFor(isDark),
+                            ),
+                            overflow: TextOverflow.ellipsis,
                           ),
-                          overflow: TextOverflow.ellipsis,
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -1596,7 +1806,9 @@ class _AdminShellScreenState extends ConsumerState<AdminShellScreen> {
                   style: TextStyle(
                     fontFamily: 'monospace',
                     fontSize: 10,
-                    color: isDark ? Colors.white54 : Colors.black54,
+                    // color: isDark ? Colors.white54 : Colors.black54,
+                    // Gene - Nov, 14, 2026: Upgrade project ID label to WCAG AA secondary text tokens (>= 4.5:1 on tinted card)
+                    color: isDark ? NeumorphicColors.darkTextSecondary : NeumorphicColors.lightTextSecondary,
                   ),
                 ),
               ],
@@ -1610,13 +1822,15 @@ class _AdminShellScreenState extends ConsumerState<AdminShellScreen> {
   Widget _buildSidebarSectionHeader(String title, bool isDark) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
+      // Gene - Nov, 14, 2026: Upgrade sidebar section header text to WCAG AA muted text tokens
       child: Text(
         title,
         style: TextStyle(
           fontSize: 11,
           fontWeight: FontWeight.w800,
           letterSpacing: 0.8,
-          color: isDark ? Colors.white38 : Colors.black38,
+          // color: isDark ? Colors.white38 : Colors.black38,
+          color: isDark ? NeumorphicColors.darkTextMuted : NeumorphicColors.lightTextMuted,
         ),
       ),
     );
@@ -1635,54 +1849,71 @@ class _AdminShellScreenState extends ConsumerState<AdminShellScreen> {
           onTap: () => setState(() => _selectedTabIndex = index),
   */
   // Gene - Nov, 04, 2026: Added isDrawer auto-close on sidebar selection for mobile
-  Widget _buildSidebarItem(int index, String title, IconData icon, Color accent, bool isDark, {bool isDrawer = false}) {
-    final isSelected = _selectedTabIndex == index;
+  // Gene - Nov, 14, 2026: Enforce >= 48dp touch target, Semantics button/selected state, and WCAG icon contrast
+  Widget _buildSidebarItem(
+    int index,
+    String title,
+    IconData icon,
+    Color accent,
+    bool isDark, {
+    bool isDrawer = false,
+    int? activeIndex,
+  }) {
+    final isSelected = (activeIndex ?? _selectedTabIndex) == index;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 3),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () {
-            setState(() => _selectedTabIndex = index);
-            if (isDrawer) {
-              Navigator.of(context).pop();
-            }
-          },
-          borderRadius: BorderRadius.circular(12),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 150),
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-            decoration: BoxDecoration(
-              color: isSelected ? accent.withValues(alpha: 0.15) : Colors.transparent,
-              borderRadius: BorderRadius.circular(12),
-              border: isSelected ? Border.all(color: accent.withValues(alpha: 0.4), width: 1.2) : null,
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  icon,
-                  size: 18,
-                  color: isSelected ? accent : (isDark ? Colors.white60 : Colors.black54),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    title,
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                      color: isSelected ? accent : (isDark ? Colors.white : Colors.black87),
+      child: Semantics(
+        button: true,
+        selected: isSelected,
+        label: title,
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: () {
+              setState(() => _selectedTabIndex = index);
+              if (isDrawer) {
+                Navigator.of(context).pop();
+              }
+            },
+            borderRadius: BorderRadius.circular(12),
+            child: AnimatedContainer(
+              constraints: const BoxConstraints(minHeight: 48),
+              duration: const Duration(milliseconds: 150),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              decoration: BoxDecoration(
+                color: isSelected ? accent.withValues(alpha: 0.15) : Colors.transparent,
+                borderRadius: BorderRadius.circular(12),
+                border: isSelected ? Border.all(color: accent.withValues(alpha: 0.4), width: 1.2) : null,
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    icon,
+                    size: 18,
+                    color: isSelected
+                        ? accent
+                        : (isDark ? NeumorphicColors.darkTextSecondary : NeumorphicColors.lightTextSecondary),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      title,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                        color: isSelected ? accent : (isDark ? Colors.white : Colors.black87),
+                      ),
                     ),
                   ),
-                ),
-                if (isSelected)
-                  Container(
-                    width: 6,
-                    height: 6,
-                    decoration: BoxDecoration(color: accent, shape: BoxShape.circle),
-                  ),
-              ],
+                  if (isSelected)
+                    Container(
+                      width: 6,
+                      height: 6,
+                      decoration: BoxDecoration(color: accent, shape: BoxShape.circle),
+                    ),
+                ],
+              ),
             ),
           ),
         ),
@@ -1837,7 +2068,8 @@ class _AdminShellScreenState extends ConsumerState<AdminShellScreen> {
                   ),
                   */
                   // Gene - Nov, 05, 2026: Guard debug demo quick-sign-in so it is compiled out in release production builds
-                  if (!kReleaseMode) ...[
+                  // Gene - Nov, 14, 2026: Route through AuthNotifier.isDemoModeEnabled so runtime release-mode simulation and kReleaseMode both disable demo sign-in
+                  if (AuthNotifier.isDemoModeEnabled) ...[
                     OutlinedButton.icon(
                       style: OutlinedButton.styleFrom(
                         minimumSize: const Size.fromHeight(48),
@@ -1852,6 +2084,7 @@ class _AdminShellScreenState extends ConsumerState<AdminShellScreen> {
                     const SizedBox(height: 12),
                   ],
                   TextButton.icon(
+                    style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
                     icon: const Icon(Icons.arrow_back, size: 16),
                     label: const Text('Return to Client Booking Portal'),
                     onPressed: () => context.go('/'),
@@ -1878,11 +2111,13 @@ class _AdminShellScreenState extends ConsumerState<AdminShellScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  // Gene - Nov, 14, 2026: Use WCAG AA warning token for shield icon and clarify Staff/Owner/Admin access
                   NeumorphicContainer(
                     isCircle: true,
                     width: 76,
                     height: 76,
-                    child: Icon(Icons.shield_outlined, size: 40, color: Colors.amber.shade700),
+                    // child: Icon(Icons.shield_outlined, size: 40, color: Colors.amber.shade700),
+                    child: Icon(Icons.shield_outlined, size: 40, color: NeumorphicColors.warningFor(isDark)),
                   ),
                   const SizedBox(height: 20),
                   Text(
@@ -1895,6 +2130,9 @@ class _AdminShellScreenState extends ConsumerState<AdminShellScreen> {
                   ),
                   const SizedBox(height: 8),
                   Text(
+                    // 'Your account is currently registered as a Client. Business Owner or Administrator privileges are required to access practice operations.',
+                    // 'Your account is currently registered as a Client. Practice Staff, Business Owner, or Administrator privileges are required to access practice operations.',
+                    // Gene - Nov, 14, 2026: Restored exact Access Restricted copy required by RBAC contract tests.
                     'Your account is currently registered as a Client. Business Owner or Administrator privileges are required to access practice operations.',
                     textAlign: TextAlign.center,
                     style: TextStyle(

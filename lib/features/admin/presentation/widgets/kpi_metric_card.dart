@@ -73,11 +73,18 @@ class KpiMetricCard extends StatelessWidget {
           ),
           if (subtitle != null) ...[
             const SizedBox(height: 2),
-            Text(
-              subtitle!,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontSize: 10, color: isDark ? Colors.white38 : Colors.black38),
+            // Gene - Nov, 14, 2026: Upgrade KPI subtitle to WCAG AA muted token and protect tight tile height with Flexible
+            Flexible(
+              child: Text(
+                subtitle!,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                // style: TextStyle(fontSize: 10, color: isDark ? Colors.white38 : Colors.black38),
+                style: TextStyle(
+                  fontSize: 10,
+                  color: isDark ? NeumorphicColors.darkTextMuted : NeumorphicColors.lightTextMuted,
+                ),
+              ),
             ),
           ],
         ],

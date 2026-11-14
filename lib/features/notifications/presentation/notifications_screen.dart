@@ -77,13 +77,9 @@ class NotificationsScreen extends ConsumerWidget {
 
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 14),
+                    /*
+                    // Gene - Nov 07, 2026: Notification GestureDetector missing Semantics wrapper and used overloaded isBusinessOwner
                     child: GestureDetector(
-                      /*
-                      onTap: () {
-                        ref.read(notificationsProvider.notifier).markAsRead(notif.id);
-                      },
-                      */
-                      // Gene - Nov 07, 2026: Mark notification read and navigate to appointments or admin dashboard
                       onTap: () {
                         ref.read(notificationsProvider.notifier).markAsRead(notif.id);
                         if (notif.bookingId != null) {
@@ -94,60 +90,82 @@ class NotificationsScreen extends ConsumerWidget {
                           }
                         }
                       },
-                      child: NeumorphicContainer(
-                        borderRadius: 18.0,
-                        isInset: notif.isRead,
-                        border: !notif.isRead ? Border.all(color: accent.withValues(alpha: 0.5), width: 1.5) : null,
-                        padding: const EdgeInsets.all(16),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            NeumorphicContainer(
-                              isCircle: true,
-                              width: 38,
-                              height: 38,
-                              child: Icon(
-                                notif.type.contains('confirmed') ? Icons.check_circle_outline : Icons.notifications_active_outlined,
-                                size: 20,
-                                color: accent,
+                    */
+                    // Gene - Nov, 14, 2026: Added Semantics(button: true) and routed portal notification taps via canAccessAdminPortal
+                    child: Semantics(
+                      button: true,
+                      label: '${notif.title}. ${notif.body}',
+                      child: GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: () {
+                          ref.read(notificationsProvider.notifier).markAsRead(notif.id);
+                          if (notif.bookingId != null) {
+                            if (authState.canAccessAdminPortal) {
+                              context.go('/admin');
+                            } else {
+                              context.push('/my-bookings');
+                            }
+                          }
+                        },
+                        child: NeumorphicContainer(
+                          borderRadius: 18.0,
+                          isInset: notif.isRead,
+                          border: !notif.isRead ? Border.all(color: accent.withValues(alpha: 0.5), width: 1.5) : null,
+                          padding: const EdgeInsets.all(16),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              NeumorphicContainer(
+                                isCircle: true,
+                                width: 38,
+                                height: 38,
+                                child: Icon(
+                                  notif.type.contains('confirmed') ? Icons.check_circle_outline : Icons.notifications_active_outlined,
+                                  size: 20,
+                                  color: accent,
+                                ),
                               ),
-                            ),
-                            const SizedBox(width: 14),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Expanded(
-                                        child: Text(
-                                          notif.title,
-                                          style: TextStyle(
-                                            fontSize: 15,
-                                            fontWeight: notif.isRead ? FontWeight.w600 : FontWeight.w700,
-                                            color: isDark ? Colors.white : Colors.black87,
+                              const SizedBox(width: 14),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Expanded(
+                                          child: Text(
+                                            notif.title,
+                                            style: TextStyle(
+                                              fontSize: 15,
+                                              fontWeight: notif.isRead ? FontWeight.w600 : FontWeight.w700,
+                                              color: isDark ? Colors.white : Colors.black87,
+                                            ),
                                           ),
                                         ),
-                                      ),
-                                      Text(
-                                        DateFormat('h:mm a').format(notif.createdAt),
-                                        style: TextStyle(fontSize: 11, color: isDark ? Colors.white38 : Colors.black38),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    notif.body,
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      color: isDark ? NeumorphicColors.darkTextSecondary : NeumorphicColors.lightTextSecondary,
+                                        Text(
+                                          DateFormat('h:mm a').format(notif.createdAt),
+                                          // Gene - Nov, 14, 2026: Upgraded timestamp contrast from white38/black38 to WCAG AA muted tokens
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            color: isDark ? NeumorphicColors.darkTextMuted : NeumorphicColors.lightTextMuted,
+                                          ),
+                                        ),
+                                      ],
                                     ),
-                                  ),
-                                ],
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      notif.body,
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        color: isDark ? NeumorphicColors.darkTextSecondary : NeumorphicColors.lightTextSecondary,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
                     ),

@@ -36,6 +36,9 @@ class HomeDiscoveryScreen extends ConsumerWidget {
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final accent = isDark ? NeumorphicColors.tealLight : NeumorphicColors.tealPrimary;
+    // Gene - Nov, 14, 2026: Detect compact mobile widths so header consolidates secondary actions and avoids 320px/375px horizontal crowding
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final isCompactHeader = screenWidth < 460;
 
     /*
     // Gene - Nov, 03, 2026: Hardcoded static categories
@@ -51,7 +54,9 @@ class HomeDiscoveryScreen extends ConsumerWidget {
             // App Bar with Brand Logo, Theme Toggle, and Notifications (Client Only)
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                // padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                // Gene - Nov, 14, 2026: Responsive header padding & compact overflow menu (< 460px) to prevent 320px@1.5x overflow and preserve crisp 'BookIt' header width
+                padding: EdgeInsets.symmetric(horizontal: screenWidth < 360 ? 12 : 20, vertical: 12),
                 child: Row(
                   children: [
                     /*
@@ -65,14 +70,17 @@ class HomeDiscoveryScreen extends ConsumerWidget {
                     ),
                     */
                     // Gene - Nov, 08, 2026: Replaced placeholder icon with minimalist Geometric 'B' + Checkmark BookItLogo
-                    const BookItLogo(size: 44),
-                    const SizedBox(width: 12),
+                    BookItLogo(size: isCompactHeader ? 36 : 44),
+                    SizedBox(width: isCompactHeader ? 8 : 12),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
                             'BookIt',
+                            // Gene - Nov, 14, 2026: Added ellipsis overflow guard for narrow 320px @ 1.5x viewports
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                             style: TextStyle(
                               fontSize: 22,
                               fontWeight: FontWeight.w800,
@@ -82,6 +90,8 @@ class HomeDiscoveryScreen extends ConsumerWidget {
                           ),
                           Text(
                             'Find clinics, doctors & services',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                             style: TextStyle(
                               fontSize: 12,
                               color: isDark ? NeumorphicColors.darkTextSecondary : NeumorphicColors.lightTextSecondary,
@@ -91,83 +101,59 @@ class HomeDiscoveryScreen extends ConsumerWidget {
                       ),
                     ),
 
-                    // Web Only: Link to Admin Portal
-                    /*
-                    // Gene - Nov, 03, 2026: Unconditional wide TextButton.icon
-                    if (kIsWeb) ...[
-                      TextButton.icon(
-                        icon: const Icon(Icons.admin_panel_settings_outlined, size: 16),
-                        label: const Text('Admin Portal'),
-                        style: TextButton.styleFrom(foregroundColor: accent),
-                        onPressed: () => context.go('/admin'),
-                      ),
-                      const SizedBox(width: 4),
-                    ],
-                    */
-                    /*
-                    // Gene - Nov, 04, 2026: Responsive Admin Portal button (compact icon on mobile, full label on wide screens)
-                    if (kIsWeb) ...[
-                      if (MediaQuery.of(context).size.width < 600)
-                        IconButton(
-                          tooltip: 'Admin Portal',
-                          icon: Icon(Icons.admin_panel_settings_outlined, color: accent),
-                          onPressed: () => context.go('/admin'),
-                        )
-                      else ...[
-                        TextButton.icon(
-                          icon: const Icon(Icons.admin_panel_settings_outlined, size: 16),
-                          label: const Text('Admin Portal'),
-                          style: TextButton.styleFrom(foregroundColor: accent),
-                          onPressed: () => context.go('/admin'),
-                        ),
-                        const SizedBox(width: 4),
+                    if (!isCompactHeader) ...[
+                      // Web Only: Link to Admin Portal
+                      // Gene - Nov, 03, 2026: Unconditional wide TextButton.icon replaced by role-gated responsive entry
+                      // if (kIsWeb) ...
+
+                      // Gene - Nov, 05, 2026: Universal cross-platform Admin Portal entrypoint (updated to canAccessAdminPortal for RBAC clarity)
+                      if (authState.canAccessAdminPortal || kIsWeb) ...[
+                        if (screenWidth < 600)
+                          IconButton(
+                            tooltip: 'Admin Portal',
+                            icon: Icon(Icons.admin_panel_settings_outlined, color: accent),
+                            onPressed: () => context.go('/admin'),
+                          )
+                        else ...[
+                          TextButton.icon(
+                            icon: const Icon(Icons.admin_panel_settings_outlined, size: 16),
+                            label: const Text('Admin Portal'),
+                            style: TextButton.styleFrom(foregroundColor: accent),
+                            onPressed: () => context.go('/admin'),
+                          ),
+                          const SizedBox(width: 4),
+                        ],
                       ],
-                    ],
-                    */
 
-                    // Gene - Nov, 05, 2026: Universal cross-platform Admin Portal entrypoint for business owners and testers
-                    if (authState.isBusinessOwner || kIsWeb) ...[
-                      if (MediaQuery.of(context).size.width < 600)
+                      // Gene - Nov, 14, 2026: Gate Demo Persona Switcher button behind AuthNotifier.isDemoModeEnabled
+                      if (AuthNotifier.isDemoModeEnabled)
                         IconButton(
-                          tooltip: 'Admin Portal',
-                          icon: Icon(Icons.admin_panel_settings_outlined, color: accent),
-                          onPressed: () => context.go('/admin'),
-                        )
-                      else ...[
-                        TextButton.icon(
-                          icon: const Icon(Icons.admin_panel_settings_outlined, size: 16),
-                          label: const Text('Admin Portal'),
-                          style: TextButton.styleFrom(foregroundColor: accent),
-                          onPressed: () => context.go('/admin'),
+                          tooltip: 'Switch Demo Persona',
+                          icon: Icon(Icons.switch_account_outlined, color: accent),
+                          onPressed: () => DemoPersonaSwitcherDialog.show(context),
                         ),
-                        const SizedBox(width: 4),
-                      ],
-                    ],
 
-                    // Gene - Nov, 05, 2026: Quick Demo Persona Switcher dialog trigger
-                    IconButton(
-                      tooltip: 'Switch Demo Persona',
-                      icon: Icon(Icons.switch_account_outlined, color: accent),
-                      onPressed: () => DemoPersonaSwitcherDialog.show(context),
-                    ),
-
-                    // Theme Toggle Button (Light/Dark Mode)
-                    IconButton(
-                      tooltip: isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode',
-                      icon: Icon(
-                        isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
-                        color: isDark ? Colors.amber : NeumorphicColors.lightTextSecondary,
+                      // Theme Toggle Button (Light/Dark Mode)
+                      IconButton(
+                        tooltip: isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode',
+                        icon: Icon(
+                          isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
+                          color: isDark ? Colors.amber : NeumorphicColors.lightTextSecondary,
+                        ),
+                        onPressed: () {
+                          ref.read(themeModeProvider.notifier).toggleTheme();
+                        },
                       ),
-                      onPressed: () {
-                        ref.read(themeModeProvider.notifier).toggleTheme();
-                      },
-                    ),
+                    ],
 
                     // Notifications Button with Unread Badge
                     Stack(
                       clipBehavior: Clip.none,
                       children: [
+                        // IconButton(icon: const Icon(Icons.notifications_outlined), onPressed: () => context.push('/notifications')),
+                        // Gene - Nov, 14, 2026: Added accessible tooltip and ExcludeSemantics on decorative badge count
                         IconButton(
+                          tooltip: unreadCount > 0 ? 'Notifications ($unreadCount unread)' : 'Notifications',
                           icon: const Icon(Icons.notifications_outlined),
                           onPressed: () => context.push('/notifications'),
                         ),
@@ -175,15 +161,19 @@ class HomeDiscoveryScreen extends ConsumerWidget {
                           Positioned(
                             right: 8,
                             top: 8,
-                            child: Container(
-                              padding: const EdgeInsets.all(4),
-                              decoration: const BoxDecoration(
-                                color: NeumorphicColors.error,
-                                shape: BoxShape.circle,
-                              ),
-                              child: Text(
-                                '$unreadCount',
-                                style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                            child: ExcludeSemantics(
+                              child: IgnorePointer(
+                                child: Container(
+                                  padding: const EdgeInsets.all(4),
+                                  decoration: const BoxDecoration(
+                                    color: NeumorphicColors.error,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Text(
+                                    '$unreadCount',
+                                    style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                                  ),
+                                ),
                               ),
                             ),
                           ),
@@ -205,6 +195,52 @@ class HomeDiscoveryScreen extends ConsumerWidget {
                       ),
                       onPressed: () => context.push('/profile'),
                     ),
+
+                    if (isCompactHeader)
+                      PopupMenuButton<String>(
+                        tooltip: 'More options',
+                        icon: Icon(
+                          Icons.more_vert_rounded,
+                          color: isDark ? NeumorphicColors.darkTextSecondary : NeumorphicColors.lightTextSecondary,
+                        ),
+                        onSelected: (value) {
+                          if (value == 'admin') {
+                            context.go('/admin');
+                          } else if (value == 'demo') {
+                            DemoPersonaSwitcherDialog.show(context);
+                          } else if (value == 'theme') {
+                            ref.read(themeModeProvider.notifier).toggleTheme();
+                          }
+                        },
+                        itemBuilder: (_) => [
+                          if (authState.canAccessAdminPortal || kIsWeb)
+                            const PopupMenuItem(
+                              value: 'admin',
+                              child: ListTile(
+                                dense: true,
+                                leading: Icon(Icons.admin_panel_settings_outlined),
+                                title: Text('Admin Portal'),
+                              ),
+                            ),
+                          if (AuthNotifier.isDemoModeEnabled)
+                            const PopupMenuItem(
+                              value: 'demo',
+                              child: ListTile(
+                                dense: true,
+                                leading: Icon(Icons.switch_account_outlined),
+                                title: Text('Switch Demo Persona'),
+                              ),
+                            ),
+                          PopupMenuItem(
+                            value: 'theme',
+                            child: ListTile(
+                              dense: true,
+                              leading: Icon(isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined),
+                              title: Text(isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'),
+                            ),
+                          ),
+                        ],
+                      ),
                   ],
                 ),
               ),
@@ -272,9 +308,16 @@ class HomeDiscoveryScreen extends ConsumerWidget {
             ),
             */
             // Gene - Nov, 04, 2026: Dynamic categories filter bar loaded from businessCategoriesProvider
+            /*
+            // Gene - Nov, 04, 2026: Fixed 58px height clipped 48dp chips + shadows when scaled to 1.5x
             SliverToBoxAdapter(
               child: SizedBox(
                 height: 58,
+            */
+            // Gene - Nov, 14, 2026: Dynamically scale category chip strip height with TextScaler so 48dp+ chips never overflow vertically at 1.5x
+            SliverToBoxAdapter(
+              child: SizedBox(
+                height: (68 * MediaQuery.textScalerOf(context).scale(1.0)).clamp(68.0, 96.0),
                 child: categoriesAsync.when(
                   loading: () => const Center(child: LinearProgressIndicator()),
                   error: (_, _) => const SizedBox.shrink(),
@@ -329,10 +372,28 @@ class HomeDiscoveryScreen extends ConsumerWidget {
                 ),
                 */
                 // Gene - Nov 06, 2026: Wrapped section header title in Expanded with ellipsis to prevent RenderFlex overflow on constrained mobile viewports
+                /*
+                // Gene - Nov 06, 2026: Sub-48dp List/Map InkWell toggle pills failed WCAG tap target and contrast checks in dark mode
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Expanded(
+                    Expanded(...),
+                    const SizedBox(width: 8),
+                    Container(... 'List' / 'Map' ...)
+                  ],
+                ),
+                */
+                // Gene - Nov, 14, 2026: Responsive Wrap header + 48dp min-height List/Map segmented pills with >= 4.5:1 active (#0A665E / #FFFFFF) and inactive contrast & Semantics
+                child: Wrap(
+                  alignment: WrapAlignment.spaceBetween,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    ConstrainedBox(
+                      constraints: BoxConstraints(
+                        maxWidth: (MediaQuery.sizeOf(context).width - 170).clamp(120.0, 600.0),
+                      ),
                       child: Text(
                         'Available Clinics & Services',
                         style: TextStyle(
@@ -344,71 +405,94 @@ class HomeDiscoveryScreen extends ConsumerWidget {
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    /*
-                    // Original static text
-                    Text(
-                      'Showing active',
-                      style: TextStyle(fontSize: 12, color: isDark ? Colors.white38 : Colors.black38),
-                    ),
-                    */
-                    // Gene - Nov 06, 2026: Segmented toggle for List View vs OpenStreetMap Map View
                     Container(
                       decoration: BoxDecoration(
                         color: isDark ? const Color(0xFF1E2330) : const Color(0xFFE2E8F0),
-                        borderRadius: BorderRadius.circular(10),
+                        borderRadius: BorderRadius.circular(12),
                       ),
                       padding: const EdgeInsets.all(2),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          InkWell(
-                            onTap: () => ref.read(isDiscoveryMapViewProvider.notifier).state = false,
-                            borderRadius: BorderRadius.circular(8),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: !isMapView ? (isDark ? const Color(0xFF2D3748) : Colors.white) : Colors.transparent,
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Row(
-                                children: [
-                                  Icon(Icons.view_list_rounded, size: 14, color: !isMapView ? accent : (isDark ? Colors.white54 : Colors.black45)),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    'List',
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      fontWeight: !isMapView ? FontWeight.w700 : FontWeight.w500,
-                                      color: !isMapView ? accent : (isDark ? Colors.white54 : Colors.black45),
+                          Semantics(
+                            button: true,
+                            selected: !isMapView,
+                            label: 'List view',
+                            child: GestureDetector(
+                              behavior: HitTestBehavior.opaque,
+                              onTap: () => ref.read(isDiscoveryMapViewProvider.notifier).state = false,
+                              child: Container(
+                                constraints: const BoxConstraints(minWidth: 56, minHeight: 48),
+                                alignment: Alignment.center,
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: !isMapView ? NeumorphicColors.tealPrimary : Colors.transparent,
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.view_list_rounded,
+                                      size: 16,
+                                      color: !isMapView
+                                          ? Colors.white
+                                          : (isDark ? NeumorphicColors.darkTextSecondary : NeumorphicColors.lightTextSecondary),
                                     ),
-                                  ),
-                                ],
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      'List',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: !isMapView ? FontWeight.w700 : FontWeight.w500,
+                                        color: !isMapView
+                                            ? Colors.white
+                                            : (isDark ? NeumorphicColors.darkTextSecondary : NeumorphicColors.lightTextSecondary),
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
                           ),
-                          InkWell(
-                            onTap: () => ref.read(isDiscoveryMapViewProvider.notifier).state = true,
-                            borderRadius: BorderRadius.circular(8),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: isMapView ? (isDark ? const Color(0xFF2D3748) : Colors.white) : Colors.transparent,
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Row(
-                                children: [
-                                  Icon(Icons.map_rounded, size: 14, color: isMapView ? accent : (isDark ? Colors.white54 : Colors.black45)),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    'Map',
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      fontWeight: isMapView ? FontWeight.w700 : FontWeight.w500,
-                                      color: isMapView ? accent : (isDark ? Colors.white54 : Colors.black45),
+                          Semantics(
+                            button: true,
+                            selected: isMapView,
+                            label: 'Map view',
+                            child: GestureDetector(
+                              behavior: HitTestBehavior.opaque,
+                              onTap: () => ref.read(isDiscoveryMapViewProvider.notifier).state = true,
+                              child: Container(
+                                constraints: const BoxConstraints(minWidth: 56, minHeight: 48),
+                                alignment: Alignment.center,
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: isMapView ? NeumorphicColors.tealPrimary : Colors.transparent,
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.map_rounded,
+                                      size: 16,
+                                      color: isMapView
+                                          ? Colors.white
+                                          : (isDark ? NeumorphicColors.darkTextSecondary : NeumorphicColors.lightTextSecondary),
                                     ),
-                                  ),
-                                ],
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      'Map',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: isMapView ? FontWeight.w700 : FontWeight.w500,
+                                        color: isMapView
+                                            ? Colors.white
+                                            : (isDark ? NeumorphicColors.darkTextSecondary : NeumorphicColors.lightTextSecondary),
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
                           ),
@@ -486,11 +570,18 @@ class HomeDiscoveryScreen extends ConsumerWidget {
                         final business = businesses[index];
                         return Padding(
                           padding: const EdgeInsets.only(bottom: 18),
+                          /*
+                          // Gene - Nov, 05, 2026: Direct GestureDetector without semantic label
                           child: GestureDetector(
                             onTap: () => context.push('/business/${business.id}'),
                             child: NeumorphicContainer(
-                              borderRadius: 22.0,
-                              padding: const EdgeInsets.all(16),
+                          */
+                          // Gene - Nov, 14, 2026: Added Semantics label + onTap forwarding on NeumorphicContainer for accessible business card activation
+                          child: NeumorphicContainer(
+                            semanticLabel: '${business.name}, ${business.category}, rated ${business.ratingAvg.toStringAsFixed(1)}',
+                            onTap: () => context.push('/business/${business.id}'),
+                            borderRadius: 22.0,
+                            padding: const EdgeInsets.all(16),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
@@ -584,12 +675,20 @@ class HomeDiscoveryScreen extends ConsumerWidget {
                                     const SizedBox(height: 4),
                                     Row(
                                       children: [
-                                        Icon(Icons.location_on_outlined, size: 14, color: isDark ? Colors.white54 : Colors.black54),
+                                        Icon(
+                                          Icons.location_on_outlined,
+                                          size: 14,
+                                          color: isDark ? NeumorphicColors.darkTextSecondary : NeumorphicColors.lightTextSecondary,
+                                        ),
                                         const SizedBox(width: 4),
                                         Expanded(
                                           child: Text(
                                             '${business.address!}, ${business.city ?? ''}',
-                                            style: TextStyle(fontSize: 12, color: isDark ? Colors.white60 : Colors.black54),
+                                            // Gene - Nov, 14, 2026: Upgraded address caption contrast to WCAG AA secondary tokens
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              color: isDark ? NeumorphicColors.darkTextSecondary : NeumorphicColors.lightTextSecondary,
+                                            ),
                                             maxLines: 1,
                                             overflow: TextOverflow.ellipsis,
                                           ),
@@ -673,7 +772,6 @@ class HomeDiscoveryScreen extends ConsumerWidget {
                                 ],
                               ),
                             ),
-                          ),
                         );
                       },
                       childCount: businesses.length,
@@ -686,58 +784,64 @@ class HomeDiscoveryScreen extends ConsumerWidget {
         ),
       ),
       // Gene - Nov, 03, 2026: 4-destination mobile BottomNavigationBar with Profile & Auth support
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: 0,
-        indicatorColor: accent.withValues(alpha: 0.18),
-        onDestinationSelected: (index) {
-          if (index == 1) {
-            context.push('/my-bookings');
-          } else if (index == 2) {
-            context.push('/notifications');
-          } else if (index == 3) {
-            context.push('/profile');
-          }
-        },
-        destinations: [
-          NavigationDestination(
-            icon: const Icon(Icons.explore_outlined),
-            selectedIcon: Icon(Icons.explore, color: accent),
-            label: 'Explore',
-          ),
-          NavigationDestination(
-            icon: const Icon(Icons.calendar_month_outlined),
-            selectedIcon: Icon(Icons.calendar_month, color: accent),
-            label: 'Appointments',
-          ),
-          NavigationDestination(
-            icon: Stack(
-              clipBehavior: Clip.none,
-              children: [
-                const Icon(Icons.notifications_outlined),
-                if (unreadCount > 0)
-                  Positioned(
-                    top: -2,
-                    right: -2,
-                    child: Container(
-                      width: 8,
-                      height: 8,
-                      decoration: const BoxDecoration(
-                        color: NeumorphicColors.error,
-                        shape: BoxShape.circle,
+      // Gene - Nov, 14, 2026: Clamped NavigationBar text scaling (max 1.15x) to avoid label clipping at 1.5x and added ExcludeSemantics on badge dot
+      bottomNavigationBar: MediaQuery.withClampedTextScaling(
+        maxScaleFactor: 1.15,
+        child: NavigationBar(
+          selectedIndex: 0,
+          indicatorColor: accent.withValues(alpha: 0.18),
+          onDestinationSelected: (index) {
+            if (index == 1) {
+              context.push('/my-bookings');
+            } else if (index == 2) {
+              context.push('/notifications');
+            } else if (index == 3) {
+              context.push('/profile');
+            }
+          },
+          destinations: [
+            NavigationDestination(
+              icon: const Icon(Icons.explore_outlined),
+              selectedIcon: Icon(Icons.explore, color: accent),
+              label: 'Explore',
+            ),
+            NavigationDestination(
+              icon: const Icon(Icons.calendar_month_outlined),
+              selectedIcon: Icon(Icons.calendar_month, color: accent),
+              label: 'Appointments',
+            ),
+            NavigationDestination(
+              icon: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  const Icon(Icons.notifications_outlined),
+                  if (unreadCount > 0)
+                    Positioned(
+                      top: -2,
+                      right: -2,
+                      child: ExcludeSemantics(
+                        child: Container(
+                          width: 8,
+                          height: 8,
+                          decoration: const BoxDecoration(
+                            color: NeumorphicColors.error,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
                       ),
                     ),
-                  ),
-              ],
+                ],
+              ),
+              selectedIcon: Icon(Icons.notifications, color: accent),
+              label: 'Alerts',
             ),
-            selectedIcon: Icon(Icons.notifications, color: accent),
-            label: 'Alerts',
-          ),
-          NavigationDestination(
-            icon: const Icon(Icons.person_outline),
-            selectedIcon: Icon(Icons.person, color: accent),
-            label: 'Profile',
-          ),
-        ],
+            NavigationDestination(
+              icon: const Icon(Icons.person_outline),
+              selectedIcon: Icon(Icons.person, color: accent),
+              label: 'Profile',
+            ),
+          ],
+        ),
       ),
     );
     /*

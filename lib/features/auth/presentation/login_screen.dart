@@ -1,5 +1,6 @@
 // Gene - Nov, 03, 2026: Tactile Neumorphic Login Screen with Quick-Fill Demo buttons and Supabase Auth
-import 'package:flutter/foundation.dart';
+// Gene - Nov, 14, 2026: Removed direct kReleaseMode import in favor of unified AuthNotifier.isDemoModeEnabled
+// import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -32,6 +33,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     super.dispose();
   }
 
+  /*
+  // Gene - Nov, 03, 2026: Original sign-in & forgot-password handlers without email regex/min-length checks or safe controller disposal
   void _handleSignIn() async {
     final email = _emailController.text.trim();
     final password = _passwordController.text;
@@ -86,6 +89,105 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     SnackBar(content: Text('Reset email sent to ${resetEmailCtrl.text}')),
                   );
                 }
+              },
+              child: const Text('Send Reset Link'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+  */
+  // Gene - Nov, 14, 2026: Added email regex + >= 6 char password validation, canAccessAdminPortal routing, and leak-free forgot-password dialog state
+  static final RegExp _emailRegex = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
+  static const Set<String> _demoEmails = {
+    'admin@bookit.dev',
+    'retreat@bookit.dev',
+    'staff@bookit.dev',
+    'client@bookit.dev',
+  };
+
+  void _handleSignIn() async {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
+
+    if (email.isEmpty || password.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter your email and password.')),
+      );
+      return;
+    }
+
+    if (!_emailRegex.hasMatch(email)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter a valid email address.')),
+      );
+      return;
+    }
+
+    final isAllowedDemoEmail = AuthNotifier.isDemoModeEnabled && _demoEmails.contains(email.toLowerCase());
+    if (!isAllowedDemoEmail && password.length < 6) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Password must be at least 6 characters.')),
+      );
+      return;
+    }
+
+    final success = await ref.read(authProvider.notifier).signIn(email, password);
+    if (success && mounted) {
+      final user = ref.read(authProvider).user;
+      if (widget.redirectPath != null) {
+        context.go(widget.redirectPath!);
+      } else if (user?.canAccessAdminPortal == true) {
+        context.go('/admin');
+      } else {
+        context.go('/');
+      }
+    }
+  }
+
+  void _showForgotPasswordDialog() {
+    String resetEmail = _emailController.text.trim();
+    final messenger = ScaffoldMessenger.of(context);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Reset Password'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('Enter your registered email address to receive password reset instructions.'),
+              const SizedBox(height: 14),
+              TextFormField(
+                initialValue: resetEmail,
+                keyboardType: TextInputType.emailAddress,
+                onChanged: (value) => resetEmail = value,
+                decoration: const InputDecoration(labelText: 'Email Address', border: OutlineInputBorder()),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Cancel')),
+            ElevatedButton(
+              onPressed: () {
+                final trimmed = resetEmail.trim();
+                if (!_emailRegex.hasMatch(trimmed)) {
+                  messenger.showSnackBar(
+                    SnackBar(
+                      content: const Text('Please enter a valid email address.'),
+                      backgroundColor: NeumorphicColors.warningFor(isDark),
+                    ),
+                  );
+                  return;
+                }
+                ref.read(authProvider.notifier).resetPassword(trimmed);
+                Navigator.pop(dialogContext);
+                messenger.showSnackBar(
+                  SnackBar(content: Text('Reset email sent to $trimmed')),
+                );
               },
               child: const Text('Send Reset Link'),
             ),
@@ -156,13 +258,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           Container(
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
+                              /*
+                              // Gene - Nov, 03, 2026: Static red color failed WCAG AA on dark canvas (#181C24)
                               color: NeumorphicColors.error.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(color: NeumorphicColors.error.withValues(alpha: 0.3)),
+                              */
+                              // Gene - Nov, 14, 2026: Theme-aware error banner colors (>= 4.5:1 on Light & Dark)
+                              color: NeumorphicColors.errorFor(isDark).withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: NeumorphicColors.errorFor(isDark).withValues(alpha: 0.3)),
                             ),
                             child: Text(
                               authState.error!,
-                              style: const TextStyle(color: NeumorphicColors.error, fontSize: 13),
+                              style: TextStyle(color: NeumorphicColors.errorFor(isDark), fontSize: 13),
                             ),
                           ),
                           const SizedBox(height: 16),
@@ -183,11 +292,24 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           hintText: 'Enter your password',
                           obscureText: _obscurePassword,
                           prefixIcon: Icon(Icons.lock_outline, size: 18, color: accent),
+                          /*
+                          // Gene - Nov, 03, 2026: Password eye toggle IconButton missing tooltip & accessible contrast
                           suffixIcon: IconButton(
                             icon: Icon(
                               _obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
                               size: 18,
                               color: isDark ? Colors.white54 : Colors.black45,
+                            ),
+                            onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                          ),
+                          */
+                          // Gene - Nov, 14, 2026: Added accessible tooltip and WCAG AA icon contrast
+                          suffixIcon: IconButton(
+                            tooltip: _obscurePassword ? 'Show password' : 'Hide password',
+                            icon: Icon(
+                              _obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                              size: 18,
+                              color: isDark ? NeumorphicColors.darkTextMuted : NeumorphicColors.lightTextMuted,
                             ),
                             onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
                           ),
@@ -217,6 +339,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   ),
                   const SizedBox(height: 28),
 
+                  /*
+                  // Gene - Nov, 05, 2026: Unconditional QUICK DEMO SIGN IN heading exposed even in production builds
                   // Quick Demo Accounts Fill
                   Text(
                     'QUICK DEMO SIGN IN',
@@ -228,6 +352,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     ),
                   ),
                   const SizedBox(height: 12),
+                  */
                   /*
                   // Gene - Nov, 03, 2026: Original 2-button demo sign-in row
                   Row(
@@ -364,8 +489,23 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   ),
                   */
 
-                  // Gene - Nov, 05, 2026: Guarded demo persona matrix behind !kReleaseMode so debug credentials are excluded from production builds
-                  if (!kReleaseMode) ...[
+                  // Gene - Nov, 05, 2026: Guarded demo persona matrix behind !kReleaseMode without gating heading or WCAG AA contrast / 48dp hit targets
+                  // if (!kReleaseMode) ...[
+                  //   Column(...)
+                  // ],
+
+                  // Gene - Nov, 14, 2026: Gate both heading and demo persona buttons behind AuthNotifier.isDemoModeEnabled with >= 4.5:1 WCAG contrast and 48dp touch targets
+                  if (AuthNotifier.isDemoModeEnabled) ...[
+                    Text(
+                      'QUICK DEMO SIGN IN',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1.0,
+                        color: isDark ? NeumorphicColors.darkTextMuted : NeumorphicColors.lightTextMuted,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
                     Column(
                       children: [
                         Row(
@@ -375,10 +515,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                 icon: const Icon(Icons.person, size: 15),
                                 label: const Text('Patient Demo', style: TextStyle(fontSize: 11)),
                                 style: OutlinedButton.styleFrom(
-                                  foregroundColor: isDark ? Colors.white70 : Colors.black87,
-                                  side: BorderSide(color: isDark ? Colors.white24 : Colors.black12),
+                                  foregroundColor: isDark ? NeumorphicColors.darkTextPrimary : NeumorphicColors.lightTextPrimary,
+                                  side: BorderSide(color: isDark ? Colors.white24 : Colors.black26),
                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                  padding: const EdgeInsets.symmetric(vertical: 11),
+                                  padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 8),
+                                  minimumSize: const Size(0, 48),
                                 ),
                                 onPressed: () {
                                   _emailController.text = 'client@bookit.dev';
@@ -397,7 +538,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                   foregroundColor: accent,
                                   side: BorderSide(color: accent.withValues(alpha: 0.5)),
                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                  padding: const EdgeInsets.symmetric(vertical: 11),
+                                  padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 8),
+                                  minimumSize: const Size(0, 48),
                                 ),
                                 onPressed: () {
                                   _emailController.text = 'admin@bookit.dev';
@@ -417,10 +559,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                 icon: const Icon(Icons.hotel_rounded, size: 15),
                                 label: const Text('Retreat Demo', style: TextStyle(fontSize: 11)),
                                 style: OutlinedButton.styleFrom(
-                                  foregroundColor: isDark ? Colors.tealAccent : Colors.teal.shade700,
-                                  side: BorderSide(color: Colors.teal.withValues(alpha: 0.3)),
+                                  foregroundColor: accent,
+                                  side: BorderSide(color: accent.withValues(alpha: 0.45)),
                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                  padding: const EdgeInsets.symmetric(vertical: 11),
+                                  padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 8),
+                                  minimumSize: const Size(0, 48),
                                 ),
                                 onPressed: () {
                                   _emailController.text = 'retreat@bookit.dev';
@@ -436,10 +579,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                 icon: const Icon(Icons.badge_rounded, size: 15),
                                 label: const Text('Staff Demo', style: TextStyle(fontSize: 11)),
                                 style: OutlinedButton.styleFrom(
-                                  foregroundColor: isDark ? Colors.lightBlueAccent : Colors.blue.shade700,
-                                  side: BorderSide(color: Colors.blue.withValues(alpha: 0.3)),
+                                  foregroundColor: NeumorphicColors.infoFor(isDark),
+                                  side: BorderSide(color: NeumorphicColors.infoFor(isDark).withValues(alpha: 0.45)),
                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                  padding: const EdgeInsets.symmetric(vertical: 11),
+                                  padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 8),
+                                  minimumSize: const Size(0, 48),
                                 ),
                                 onPressed: () {
                                   _emailController.text = 'staff@bookit.dev';

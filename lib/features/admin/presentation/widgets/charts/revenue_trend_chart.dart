@@ -196,6 +196,7 @@ class _RevenueTrendChartState extends State<RevenueTrendChart> {
           ],
 
           // Interactive Chart Canvas
+          // Gene - Nov, 14, 2026: Expose semantic label for interactive trend chart canvas
           SizedBox(
             height: 180,
             child: LayoutBuilder(
@@ -207,19 +208,23 @@ class _RevenueTrendChartState extends State<RevenueTrendChart> {
                   onExit: (_) {
                     setState(() => _hoveredIndex = null);
                   },
-                  child: GestureDetector(
-                    onTapDown: (details) {
-                      _updateHoverIndex(details.localPosition.dx, constraints.maxWidth);
-                    },
-                    child: CustomPaint(
-                      size: Size(constraints.maxWidth, 180),
-                      painter: _TrendChartPainter(
-                        dataPoints: widget.dataPoints,
-                        showRevenue: _showRevenue,
-                        hoveredIndex: _hoveredIndex,
-                        accentColor: accent,
-                        gridColor: isDark ? Colors.white10 : Colors.black12,
-                        textSecondary: textSecondary,
+                  child: Semantics(
+                    container: true,
+                    label: 'Revenue and booking trend chart',
+                    child: GestureDetector(
+                      onTapDown: (details) {
+                        _updateHoverIndex(details.localPosition.dx, constraints.maxWidth);
+                      },
+                      child: CustomPaint(
+                        size: Size(constraints.maxWidth, 180),
+                        painter: _TrendChartPainter(
+                          dataPoints: widget.dataPoints,
+                          showRevenue: _showRevenue,
+                          hoveredIndex: _hoveredIndex,
+                          accentColor: accent,
+                          gridColor: isDark ? Colors.white10 : Colors.black12,
+                          textSecondary: textSecondary,
+                        ),
                       ),
                     ),
                   ),
@@ -271,24 +276,38 @@ class _RevenueTrendChartState extends State<RevenueTrendChart> {
     required bool isDark,
     required VoidCallback onTap,
   }) {
-    return Tooltip(
-      message: tooltip,
-      child: GestureDetector(
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-          decoration: BoxDecoration(
-            color: isSelected
-                ? accent
-                : (isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.05)),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Text(
-            label,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w800,
-              color: isSelected ? Colors.white : (isDark ? Colors.white70 : Colors.black87),
+    final textPrimary = isDark ? NeumorphicColors.darkTextPrimary : NeumorphicColors.lightTextPrimary;
+    // Gene - Nov, 14, 2026: Enforce >= 48dp touch target, button Semantics, and WCAG AA contrast (#FFFFFF on tealPrimary)
+    return Semantics(
+      button: true,
+      selected: isSelected,
+      label: tooltip,
+      excludeSemantics: true,
+      child: Tooltip(
+        message: tooltip,
+        child: GestureDetector(
+          onTap: onTap,
+          child: Container(
+            constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+            alignment: Alignment.center,
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              // color: isSelected ? accent : ...
+              color: isSelected
+                  ? NeumorphicColors.tealPrimary
+                  : (isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.05)),
+              borderRadius: BorderRadius.circular(8),
+              border: isSelected && isDark
+                  ? Border.all(color: NeumorphicColors.tealLight.withValues(alpha: 0.7))
+                  : null,
+            ),
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+                color: isSelected ? Colors.white : textPrimary,
+              ),
             ),
           ),
         ),

@@ -465,6 +465,8 @@ class _TestHttpOverrides extends HttpOverrides {
   HttpClient createHttpClient(SecurityContext? context) => _TestHttpClient();
 }
 
+// Gene - Nov, 14, 2026: Complete HttpClientRequest/Headers/Response mock (including Stream, Nominatim /search & /reverse, and PNG fallback) [QA-012]
+/*
 class _TestHttpClient extends Fake implements HttpClient {
   @override
   bool autoUncompress = true;
@@ -525,6 +527,127 @@ class _MockHttpClientResponse extends Fake implements HttpClientResponse {
     bool? cancelOnError,
   }) {
     return Stream<List<int>>.value(_jsonBytes).listen(
+      onData,
+      onError: onError,
+      onDone: onDone,
+      cancelOnError: cancelOnError,
+    );
+  }
+}
+*/
+class _TestHttpClient extends Fake implements HttpClient {
+  @override
+  bool autoUncompress = true;
+  @override
+  Duration idleTimeout = const Duration(seconds: 15);
+  @override
+  String? userAgent;
+  @override
+  Future<HttpClientRequest> getUrl(Uri url) async => _MockHttpClientRequest(url);
+  @override
+  Future<HttpClientRequest> openUrl(String method, Uri url) async => _MockHttpClientRequest(url);
+  @override
+  void close({bool force = false}) {}
+}
+
+class _MockHttpClientRequest extends Fake implements HttpClientRequest {
+  final Uri url;
+  _MockHttpClientRequest(this.url);
+  @override
+  final HttpHeaders headers = _MockHttpHeaders();
+  @override
+  bool followRedirects = true;
+  @override
+  int maxRedirects = 5;
+  @override
+  int contentLength = 0;
+  @override
+  bool persistentConnection = true;
+  @override
+  bool bufferOutput = true;
+  @override
+  void add(List<int> data) {}
+  @override
+  void write(Object? obj) {}
+  @override
+  Future<void> addStream(Stream<List<int>> stream) => stream.drain<void>();
+  @override
+  Future<HttpClientResponse> close() async => _MockHttpClientResponse(url);
+}
+
+class _MockHttpHeaders extends Fake implements HttpHeaders {
+  final bool isJson;
+  _MockHttpHeaders({this.isJson = false});
+  @override
+  void add(String name, Object value, {bool preserveHeaderCase = false}) {}
+  @override
+  void set(String name, Object value, {bool preserveHeaderCase = false}) {}
+  @override
+  void forEach(void Function(String name, List<String> values) action) {
+    if (isJson) {
+      action(HttpHeaders.contentTypeHeader, ['application/json; charset=utf-8']);
+    }
+  }
+}
+
+final List<int> _jsonBytes = utf8.encode(
+  '{"lat":"34.0736","lon":"-118.4004","display_name":"Beverly Hills, CA","address":{"city":"Beverly Hills","state":"CA"}}',
+);
+final List<int> _searchJsonBytes = utf8.encode(
+  '[{"lat":"34.0736","lon":"-118.4004","display_name":"Beverly Hills, CA","address":{"city":"Beverly Hills","state":"CA"}}]',
+);
+const _transparentPngBytes = <int>[
+  0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D,
+  0x49, 0x48, 0x44, 0x52, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
+  0x08, 0x06, 0x00, 0x00, 0x00, 0x1F, 0x15, 0xC4, 0x89, 0x00, 0x00, 0x00,
+  0x0A, 0x49, 0x44, 0x41, 0x54, 0x78, 0x9C, 0x63, 0x00, 0x01, 0x00, 0x00,
+  0x05, 0x00, 0x01, 0x0D, 0x0A, 0x2D, 0xB4, 0x00, 0x00, 0x00, 0x00, 0x49,
+  0x45, 0x4E, 0x44, 0xAE, 0x42, 0x60, 0x82,
+];
+
+class _MockHttpClientResponse extends Stream<List<int>> implements HttpClientResponse {
+  final Uri url;
+  late final bool _isJson = url.host.contains('nominatim');
+  late final List<int> _bodyBytes = _isJson
+      ? (url.path.contains('search') ? _searchJsonBytes : _jsonBytes)
+      : _transparentPngBytes;
+
+  _MockHttpClientResponse(this.url);
+
+  @override
+  int get statusCode => 200;
+  @override
+  String get reasonPhrase => 'OK';
+  @override
+  int get contentLength => _bodyBytes.length;
+  @override
+  bool get isRedirect => false;
+  @override
+  bool get persistentConnection => true;
+  @override
+  List<RedirectInfo> get redirects => const [];
+  @override
+  late final HttpHeaders headers = _MockHttpHeaders(isJson: _isJson);
+  @override
+  List<Cookie> get cookies => const [];
+  @override
+  X509Certificate? get certificate => null;
+  @override
+  HttpConnectionInfo? get connectionInfo => null;
+  @override
+  HttpClientResponseCompressionState get compressionState => HttpClientResponseCompressionState.notCompressed;
+  @override
+  Future<HttpClientResponse> redirect([String? method, Uri? url, bool? followLoops]) => Future.value(this);
+  @override
+  Future<Socket> detachSocket() => throw UnsupportedError('detachSocket');
+  @override
+  StreamSubscription<List<int>> listen(
+    void Function(List<int> event)? onData, {
+    Function? onError,
+    void Function()? onDone,
+    bool? cancelOnError,
+  }) {
+    return Stream<List<int>>.value(_bodyBytes).listen(
       onData,
       onError: onError,
       onDone: onDone,

@@ -75,20 +75,37 @@ class UniversalBookingScreen extends ConsumerWidget {
               wizardState.currentStep == 4 ? 'Confirmed' : 'Book at ${business.name}',
               style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
             ),
+            // Gene - Nov, 04, 2026: AppBar leading without tooltip or deep-link GoRouter.canPop() safety
+            // leading: IconButton(
+            //   icon: const Icon(Icons.arrow_back_ios_new, size: 18),
+            //   onPressed: () {
+            //     if (wizardState.currentStep > 0 && wizardState.currentStep < 4) {
+            //       wizardNotifier.prevStep();
+            //     } else {
+            //       // Gene - Nov, 7, 2026: Reset completed wizard state when exiting Step 4 so subsequent bookings start cleanly at Step 0
+            //       if (wizardState.currentStep == 4) {
+            //         wizardNotifier.reset();
+            //       }
+            //       context.pop();
+            //     }
+            //   },
+            // ),
+            // Gene - Nov, 14, 2026: Added semantic tooltip and canPop() fallback to '/' on cold-start deep links
             leading: IconButton(
+              tooltip: 'Back',
               icon: const Icon(Icons.arrow_back_ios_new, size: 18),
               onPressed: () {
                 if (wizardState.currentStep > 0 && wizardState.currentStep < 4) {
                   wizardNotifier.prevStep();
                 } else {
-                  /*
-                  context.pop();
-                  */
-                  // Gene - Nov, 7, 2026: Reset completed wizard state when exiting Step 4 so subsequent bookings start cleanly at Step 0
                   if (wizardState.currentStep == 4) {
                     wizardNotifier.reset();
                   }
-                  context.pop();
+                  if (context.canPop()) {
+                    context.pop();
+                  } else {
+                    context.go('/');
+                  }
                 }
               },
             ),
@@ -135,7 +152,9 @@ class UniversalBookingScreen extends ConsumerWidget {
                 // Gene - Nov, 7, 2026: Made completed step indicator nodes tappable so users can jump back to earlier steps directly
                 if (wizardState.currentStep < 4) ...[
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                    padding: EdgeInsets.symmetric(horizontal: MediaQuery.sizeOf(context).width < 380 ? 10 : 20, vertical: 8),
+                    /*
+                    // Gene - Nov, 7, 2026: Step indicator Row without Expanded step nodes overflowed 320px @ 1.5x
                     child: Row(
                       children: [
                         _buildStepNode(
@@ -167,6 +186,50 @@ class UniversalBookingScreen extends ConsumerWidget {
                           step: 3,
                           currentStep: wizardState.currentStep,
                           label: 'Payment',
+                        ),
+                      ],
+                    ),
+                    */
+                    // Gene - Nov, 14, 2026: Wrapped step nodes in Expanded so all 4 step columns share narrow 320px @ 1.5x widths cleanly
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: _buildStepNode(
+                            context,
+                            step: 0,
+                            currentStep: wizardState.currentStep,
+                            label: 'Service',
+                            onTap: wizardState.currentStep > 0 ? () => wizardNotifier.goToStep(0) : null,
+                          ),
+                        ),
+                        _buildStepLine(context, isActive: wizardState.currentStep > 0),
+                        Expanded(
+                          child: _buildStepNode(
+                            context,
+                            step: 1,
+                            currentStep: wizardState.currentStep,
+                            label: 'Schedule',
+                            onTap: wizardState.currentStep > 1 ? () => wizardNotifier.goToStep(1) : null,
+                          ),
+                        ),
+                        _buildStepLine(context, isActive: wizardState.currentStep > 1),
+                        Expanded(
+                          child: _buildStepNode(
+                            context,
+                            step: 2,
+                            currentStep: wizardState.currentStep,
+                            label: 'Intake',
+                            onTap: wizardState.currentStep > 2 ? () => wizardNotifier.goToStep(2) : null,
+                          ),
+                        ),
+                        _buildStepLine(context, isActive: wizardState.currentStep > 2),
+                        Expanded(
+                          child: _buildStepNode(
+                            context,
+                            step: 3,
+                            currentStep: wizardState.currentStep,
+                            label: 'Payment',
+                          ),
                         ),
                       ],
                     ),
@@ -501,30 +564,39 @@ class UniversalBookingScreen extends ConsumerWidget {
           border: isCurrent ? Border.all(color: accent, width: 2) : null,
           color: isDone ? accent : null,
           onTap: onTap,
-          child: Center(
-            child: isDone
-                ? const Icon(Icons.check, size: 16, color: Colors.white)
-                : Text(
-                    '${step + 1}',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      color: isCurrent ? accent : (isDark ? Colors.white60 : Colors.black54),
-                    ),
+                  child: Center(
+                    child: isDone
+                        ? const Icon(Icons.check, size: 16, color: Colors.white)
+                        : Text(
+                            '${step + 1}',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              // color: isCurrent ? accent : (isDark ? Colors.white60 : Colors.black54),
+                              // Gene - Nov, 14, 2026: Upgraded inactive step number contrast to WCAG AA secondary tokens
+                              color: isCurrent
+                                  ? accent
+                                  : (isDark ? NeumorphicColors.darkTextSecondary : NeumorphicColors.lightTextSecondary),
+                            ),
+                          ),
                   ),
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 11,
-            fontWeight: isCurrent ? FontWeight.w700 : FontWeight.w500,
-            color: isCurrent ? accent : (isDark ? Colors.white38 : Colors.black38),
-          ),
-        ),
-      ],
-    );
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: isCurrent ? FontWeight.w700 : FontWeight.w500,
+                    // color: isCurrent ? accent : (isDark ? Colors.white38 : Colors.black38),
+                    // Gene - Nov, 14, 2026: Upgraded inactive step label contrast to WCAG AA muted tokens with ellipsis clamp
+                    color: isCurrent ? accent : (isDark ? NeumorphicColors.darkTextMuted : NeumorphicColors.lightTextMuted),
+                  ),
+                ),
+              ],
+            );
 
     if (onTap != null) {
       return GestureDetector(
@@ -540,10 +612,21 @@ class UniversalBookingScreen extends ConsumerWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final accent = isDark ? NeumorphicColors.tealLight : NeumorphicColors.tealPrimary;
 
+    /*
     return Expanded(
       child: Container(
         height: 2,
         margin: const EdgeInsets.symmetric(horizontal: 6, vertical: 10),
+        color: isActive ? accent : (isDark ? Colors.white12 : Colors.black12),
+      ),
+    );
+    */
+    // Gene - Nov, 14, 2026: Use bounded width connector line so Expanded step nodes share horizontal budget evenly
+    return SizedBox(
+      width: MediaQuery.sizeOf(context).width < 420 ? 8 : 24,
+      child: Container(
+        height: 2,
+        margin: const EdgeInsets.symmetric(horizontal: 2, vertical: 10),
         color: isActive ? accent : (isDark ? Colors.white12 : Colors.black12),
       ),
     );

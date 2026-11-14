@@ -1,5 +1,6 @@
 // Gene - Nov, 05, 2026: Tactile Neumorphic Demo Persona Switcher and Reset Store Dialog
-import 'package:flutter/foundation.dart';
+// Gene - Nov, 14, 2026: Removed direct kReleaseMode import in favor of unified AuthNotifier.isDemoModeEnabled
+// import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -28,8 +29,20 @@ class DemoPersonaSwitcherDialog extends ConsumerWidget {
   */
 
   // Gene - Nov, 05, 2026: Disable demo persona switcher in production release builds (CWE-489)
+  /*
   static void show(BuildContext context) {
     if (kReleaseMode) return;
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => const DemoPersonaSwitcherDialog(),
+    );
+  }
+  */
+  // Gene - Nov, 14, 2026: Check unified AuthNotifier.isDemoModeEnabled guard so release-simulation & production builds lock out persona switching
+  static void show(BuildContext context) {
+    if (!AuthNotifier.isDemoModeEnabled) return;
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -143,7 +156,16 @@ class DemoPersonaSwitcherDialog extends ConsumerWidget {
                           );
 
                           // Intelligent routing based on role
+                          /*
+                          // Gene - Nov, 05, 2026: Used overloaded isBusinessOwner instead of canAccessAdminPortal
                           if (persona.isBusinessOwner) {
+                            context.go('/admin');
+                          } else {
+                            context.go('/');
+                          }
+                          */
+                          // Gene - Nov, 14, 2026: Route both owners and staff to /admin via canAccessAdminPortal
+                          if (persona.canAccessAdminPortal) {
                             context.go('/admin');
                           } else {
                             context.go('/');

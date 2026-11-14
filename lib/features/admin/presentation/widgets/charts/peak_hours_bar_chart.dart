@@ -63,65 +63,86 @@ class _PeakHoursBarChartState extends State<PeakHoursBarChart> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Header
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(Icons.schedule_rounded, size: 18, color: accent),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            widget.title,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w800,
-                              color: textPrimary,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      widget.subtitle,
-                      style: TextStyle(fontSize: 12, color: textSecondary),
-                    ),
-                  ],
-                ),
-              ),
-              if (peakHour != null) ...[
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                  decoration: BoxDecoration(
-                    color: NeumorphicColors.warning.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: NeumorphicColors.warning.withValues(alpha: 0.3)),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
+          // Gene - Nov, 14, 2026: Responsive header layout and WCAG AA warningFor token on peak hour pill
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final titleColumn = Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
                     children: [
-                      const Icon(Icons.local_fire_department_rounded, size: 14, color: NeumorphicColors.warning),
-                      const SizedBox(width: 4),
-                      Text(
-                        'Peak at ${peakHour.hourLabel}',
-                        style: const TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                          color: NeumorphicColors.warning,
+                      Icon(Icons.schedule_rounded, size: 18, color: accent),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          widget.title,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                            color: textPrimary,
+                          ),
                         ),
                       ),
                     ],
                   ),
-                ),
-              ],
-            ],
+                  const SizedBox(height: 4),
+                  Text(
+                    widget.subtitle,
+                    style: TextStyle(fontSize: 12, color: textSecondary),
+                  ),
+                ],
+              );
+
+              final peakBadge = peakHour == null
+                  ? null
+                  : Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: NeumorphicColors.warningFor(isDark).withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: NeumorphicColors.warningFor(isDark).withValues(alpha: 0.3)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.local_fire_department_rounded, size: 14, color: NeumorphicColors.warningFor(isDark)),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Peak at ${peakHour.hourLabel}',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: NeumorphicColors.warningFor(isDark),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+
+              if (constraints.maxWidth < 400 && peakBadge != null) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    titleColumn,
+                    const SizedBox(height: 8),
+                    peakBadge,
+                  ],
+                );
+              }
+
+              return Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(child: titleColumn),
+                  if (peakBadge != null) ...[
+                    const SizedBox(width: 8),
+                    peakBadge,
+                  ],
+                ],
+              );
+            },
           ),
           const SizedBox(height: 16),
 
@@ -153,14 +174,15 @@ class _PeakHoursBarChartState extends State<PeakHoursBarChart> {
                         style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: accent),
                       ),
                       const SizedBox(width: 8),
+                      // Gene - Nov, 14, 2026: Upgrade occupancy indicator and bar peak colors to WCAG AA warningFor/successFor tokens and expose chart Semantics
                       Text(
                         'Occupancy: ${(activeItem.capacityRate * 100).toInt()}%',
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
                           color: activeItem.capacityRate >= 0.8
-                              ? NeumorphicColors.warning
-                              : NeumorphicColors.success,
+                              ? NeumorphicColors.warningFor(isDark)
+                              : NeumorphicColors.successFor(isDark),
                         ),
                       ),
                     ],
@@ -183,18 +205,22 @@ class _PeakHoursBarChartState extends State<PeakHoursBarChart> {
                   onExit: (_) {
                     setState(() => _hoveredIndex = null);
                   },
-                  child: GestureDetector(
-                    onTapDown: (details) {
-                      _updateHoverIndex(details.localPosition.dx, constraints.maxWidth);
-                    },
-                    child: CustomPaint(
-                      size: Size(constraints.maxWidth, 140),
-                      painter: _BarChartPainter(
-                        hourlyData: widget.hourlyData,
-                        hoveredIndex: _hoveredIndex,
-                        accentColor: accent,
-                        peakColor: NeumorphicColors.warning,
-                        isDark: isDark,
+                  child: Semantics(
+                    container: true,
+                    label: 'Peak hours traffic bar chart',
+                    child: GestureDetector(
+                      onTapDown: (details) {
+                        _updateHoverIndex(details.localPosition.dx, constraints.maxWidth);
+                      },
+                      child: CustomPaint(
+                        size: Size(constraints.maxWidth, 140),
+                        painter: _BarChartPainter(
+                          hourlyData: widget.hourlyData,
+                          hoveredIndex: _hoveredIndex,
+                          accentColor: accent,
+                          peakColor: NeumorphicColors.warningFor(isDark),
+                          isDark: isDark,
+                        ),
                       ),
                     ),
                   ),

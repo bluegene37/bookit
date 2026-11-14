@@ -104,9 +104,15 @@ class StaffUtilizationChart extends StatelessWidget {
               final pct = (staff.utilizationRate * 100).toInt();
               final isHigh = staff.utilizationRate >= 0.8;
               final isOptimal = staff.utilizationRate >= 0.5 && staff.utilizationRate < 0.8;
+              // Gene - Nov, 14, 2026: Use WCAG AA warningFor and light/dark-appropriate cyan tokens
+              /*
               final statusColor = isHigh
                   ? NeumorphicColors.warning
                   : (isOptimal ? NeumorphicColors.tealPrimary : NeumorphicColors.cyanLight);
+              */
+              final statusColor = isHigh
+                  ? NeumorphicColors.warningFor(isDark)
+                  : (isOptimal ? accent : (isDark ? NeumorphicColors.cyanLight : NeumorphicColors.cyanAccent));
 
               return Container(
                 margin: const EdgeInsets.only(bottom: 14),
@@ -118,6 +124,8 @@ class StaffUtilizationChart extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    /*
+                    // Gene - Nov 06, 2026: Static staff header Row overflowed by 19-35px on 320px @ 1.5x
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -167,6 +175,85 @@ class StaffUtilizationChart extends StatelessWidget {
                           ],
                         ),
                       ],
+                    ),
+                    */
+                    // Gene - Nov, 14, 2026: Stack staff metrics under identity below 280dp*scale to eliminate 320px @ 1.5x Row overflow
+                    LayoutBuilder(
+                      builder: (context, constraints) {
+                        final textScale = MediaQuery.textScalerOf(context).scale(1.0);
+                        final stackMetrics = constraints.maxWidth < 280 * textScale;
+                        final nameColumn = Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              staff.name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                color: textPrimary,
+                              ),
+                            ),
+                            Text(
+                              staff.role,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(fontSize: 11, color: textSecondary),
+                            ),
+                          ],
+                        );
+                        final revenueText = Text(
+                          '\$${NumberFormat('#,##0').format(staff.revenueGenerated)}',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w800,
+                            color: textPrimary,
+                          ),
+                        );
+                        final visitsText = Text(
+                          '${staff.completedBookings} visits • $pct%',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: statusColor,
+                          ),
+                        );
+
+                        if (stackMetrics) {
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              nameColumn,
+                              const SizedBox(height: 6),
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 2,
+                                crossAxisAlignment: WrapCrossAlignment.center,
+                                children: [
+                                  revenueText,
+                                  visitsText,
+                                ],
+                              ),
+                            ],
+                          );
+                        }
+
+                        return Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(child: nameColumn),
+                            const SizedBox(width: 8),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                revenueText,
+                                visitsText,
+                              ],
+                            ),
+                          ],
+                        );
+                      },
                     ),
                     const SizedBox(height: 8),
 

@@ -77,7 +77,12 @@ class NeumorphicTheme {
         secondary: NeumorphicColors.cyanLight,
         onSurface: NeumorphicColors.darkTextPrimary,
         onSurfaceVariant: NeumorphicColors.darkTextSecondary,
+        /*
+        // Gene - Nov, 03, 2026: Original dark ColorScheme error token
         error: NeumorphicColors.error,
+        */
+        // Gene - Nov, 14, 2026: Use high-contrast errorLight (#F87171) on dark surfaces for WCAG 2.1 AA compliance
+        error: NeumorphicColors.errorLight,
       ),
       textTheme: GoogleFonts.plusJakartaSansTextTheme(ThemeData.dark().textTheme).copyWith(
         displaySmall: GoogleFonts.plusJakartaSans(

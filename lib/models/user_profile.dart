@@ -19,12 +19,14 @@ class UserProfile {
   });
 
   /*
-  bool get isBusinessOwner => role == 'business_owner' || role == 'admin';
-  */
-  // Gene - Nov, 7, 2026: Allow clinic staff/practitioners ('staff') alongside owners and admins to access the clinic portal while keeping 'client' role restricted
+  // Gene - Nov, 7, 2026: Overloaded isBusinessOwner to include 'staff', granting billing & settings privileges to clinicians
   bool get isBusinessOwner => role == 'business_owner' || role == 'admin' || role == 'staff';
+  */
+  // Gene - Nov, 14, 2026: Restore strict owner/admin boundary on isBusinessOwner and introduce canAccessAdminPortal for shared workspace entry
+  bool get isBusinessOwner => role == 'business_owner' || role == 'admin';
   bool get isStaff => role == 'staff';
   bool get isAdmin => role == 'admin';
+  bool get canAccessAdminPortal => isBusinessOwner || isStaff;
 
   /*
   // Gene - Nov, 03, 2026: Original UserProfile fromJson
