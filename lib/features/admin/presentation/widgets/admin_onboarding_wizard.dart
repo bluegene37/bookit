@@ -333,10 +333,18 @@ class _AdminOnboardingWizardState extends ConsumerState<AdminOnboardingWizard> {
       case 'meeting_room_rounded':
       case 'camera_indoor_rounded':
         return Icons.meeting_room_rounded;
+      /*
       // Gene - Nov 06, 2026: Added car wash and automotive icons support
       case 'local_car_wash_rounded':
       case 'directions_car_rounded':
         return Icons.local_car_wash_rounded;
+      */
+      // Gene - Nov, 15, 2026: Added water_drop_rounded icon mapping alongside car wash and automotive icons
+      case 'local_car_wash_rounded':
+      case 'directions_car_rounded':
+        return Icons.local_car_wash_rounded;
+      case 'water_drop_rounded':
+        return Icons.water_drop_rounded;
       default:
         return Icons.business_rounded;
     }

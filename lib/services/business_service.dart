@@ -196,6 +196,11 @@ class BusinessService {
     if (catLower.contains('fitness') && (bCat.contains('train') || bCat.contains('gym') || bCat.contains('fitness'))) return true;
     if (catLower.contains('consult') && (bCat.contains('legal') || bCat.contains('tax') || bCat.contains('advis'))) return true;
     if (catLower.contains('studio') && (bCat.contains('photo') || bCat.contains('podcast') || bCat.contains('space') || bCat.contains('rent'))) return true;
+    // Gene - Nov, 15, 2026: Added semantic category matching for Automotive, Car Wash, and Detailing businesses
+    if ((catLower.contains('auto') || catLower.contains('car') || catLower.contains('wash')) &&
+        (bCat.contains('car') || bCat.contains('wash') || bCat.contains('auto') || bCat.contains('detail'))) {
+      return true;
+    }
 
     return false;
   }
@@ -342,6 +347,7 @@ class BusinessService {
     return SupabaseService.mockStaff.where((st) => st.businessId == businessId).toList();
   }
 
+  /*
   // Gene - Nov, 04, 2026: Fetch business categories from Supabase with offline fallback
   Future<List<BusinessCategory>> getCategories() async {
     final client = SupabaseService.client;
@@ -375,6 +381,62 @@ class BusinessService {
       return SupabaseService.mockTemplates.where((t) => t.categoryId == categoryId).toList();
     }
     return SupabaseService.mockTemplates;
+  }
+  */
+
+  // Gene - Nov, 15, 2026: Merge local mock categories and templates when remote Supabase rows are empty or missing newly added presets
+  Future<List<BusinessCategory>> getCategories() async {
+    final client = SupabaseService.client;
+    if (client != null) {
+      try {
+        final data = await client
+            .from('business_categories')
+            .select()
+            .eq('is_active', true)
+            .order('display_order', ascending: true);
+        final remote = (data as List).map((json) => BusinessCategory.fromJson(json)).toList();
+        if (remote.isNotEmpty) {
+          final remoteIds = remote.map((c) => c.id).toSet();
+          final remoteSlugs = remote.map((c) => c.slug).toSet();
+          final missingLocal = SupabaseService.mockCategories
+              .where((c) => !remoteIds.contains(c.id) && !remoteSlugs.contains(c.slug))
+              .toList();
+          final merged = [...remote, ...missingLocal]
+            ..sort((a, b) => a.displayOrder.compareTo(b.displayOrder));
+          return merged;
+        }
+      } catch (_) {}
+    }
+    return SupabaseService.mockCategories;
+  }
+
+  Future<List<BusinessTemplate>> getTemplates({String? categoryId}) async {
+    final localFiltered = (categoryId != null && categoryId != 'All')
+        ? SupabaseService.mockTemplates.where((t) => t.categoryId == categoryId).toList()
+        : SupabaseService.mockTemplates;
+
+    final client = SupabaseService.client;
+    if (client != null) {
+      try {
+        var query = client.from('business_templates').select().eq('is_active', true);
+        if (categoryId != null && categoryId != 'All') {
+          query = query.eq('category_id', categoryId);
+        }
+        final data = await query.order('display_order', ascending: true);
+        final remote = (data as List).map((json) => BusinessTemplate.fromJson(json)).toList();
+        if (remote.isNotEmpty) {
+          final remoteIds = remote.map((t) => t.id).toSet();
+          final remoteSlugs = remote.map((t) => t.slug).toSet();
+          final missingLocal = localFiltered
+              .where((t) => !remoteIds.contains(t.id) && !remoteSlugs.contains(t.slug))
+              .toList();
+          final merged = [...remote, ...missingLocal]
+            ..sort((a, b) => a.displayOrder.compareTo(b.displayOrder));
+          return merged;
+        }
+      } catch (_) {}
+    }
+    return localFiltered;
   }
 
   /*
