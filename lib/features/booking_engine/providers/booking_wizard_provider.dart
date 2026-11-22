@@ -13,6 +13,8 @@ import '../../../services/auth_service.dart';
 import '../../../services/payment_service.dart';
 // Gene - Nov, 22, 2026: Added SupabaseConfig and SupabaseService imports for live-mode auth guard & demo separation
 import '../../../core/constants/supabase_config.dart';
+// Gene - Nov, 22, 2026: Added AppErrorFormatter import for user-friendly booking & payment error messages
+import '../../../core/utils/app_error_formatter.dart';
 import '../../../services/supabase_service.dart';
 
 class BookingWizardState {
@@ -578,9 +580,17 @@ class BookingWizardNotifier extends StateNotifier<BookingWizardState> {
       state = state.copyWith(isSubmitting: false, completedBooking: created, currentStep: 4, clearError: true);
       return true;
     } catch (e) {
+      /*
+      // Gene - Nov, 22, 2026: Raw error string leaked status codes & exception class names during booking confirmation
       state = state.copyWith(
         isSubmitting: false,
         errorMessage: e.toString().replaceFirst('Exception: ', ''),
+      );
+      */
+      // Gene - Nov, 22, 2026: Format booking error into user-friendly message without status codes
+      state = state.copyWith(
+        isSubmitting: false,
+        errorMessage: AppErrorFormatter.format(e, context: AppErrorContext.booking),
       );
       return false;
     }
@@ -694,9 +704,17 @@ class BookingWizardNotifier extends StateNotifier<BookingWizardState> {
       );
       return true;
     } catch (e) {
+      /*
+      // Gene - Nov, 22, 2026: Raw error string leaked status codes & exception class names during payment checkout
       state = state.copyWith(
         isSubmitting: false,
         errorMessage: e.toString().replaceFirst('Exception: ', ''),
+      );
+      */
+      // Gene - Nov, 22, 2026: Format payment checkout error into user-friendly message without status codes
+      state = state.copyWith(
+        isSubmitting: false,
+        errorMessage: AppErrorFormatter.format(e, context: AppErrorContext.payment),
       );
       return false;
     }

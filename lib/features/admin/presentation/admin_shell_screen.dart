@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/neumorphic_colors.dart';
+// Gene - Nov, 22, 2026: Added AppErrorFormatter import for user-friendly admin business load error display
+import '../../../core/utils/app_error_formatter.dart';
 import '../../../core/theme/theme_mode_provider.dart';
 import '../../../core/widgets/neumorphic_container.dart';
 import '../../../core/widgets/neumorphic_button.dart';
@@ -272,7 +274,25 @@ class _AdminShellScreenState extends ConsumerState<AdminShellScreen> {
 
     return businessesAsync.when(
       loading: () => const Scaffold(body: Center(child: CircularProgressIndicator())),
+      /*
+      // Gene - Nov, 03, 2026: Raw error string leaked DB/network exception details in AdminShellScreen
       error: (e, _) => Scaffold(body: Center(child: Text('Error loading business: $e'))),
+      */
+      // Gene - Nov, 22, 2026: Display user-friendly error message when admin business profile fails to load
+      error: (e, _) => Scaffold(
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Text(
+              AppErrorFormatter.format(
+                e,
+                fallback: 'Unable to load business details right now. Please try again.',
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ),
+      ),
       data: (businesses) {
         /*
         // Gene - Nov, 03, 2026: Previous plain text empty state

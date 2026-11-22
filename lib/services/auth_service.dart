@@ -5,6 +5,9 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' as supa;
 import '../core/constants/supabase_config.dart';
+// Gene - Nov, 22, 2026: Added AppErrorFormatter and AppErrorLogger imports for friendly auth error notifications
+import '../core/utils/app_error_formatter.dart';
+import '../core/utils/app_error_logger.dart';
 import '../models/user_profile.dart';
 import 'supabase_service.dart';
 // Gene - Nov, 05, 2026: Added DemoData import for multi-persona switching and testing
@@ -143,6 +146,13 @@ class AuthNotifier extends StateNotifier<AuthState> {
     super.dispose();
   }
 
+  // Gene - Nov, 22, 2026: Clear stale auth error banner state when switching between Login and Signup screens
+  void clearError() {
+    if (state.error != null) {
+      state = state.copyWith(error: null, successMessage: state.successMessage);
+    }
+  }
+
   // Gene - Nov, 03, 2026: Sign In implementation with Supabase Auth & Demo fallback
   Future<bool> signIn(String email, String password) async {
     state = state.copyWith(isLoading: true, error: null, successMessage: null);
@@ -166,6 +176,12 @@ class AuthNotifier extends StateNotifier<AuthState> {
           state = AuthState(user: profile);
           return true;
         }
+        // Gene - Nov, 22, 2026: Return explicit user-friendly failure when live Supabase auth yields null user instead of falling through to local mock
+        state = state.copyWith(
+          isLoading: false,
+          error: 'Unable to sign in. Please check your email and password and try again.',
+        );
+        return false;
       }
 
       // Gene - Nov, 03, 2026: Simple mock fallback role parsing
@@ -225,8 +241,25 @@ class AuthNotifier extends StateNotifier<AuthState> {
         ),
       );
       return true;
+    /*
+    // Gene - Nov, 03, 2026: Raw exception string leaked HTTP status codes & AuthApiException text to LoginScreen
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
+      return false;
+    }
+    */
+    // Gene - Nov, 22, 2026: Log raw auth error internally and surface user-friendly login error message
+    } catch (e, st) {
+      AppErrorLogger.report(
+        service: 'AuthNotifier',
+        operation: 'signIn',
+        error: e,
+        stackTrace: st,
+      );
+      state = state.copyWith(
+        isLoading: false,
+        error: AppErrorFormatter.format(e, context: AppErrorContext.login),
+      );
       return false;
     }
   }
@@ -280,6 +313,12 @@ class AuthNotifier extends StateNotifier<AuthState> {
           state = AuthState(user: newProfile, successMessage: 'Account created successfully!');
           return true;
         }
+        // Gene - Nov, 22, 2026: Return explicit user-friendly failure when live Supabase signUp yields null user instead of falling through to local mock
+        state = state.copyWith(
+          isLoading: false,
+          error: 'Unable to create your account right now. Please try again.',
+        );
+        return false;
       }
 
       if (!isDemoModeEnabled) {
@@ -301,6 +340,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     // Gene - Nov, 03, 2026: Previous Sign Up catch block replaced by dev-mode fallback
     // } catch (e) { state = state.copyWith(isLoading: false, error: e.toString()); return false; }
 
+    /*
     // Gene - Nov, 05, 2026: Provide seamless mock profile fallback in !kReleaseMode when Supabase auth is offline or rate-limited
     } catch (e) {
       if (isDemoModeEnabled) {
@@ -317,6 +357,34 @@ class AuthNotifier extends StateNotifier<AuthState> {
         return true;
       }
       state = state.copyWith(isLoading: false, error: e.toString());
+      return false;
+    }
+    */
+    // Gene - Nov, 22, 2026: Surface formatted signup errors when live Supabase client is active; keep local fallback only when offline in demo mode
+    } catch (e, st) {
+      AppErrorLogger.report(
+        service: 'AuthNotifier',
+        operation: 'signUp',
+        error: e,
+        stackTrace: st,
+      );
+      if (SupabaseService.client == null && isDemoModeEnabled) {
+        debugPrint('Offline signUp fallback ($e); establishing authenticated local persona in dev mode.');
+        final mockProfile = UserProfile(
+          id: 'new-user-${email.trim().toLowerCase().hashCode.abs()}',
+          email: email.trim(),
+          fullName: fullName.trim(),
+          role: role,
+          phone: phone,
+          createdAt: DateTime.now(),
+        );
+        state = AuthState(user: mockProfile, successMessage: 'Account created successfully!');
+        return true;
+      }
+      state = state.copyWith(
+        isLoading: false,
+        error: AppErrorFormatter.format(e, context: AppErrorContext.signup),
+      );
       return false;
     }
   }
@@ -340,8 +408,25 @@ class AuthNotifier extends StateNotifier<AuthState> {
         successMessage: 'Password reset link sent to $normalizedEmail',
       );
       return true;
+    /*
+    // Gene - Nov, 03, 2026: Raw exception string leaked status codes on password reset failure
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
+      return false;
+    }
+    */
+    // Gene - Nov, 22, 2026: Log raw password reset error internally and surface user-friendly message
+    } catch (e, st) {
+      AppErrorLogger.report(
+        service: 'AuthNotifier',
+        operation: 'resetPassword',
+        error: e,
+        stackTrace: st,
+      );
+      state = state.copyWith(
+        isLoading: false,
+        error: AppErrorFormatter.format(e, context: AppErrorContext.passwordReset),
+      );
       return false;
     }
   }

@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 // Gene - Nov, 22, 2026: Added Uuid for RFC 4122 UUID generation on new staff creation
 import 'package:uuid/uuid.dart';
 import '../../../../core/theme/neumorphic_colors.dart';
+// Gene - Nov, 22, 2026: Added AppErrorFormatter import for user-friendly staff management error notifications
+import '../../../core/utils/app_error_formatter.dart';
 import '../../../../core/widgets/neumorphic_container.dart';
 import '../../../../core/widgets/neumorphic_button.dart';
 import '../../../../models/business.dart';
@@ -107,6 +109,8 @@ class StaffManagerTab extends ConsumerWidget {
                   child: const Text('Cancel'),
                 ),
                 ElevatedButton(
+                  /*
+                  // Gene - Nov 07, 2026: Uncaught addStaff/updateStaff calls silently failed on live DB errors
                   onPressed: () async {
                     final parsedName = nameCtrl.text.trim().isEmpty ? business.resourceLabel : nameCtrl.text.trim();
                     final parsedSpecialty = specialtyCtrl.text.trim().isEmpty ? 'Specialist' : specialtyCtrl.text.trim();
@@ -145,6 +149,55 @@ class StaffManagerTab extends ConsumerWidget {
                       );
                     }
                   },
+                  */
+                  // Gene - Nov, 22, 2026: Catch live DB staff mutation errors and show friendly SnackBar feedback
+                  onPressed: () async {
+                    final messenger = ScaffoldMessenger.of(context);
+                    final parsedName = nameCtrl.text.trim().isEmpty ? business.resourceLabel : nameCtrl.text.trim();
+                    final parsedSpecialty = specialtyCtrl.text.trim().isEmpty ? 'Specialist' : specialtyCtrl.text.trim();
+                    final parsedBio = bioCtrl.text.trim().isEmpty ? null : bioCtrl.text.trim();
+
+                    try {
+                      if (isEditing) {
+                        final updated = existingStaff.copyWith(
+                          name: parsedName,
+                          specialty: parsedSpecialty,
+                          bio: parsedBio,
+                          isActive: isActive,
+                        );
+                        await ref.read(businessServiceProvider).updateStaff(updated);
+                      } else {
+                        final newStaff = BusinessStaff(
+                          id: const Uuid().v4(),
+                          businessId: business.id,
+                          name: parsedName,
+                          specialty: parsedSpecialty,
+                          bio: parsedBio,
+                          scheduleOverride: BusinessStaff.defaultSchedule(),
+                          isActive: true,
+                        );
+                        await ref.read(businessServiceProvider).addStaff(newStaff);
+                      }
+
+                      ref.invalidate(adminBusinessStaffProvider(business.id));
+                      ref.invalidate(businessStaffProvider(business.id));
+
+                      if (dialogCtx.mounted) {
+                        Navigator.pop(dialogCtx);
+                      }
+                      messenger.showSnackBar(
+                        SnackBar(content: Text(isEditing ? 'Staff profile updated!' : 'Staff member registered!')),
+                      );
+                    } catch (e) {
+                      messenger.showSnackBar(
+                        SnackBar(
+                          content: Text(AppErrorFormatter.format(e, context: AppErrorContext.staff)),
+                          backgroundColor: NeumorphicColors.error,
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                    }
+                  },
                   child: Text(isEditing ? 'Save Changes' : 'Save Staff Member'),
                 ),
               ],
@@ -155,6 +208,8 @@ class StaffManagerTab extends ConsumerWidget {
     );
   }
 
+  /*
+  // Gene - Nov 07, 2026: Uncaught toggleStaffActive silently failed on live DB errors
   Future<void> _toggleStaffActive(BuildContext context, WidgetRef ref, BusinessStaff staff) async {
     final updated = staff.copyWith(isActive: !staff.isActive);
     await ref.read(businessServiceProvider).updateStaff(updated);
@@ -164,6 +219,30 @@ class StaffManagerTab extends ConsumerWidget {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(updated.isActive ? '${staff.name} marked active.' : '${staff.name} marked inactive.'),
+        ),
+      );
+    }
+  }
+  */
+  // Gene - Nov, 22, 2026: Catch live DB errors on staff status toggle and display friendly SnackBar
+  Future<void> _toggleStaffActive(BuildContext context, WidgetRef ref, BusinessStaff staff) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final updated = staff.copyWith(isActive: !staff.isActive);
+    try {
+      await ref.read(businessServiceProvider).updateStaff(updated);
+      ref.invalidate(adminBusinessStaffProvider(business.id));
+      ref.invalidate(businessStaffProvider(business.id));
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(updated.isActive ? '${staff.name} marked active.' : '${staff.name} marked inactive.'),
+        ),
+      );
+    } catch (e) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(AppErrorFormatter.format(e, context: AppErrorContext.staff)),
+          backgroundColor: NeumorphicColors.error,
+          behavior: SnackBarBehavior.floating,
         ),
       );
     }
@@ -222,7 +301,23 @@ class StaffManagerTab extends ConsumerWidget {
 
           staffAsync.when(
             loading: () => const Center(child: CircularProgressIndicator()),
+            /*
+            // Gene - Nov, 03, 2026: Raw error string leaked DB/network exception details in StaffManagerTab
             error: (e, _) => Center(child: Text('Error: $e')),
+            */
+            // Gene - Nov, 22, 2026: Show user-friendly error text when staff roster fails to load
+            error: (e, _) => Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Text(
+                  AppErrorFormatter.format(
+                    e,
+                    fallback: 'Unable to load staff right now. Please try again.',
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ),
             data: (staff) {
               if (staff.isEmpty) {
                 return Center(child: Text('No ${business.resourceLabel.toLowerCase()}s registered yet.'));

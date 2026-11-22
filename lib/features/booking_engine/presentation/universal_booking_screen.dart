@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/neumorphic_colors.dart';
+// Gene - Nov, 22, 2026: Added AppErrorFormatter import for user-friendly business load error display
+import '../../../core/utils/app_error_formatter.dart';
 import '../../../../core/widgets/neumorphic_container.dart';
 import '../../../../core/widgets/neumorphic_button.dart';
 import '../../../../models/business.dart';
@@ -38,7 +40,25 @@ class UniversalBookingScreen extends ConsumerWidget {
 
     return businessAsync.when(
       loading: () => const Scaffold(body: Center(child: CircularProgressIndicator())),
+      /*
+      // Gene - Nov, 03, 2026: Raw error string leaked DB/network exception details in UniversalBookingScreen
       error: (e, _) => Scaffold(body: Center(child: Text('Error loading business: $e'))),
+      */
+      // Gene - Nov, 22, 2026: Display user-friendly error message when business fails to load
+      error: (e, _) => Scaffold(
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Text(
+              AppErrorFormatter.format(
+                e,
+                fallback: 'Unable to load business details right now. Please try again.',
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ),
+      ),
       data: (business) {
         if (business == null) {
           // Gene - Nov, 22, 2026: Provide actionable return CTA when business ID cannot be loaded

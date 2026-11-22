@@ -2,6 +2,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/neumorphic_colors.dart';
+// Gene - Nov, 22, 2026: Added AppErrorFormatter import for user-friendly refund error messages
+import '../../../../core/utils/app_error_formatter.dart';
 import '../../../../core/widgets/neumorphic_container.dart';
 import '../../../../core/widgets/neumorphic_button.dart';
 import '../../../../models/payment.dart';
@@ -122,7 +124,12 @@ class _RefundDialogState extends State<RefundDialog> {
     } catch (e) {
       if (mounted) {
         setState(() {
+          /*
+          // Gene - Nov, 04, 2026: Raw exception string leaked Edge Function/HTTP status codes in RefundDialog
           _errorMessage = 'Refund failed: $e';
+          */
+          // Gene - Nov, 22, 2026: Format refund error cleanly for users without status codes
+          _errorMessage = AppErrorFormatter.format(e, context: AppErrorContext.refund);
           _isLoading = false;
         });
       }

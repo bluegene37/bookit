@@ -59,7 +59,8 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
       return;
     }
     */
-    // Gene - Nov, 14, 2026: Validate non-empty fields, email regex format, and minimum 6-character password before signUp
+    /*
+    // Gene - Nov, 14, 2026: Client-side signup validation & error SnackBars without hideCurrentSnackBar/floating styling
     final emailRegex = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
     if (name.isEmpty || email.isEmpty || password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -93,6 +94,46 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
       role: _selectedRole,
       phone: _phoneController.text.trim().isNotEmpty ? _phoneController.text.trim() : null,
     );
+    */
+    // Gene - Nov, 22, 2026: Unified floating SnackBar error feedback with hideCurrentSnackBar & theme-aware error color
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final messenger = ScaffoldMessenger.of(context);
+    void showErrorSnack(String message) {
+      messenger.hideCurrentSnackBar();
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: NeumorphicColors.errorFor(isDark),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+
+    final emailRegex = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
+    if (name.isEmpty || email.isEmpty || password.isEmpty) {
+      showErrorSnack('Please fill out all required fields.');
+      return;
+    }
+    if (!emailRegex.hasMatch(email)) {
+      showErrorSnack('Please enter a valid email address.');
+      return;
+    }
+    if (password.length < 6) {
+      showErrorSnack('Password must be at least 6 characters.');
+      return;
+    }
+    if (password != confirm) {
+      showErrorSnack('Passwords do not match.');
+      return;
+    }
+
+    final success = await ref.read(authProvider.notifier).signUp(
+      email: email,
+      password: password,
+      fullName: name,
+      role: _selectedRole,
+      phone: _phoneController.text.trim().isNotEmpty ? _phoneController.text.trim() : null,
+    );
 
     /*
     // Gene - Nov, 03, 2026: Sign up without explicit failure SnackBar feedback
@@ -111,6 +152,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     }
     */
 
+    /*
     // Gene - Nov, 05, 2026: Provide immediate user feedback and error SnackBar if registration fails
     if (success && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -132,6 +174,27 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
           backgroundColor: NeumorphicColors.error,
         ),
       );
+    }
+    */
+    // Gene - Nov, 22, 2026: Use floating theme-aware error SnackBar and user-friendly fallback message on signup failure
+    if (success && mounted) {
+      messenger.hideCurrentSnackBar();
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Account registered! Welcome to BookIt.'),
+          backgroundColor: NeumorphicColors.success,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      if (_selectedRole == 'business_owner') {
+        context.go('/admin');
+      } else {
+        context.go('/');
+      }
+    } else if (mounted) {
+      final errorMsg = ref.read(authProvider).error ??
+          'Unable to create your account right now. Please check your details and try again.';
+      showErrorSnack(errorMsg);
     }
   }
 
@@ -273,9 +336,33 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(color: NeumorphicColors.errorFor(isDark).withValues(alpha: 0.3)),
                             ),
+                            /*
+                            // Gene - Nov, 05, 2026: Plain Text-only signup error banner without leading icon
                             child: Text(
                               authState.error!,
                               style: TextStyle(color: NeumorphicColors.errorFor(isDark), fontSize: 13),
+                            ),
+                            */
+                            // Gene - Nov, 22, 2026: Added clear error icon alongside friendly inline signup error banner text
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Icon(
+                                  Icons.error_outline_rounded,
+                                  size: 18,
+                                  color: NeumorphicColors.errorFor(isDark),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Text(
+                                    authState.error!,
+                                    style: TextStyle(
+                                      color: NeumorphicColors.errorFor(isDark),
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                           const SizedBox(height: 16),
@@ -369,8 +456,17 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                           color: isDark ? NeumorphicColors.darkTextSecondary : NeumorphicColors.lightTextSecondary,
                         ),
                       ),
+                      /*
+                      // Gene - Nov, 03, 2026: Navigated to /login without clearing stale signup error banner
                       TextButton(
                         onPressed: () => context.push('/login'),
+                      */
+                      // Gene - Nov, 22, 2026: Clear stale auth error banner before navigating to /login
+                      TextButton(
+                        onPressed: () {
+                          ref.read(authProvider.notifier).clearError();
+                          context.push('/login');
+                        },
                         child: Text(
                           'Sign In',
                           style: TextStyle(

@@ -107,6 +107,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     'client@bookit.dev',
   };
 
+  /*
+  // Gene - Nov, 14, 2026: Sign-in & forgot-password handlers before unified floating error notifications & async reset error feedback
   void _handleSignIn() async {
     final email = _emailController.text.trim();
     final password = _passwordController.text;
@@ -196,6 +198,151 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       },
     );
   }
+  */
+
+  // Gene - Nov, 22, 2026: Added immediate floating SnackBar notifications on sign-in failure and awaited forgot-password error reporting
+  void _handleSignIn() async {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final messenger = ScaffoldMessenger.of(context);
+
+    void showErrorSnack(String message) {
+      messenger.hideCurrentSnackBar();
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: NeumorphicColors.errorFor(isDark),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+
+    if (email.isEmpty || password.isEmpty) {
+      showErrorSnack('Please enter your email and password.');
+      return;
+    }
+
+    if (!_emailRegex.hasMatch(email)) {
+      showErrorSnack('Please enter a valid email address.');
+      return;
+    }
+
+    final isAllowedDemoEmail =
+        AuthNotifier.isDemoModeEnabled && _demoEmails.contains(email.toLowerCase());
+    if (!isAllowedDemoEmail && password.length < 6) {
+      showErrorSnack('Password must be at least 6 characters.');
+      return;
+    }
+
+    final success = await ref.read(authProvider.notifier).signIn(email, password);
+    if (!mounted) return;
+
+    if (success) {
+      final user = ref.read(authProvider).user;
+      if (widget.redirectPath != null) {
+        context.go(widget.redirectPath!);
+      } else if (user?.canAccessAdminPortal == true) {
+        context.go('/admin');
+      } else {
+        context.go('/');
+      }
+    } else {
+      final errorMsg = ref.read(authProvider).error ??
+          'Unable to sign in. Please check your email and password and try again.';
+      showErrorSnack(errorMsg);
+    }
+  }
+
+  void _showForgotPasswordDialog() {
+    String resetEmail = _emailController.text.trim();
+    final messenger = ScaffoldMessenger.of(context);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Reset Password'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('Enter your registered email address to receive password reset instructions.'),
+              const SizedBox(height: 14),
+              TextFormField(
+                initialValue: resetEmail,
+                keyboardType: TextInputType.emailAddress,
+                onChanged: (value) => resetEmail = value,
+                decoration: const InputDecoration(labelText: 'Email Address', border: OutlineInputBorder()),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Cancel')),
+            ElevatedButton(
+              /*
+              // Gene - Nov, 14, 2026: Unawaited resetPassword unconditionally displayed success SnackBar even when request failed
+              onPressed: () {
+                final trimmed = resetEmail.trim();
+                if (!_emailRegex.hasMatch(trimmed)) {
+                  messenger.showSnackBar(
+                    SnackBar(
+                      content: const Text('Please enter a valid email address.'),
+                      backgroundColor: NeumorphicColors.warningFor(isDark),
+                    ),
+                  );
+                  return;
+                }
+                ref.read(authProvider.notifier).resetPassword(trimmed);
+                Navigator.pop(dialogContext);
+                messenger.showSnackBar(
+                  SnackBar(content: Text('Reset email sent to $trimmed')),
+                );
+              },
+              */
+              // Gene - Nov, 22, 2026: Await resetPassword result and show formatted error SnackBar if sending fails
+              onPressed: () async {
+                final trimmed = resetEmail.trim();
+                if (!_emailRegex.hasMatch(trimmed)) {
+                  messenger.hideCurrentSnackBar();
+                  messenger.showSnackBar(
+                    SnackBar(
+                      content: const Text('Please enter a valid email address.'),
+                      backgroundColor: NeumorphicColors.warningFor(isDark),
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                  return;
+                }
+                final ok = await ref.read(authProvider.notifier).resetPassword(trimmed);
+                if (dialogContext.mounted) {
+                  Navigator.pop(dialogContext);
+                }
+                if (!mounted) return;
+                messenger.hideCurrentSnackBar();
+                if (ok) {
+                  messenger.showSnackBar(
+                    SnackBar(content: Text('Reset email sent to $trimmed')),
+                  );
+                } else {
+                  final errMsg = ref.read(authProvider).error ??
+                      'Unable to send the password reset email right now. Please try again.';
+                  messenger.showSnackBar(
+                    SnackBar(
+                      content: Text(errMsg),
+                      backgroundColor: NeumorphicColors.errorFor(isDark),
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                }
+              },
+              child: const Text('Send Reset Link'),
+            ),
+          ],
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -269,9 +416,33 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(color: NeumorphicColors.errorFor(isDark).withValues(alpha: 0.3)),
                             ),
+                            /*
+                            // Gene - Nov, 14, 2026: Plain Text-only error banner without leading icon
                             child: Text(
                               authState.error!,
                               style: TextStyle(color: NeumorphicColors.errorFor(isDark), fontSize: 13),
+                            ),
+                            */
+                            // Gene - Nov, 22, 2026: Added clear error icon alongside friendly inline auth error banner text
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Icon(
+                                  Icons.error_outline_rounded,
+                                  size: 18,
+                                  color: NeumorphicColors.errorFor(isDark),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Text(
+                                    authState.error!,
+                                    style: TextStyle(
+                                      color: NeumorphicColors.errorFor(isDark),
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                           const SizedBox(height: 16),
@@ -612,8 +783,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           color: isDark ? NeumorphicColors.darkTextSecondary : NeumorphicColors.lightTextSecondary,
                         ),
                       ),
+                      /*
+                      // Gene - Nov, 03, 2026: Navigated to /signup without clearing stale login error banner
                       TextButton(
                         onPressed: () => context.push('/signup'),
+                        child: Text(
+                      */
+                      // Gene - Nov, 22, 2026: Clear stale auth error banner before navigating to /signup
+                      TextButton(
+                        onPressed: () {
+                          ref.read(authProvider.notifier).clearError();
+                          context.push('/signup');
+                        },
                         child: Text(
                           'Create Account',
                           style: TextStyle(

@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/neumorphic_colors.dart';
+// Gene - Nov, 22, 2026: Added AppErrorFormatter import for user-friendly business list load error display
+import '../../../core/utils/app_error_formatter.dart';
 import '../../../core/theme/theme_mode_provider.dart';
 import '../../../core/widgets/neumorphic_container.dart';
 import '../../../core/widgets/neumorphic_text_field.dart';
@@ -543,7 +545,25 @@ class _HomeDiscoveryScreenState extends ConsumerState<HomeDiscoveryScreen> {
             // Business Cards List or Interactive Map View
             businessesAsync.when(
               loading: () => const SliverFillRemaining(child: Center(child: CircularProgressIndicator())),
+              /*
+              // Gene - Nov, 03, 2026: Raw error string leaked DB/network exception details in HomeDiscoveryScreen
               error: (err, _) => SliverFillRemaining(child: Center(child: Text('Error: $err'))),
+              */
+              // Gene - Nov, 22, 2026: Display user-friendly error text when business directory fails to load
+              error: (err, _) => SliverFillRemaining(
+                child: Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Text(
+                      AppErrorFormatter.format(
+                        err,
+                        fallback: 'Unable to load businesses right now. Please try again.',
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
+              ),
               data: (businesses) {
                 if (businesses.isEmpty) {
                   /*

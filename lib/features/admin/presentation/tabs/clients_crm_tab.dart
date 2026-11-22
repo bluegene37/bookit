@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/theme/neumorphic_colors.dart';
+// Gene - Nov, 22, 2026: Added AppErrorFormatter import for user-friendly CRM load error display
+import '../../../../core/utils/app_error_formatter.dart';
 import '../../../../core/widgets/neumorphic_container.dart';
 import '../../../../core/widgets/neumorphic_button.dart';
 import '../../../../core/widgets/neumorphic_chip.dart';
@@ -76,7 +78,23 @@ class ClientsCrmTab extends ConsumerWidget {
                 child: CircularProgressIndicator(),
               ),
             ),
+            /*
+            // Gene - Nov 06, 2026: Raw error string leaked DB/network exception details in ClientsCrmTab
             error: (err, _) => Center(child: Text('Error loading clients: $err')),
+            */
+            // Gene - Nov, 22, 2026: Display user-friendly error message when clients list fails to load
+            error: (err, _) => Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Text(
+                  AppErrorFormatter.format(
+                    err,
+                    fallback: 'Unable to load clients right now. Please try again.',
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ),
             data: (allClients) {
               // Calculate High-Level Metrics
               final totalClients = allClients.length;

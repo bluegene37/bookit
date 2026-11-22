@@ -5,6 +5,8 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart' hide Path;
 import 'package:url_launcher/url_launcher.dart';
 import 'package:bookit/core/theme/neumorphic_colors.dart';
+// Gene - Nov, 22, 2026: Added AppErrorFormatter import for user-friendly map navigation error messages
+import 'package:bookit/core/utils/app_error_formatter.dart';
 import 'package:bookit/core/widgets/neumorphic_container.dart';
 import 'package:bookit/core/widgets/neumorphic_button.dart';
 import 'package:bookit/models/business.dart';
@@ -31,7 +33,12 @@ class StorefrontDirectionsCard extends StatelessWidget {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
+            /*
+            // Gene - Nov 06, 2026: Raw exception string leaked technical error details in directions SnackBar
             content: Text('Could not open map navigation: $e'),
+            */
+            // Gene - Nov, 22, 2026: Format map navigation error cleanly without technical noise
+            content: Text(AppErrorFormatter.format(e, context: AppErrorContext.map)),
             behavior: SnackBarBehavior.floating,
           ),
         );

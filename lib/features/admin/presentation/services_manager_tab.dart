@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 // Gene - Nov, 22, 2026: Added Uuid and PlatformConfig imports for UUID v4 generation & dynamic multi-currency labels
 import 'package:uuid/uuid.dart';
 import '../../../../core/theme/neumorphic_colors.dart';
+// Gene - Nov, 22, 2026: Added AppErrorFormatter import for user-friendly service management error notifications
+import '../../../core/utils/app_error_formatter.dart';
 import '../../../../core/widgets/neumorphic_container.dart';
 import '../../../../core/widgets/neumorphic_button.dart';
 import '../../../../models/business.dart';
@@ -417,6 +419,8 @@ class ServicesManagerTab extends ConsumerWidget {
                   child: const Text('Cancel'),
                 ),
                 ElevatedButton(
+                  /*
+                  // Gene - Nov, 04, 2026: Uncaught addService/updateService calls silently failed on live DB errors
                   onPressed: () async {
                     final parsedName = nameCtrl.text.trim().isEmpty ? srvLabel : nameCtrl.text.trim();
                     final parsedDesc = descCtrl.text.trim().isEmpty ? null : descCtrl.text.trim();
@@ -466,6 +470,66 @@ class ServicesManagerTab extends ConsumerWidget {
                       );
                     }
                   },
+                  */
+                  // Gene - Nov, 22, 2026: Catch live DB service mutation errors and show friendly SnackBar feedback
+                  onPressed: () async {
+                    final messenger = ScaffoldMessenger.of(context);
+                    final parsedName = nameCtrl.text.trim().isEmpty ? srvLabel : nameCtrl.text.trim();
+                    final parsedDesc = descCtrl.text.trim().isEmpty ? null : descCtrl.text.trim();
+                    final parsedDuration = int.tryParse(durationCtrl.text.trim()) ?? 30;
+                    final parsedPrice = double.tryParse(priceCtrl.text.trim()) ?? 50.0;
+                    final parsedDeposit = double.tryParse(depositCtrl.text.trim()) ?? 20.0;
+
+                    try {
+                      if (isEditing) {
+                        final updated = existingService.copyWith(
+                          name: parsedName,
+                          description: parsedDesc,
+                          durationMinutes: parsedDuration,
+                          price: parsedPrice,
+                          currency: business.currency,
+                          paymentPolicy: paymentPolicy,
+                          depositType: depositType,
+                          depositAmount: parsedDeposit,
+                          isActive: isActive,
+                        );
+                        await ref.read(businessServiceProvider).updateService(updated);
+                      } else {
+                        final newService = ServiceItem(
+                          id: const Uuid().v4(),
+                          businessId: business.id,
+                          name: parsedName,
+                          description: parsedDesc,
+                          durationMinutes: parsedDuration,
+                          price: parsedPrice,
+                          currency: business.currency,
+                          paymentPolicy: paymentPolicy,
+                          depositType: depositType,
+                          depositAmount: parsedDeposit,
+                          isActive: true,
+                        );
+                        await ref.read(businessServiceProvider).addService(newService);
+                      }
+
+                      ref.invalidate(adminBusinessServicesProvider(business.id));
+                      ref.invalidate(businessServicesProvider(business.id));
+
+                      if (dialogCtx.mounted) {
+                        Navigator.pop(dialogCtx);
+                      }
+                      messenger.showSnackBar(
+                        SnackBar(content: Text(isEditing ? 'Service updated successfully!' : 'Service added successfully!')),
+                      );
+                    } catch (e) {
+                      messenger.showSnackBar(
+                        SnackBar(
+                          content: Text(AppErrorFormatter.format(e, context: AppErrorContext.service)),
+                          backgroundColor: NeumorphicColors.error,
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                    }
+                  },
                   child: Text(isEditing ? 'Save Changes' : 'Add Service'),
                 ),
               ],
@@ -476,6 +540,8 @@ class ServicesManagerTab extends ConsumerWidget {
     );
   }
 
+  /*
+  // Gene - Nov, 04, 2026: Uncaught toggleServiceActive silently failed on live DB errors
   Future<void> _toggleServiceActive(BuildContext context, WidgetRef ref, ServiceItem service) async {
     final updated = service.copyWith(isActive: !service.isActive);
     await ref.read(businessServiceProvider).updateService(updated);
@@ -485,6 +551,30 @@ class ServicesManagerTab extends ConsumerWidget {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(updated.isActive ? '${service.name} restored to active catalog.' : '${service.name} archived from client catalog.'),
+        ),
+      );
+    }
+  }
+  */
+  // Gene - Nov, 22, 2026: Catch live DB errors on service archive/restore toggle and display friendly SnackBar
+  Future<void> _toggleServiceActive(BuildContext context, WidgetRef ref, ServiceItem service) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final updated = service.copyWith(isActive: !service.isActive);
+    try {
+      await ref.read(businessServiceProvider).updateService(updated);
+      ref.invalidate(adminBusinessServicesProvider(business.id));
+      ref.invalidate(businessServicesProvider(business.id));
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(updated.isActive ? '${service.name} restored to active catalog.' : '${service.name} archived from client catalog.'),
+        ),
+      );
+    } catch (e) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(AppErrorFormatter.format(e, context: AppErrorContext.service)),
+          backgroundColor: NeumorphicColors.error,
+          behavior: SnackBarBehavior.floating,
         ),
       );
     }
@@ -576,7 +666,23 @@ class ServicesManagerTab extends ConsumerWidget {
 
           servicesAsync.when(
             loading: () => const Center(child: CircularProgressIndicator()),
+            /*
+            // Gene - Nov, 03, 2026: Raw error string leaked DB/network exception details in ServicesManagerTab
             error: (e, _) => Center(child: Text('Error: $e')),
+            */
+            // Gene - Nov, 22, 2026: Show user-friendly error text when services fail to load
+            error: (e, _) => Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Text(
+                  AppErrorFormatter.format(
+                    e,
+                    fallback: 'Unable to load services right now. Please try again.',
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ),
             data: (services) {
               if (services.isEmpty) {
                 return Center(child: Text('No ${business.serviceLabel.toLowerCase()}s registered.'));

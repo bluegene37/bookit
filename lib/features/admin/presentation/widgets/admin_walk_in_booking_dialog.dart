@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 import '../../../../core/theme/neumorphic_colors.dart';
+// Gene - Nov, 22, 2026: Added AppErrorFormatter import for user-friendly walk-in booking error notifications
+import '../../../../core/utils/app_error_formatter.dart';
 import '../../../../core/widgets/neumorphic_button.dart';
 import '../../../../models/booking.dart';
 import '../../../../models/business.dart';
@@ -151,7 +153,18 @@ class _AdminWalkInBookingDialogState extends ConsumerState<AdminWalkInBookingDia
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
+            /*
+            // Gene - Nov 07, 2026: Raw exception string leaked technical DB details in walk-in SnackBar
             content: Text('Failed to create booking: ${e.toString().replaceFirst('Exception: ', '')}'),
+            */
+            // Gene - Nov, 22, 2026: Format walk-in booking failure cleanly without status codes
+            content: Text(
+              AppErrorFormatter.format(
+                e,
+                context: AppErrorContext.booking,
+                fallback: 'Could not create the booking right now. Please try again.',
+              ),
+            ),
             backgroundColor: NeumorphicColors.error,
           ),
         );

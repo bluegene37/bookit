@@ -4,6 +4,8 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/neumorphic_colors.dart';
+// Gene - Nov, 22, 2026: Added AppErrorFormatter import for user-friendly onboarding error messages
+import '../../../../core/utils/app_error_formatter.dart';
 import '../../../../core/widgets/neumorphic_container.dart';
 import '../../../../core/widgets/neumorphic_button.dart';
 import '../../../../core/widgets/neumorphic_text_field.dart';
@@ -292,8 +294,25 @@ class _AdminOnboardingWizardState extends ConsumerState<AdminOnboardingWizard> {
       }
     } catch (e) {
       if (mounted) {
+        /*
+        // Gene - Nov, 04, 2026: Raw exception string leaked DB error codes in onboarding SnackBar
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed to register business: $e')),
+        );
+        */
+        // Gene - Nov, 22, 2026: Surface friendly business registration error SnackBar without status codes
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              AppErrorFormatter.format(
+                e,
+                context: AppErrorContext.business,
+                fallback: 'Could not register your business right now. Please try again.',
+              ),
+            ),
+            backgroundColor: NeumorphicColors.error,
+            behavior: SnackBarBehavior.floating,
+          ),
         );
       }
     } finally {
@@ -936,7 +955,23 @@ class _AdminOnboardingWizardState extends ConsumerState<AdminOnboardingWizard> {
 
         final templatesGrid = templatesAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
+          /*
+          // Gene - Nov, 04, 2026: Raw error string leaked DB/network details on template load error
           error: (e, _) => Center(child: Text('Error loading templates: $e')),
+          */
+          // Gene - Nov, 22, 2026: Show user-friendly error text when industry templates fail to load
+          error: (e, _) => Center(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text(
+                AppErrorFormatter.format(
+                  e,
+                  fallback: 'Unable to load industry templates right now. Please try again.',
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ),
           data: (templates) {
             return GridView.builder(
               shrinkWrap: isShortStep,

@@ -2,6 +2,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/neumorphic_colors.dart';
+// Gene - Nov, 22, 2026: Added AppErrorFormatter import for user-friendly business settings error notifications
+import '../../../../core/utils/app_error_formatter.dart';
 import '../../../../core/widgets/neumorphic_container.dart';
 import '../../../../core/widgets/neumorphic_button.dart';
 import '../../../../core/widgets/neumorphic_text_field.dart';
@@ -239,6 +241,8 @@ class _BusinessSettingsTabState extends ConsumerState<BusinessSettingsTab> {
         },
       },
     );
+    /*
+    // Gene - Nov 06, 2026: Uncaught updateBusiness call silently failed on live DB errors
     await ref.read(businessServiceProvider).updateBusiness(updatedBusiness);
     ref.invalidate(businessDetailProvider(widget.business.id));
     ref.invalidate(businessListProvider);
@@ -253,6 +257,35 @@ class _BusinessSettingsTabState extends ConsumerState<BusinessSettingsTab> {
       Future.delayed(const Duration(seconds: 2), () {
         if (mounted) setState(() => _saved = false);
       });
+    }
+    */
+    // Gene - Nov, 22, 2026: Catch live DB errors on settings save and display user-friendly SnackBar notification
+    try {
+      await ref.read(businessServiceProvider).updateBusiness(updatedBusiness);
+      ref.invalidate(businessDetailProvider(widget.business.id));
+      ref.invalidate(businessListProvider);
+      if (mounted) {
+        setState(() => _saved = true);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Saved ${widget.business.venueLabel.toLowerCase()} settings & map location!'),
+            backgroundColor: NeumorphicColors.tealPrimary,
+          ),
+        );
+        Future.delayed(const Duration(seconds: 2), () {
+          if (mounted) setState(() => _saved = false);
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(AppErrorFormatter.format(e, context: AppErrorContext.business)),
+            backgroundColor: NeumorphicColors.error,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
     }
   }
 

@@ -2,6 +2,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/neumorphic_colors.dart';
+// Gene - Nov, 22, 2026: Added AppErrorFormatter import for user-friendly shift schedule error notifications
+import '../../../../core/utils/app_error_formatter.dart';
 import '../../../../core/widgets/neumorphic_container.dart';
 import '../../../../core/widgets/neumorphic_button.dart';
 import '../../../../models/business_staff.dart';
@@ -134,8 +136,24 @@ class _StaffShiftEditorDialogState extends ConsumerState<StaffShiftEditorDialog>
       }
     } catch (e) {
       if (mounted) {
+        /*
+        // Gene - Nov 06, 2026: Raw exception string leaked technical DB details when saving shift schedule
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error saving schedule: $e'), backgroundColor: NeumorphicColors.error),
+        );
+        */
+        // Gene - Nov, 22, 2026: Format shift save error cleanly without status codes
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              AppErrorFormatter.format(
+                e,
+                context: AppErrorContext.staff,
+                fallback: 'Could not save the shift schedule right now. Please try again.',
+              ),
+            ),
+            backgroundColor: NeumorphicColors.error,
+          ),
         );
       }
     } finally {

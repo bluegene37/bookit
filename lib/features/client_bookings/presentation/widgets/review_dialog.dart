@@ -2,6 +2,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/neumorphic_colors.dart';
+// Gene - Nov, 22, 2026: Added AppErrorFormatter import for user-friendly review submission error notifications
+import '../../../../core/utils/app_error_formatter.dart';
 import '../../../../core/widgets/neumorphic_button.dart';
 import '../../../../models/booking.dart';
 import '../../../../models/review.dart';
@@ -50,6 +52,8 @@ class _ReviewSubmissionDialogState extends ConsumerState<ReviewSubmissionDialog>
       createdAt: DateTime.now(),
     );
 
+    /*
+    // Gene - Nov, 05, 2026: Uncaught createReview call left modal stuck loading if live DB rejected review
     await ref.read(businessServiceProvider).createReview(review);
 
     // Refresh providers
@@ -66,6 +70,38 @@ class _ReviewSubmissionDialogState extends ConsumerState<ReviewSubmissionDialog>
           backgroundColor: NeumorphicColors.success,
         ),
       );
+    }
+    */
+    // Gene - Nov, 22, 2026: Catch live DB review errors, reset loading state, and show user-friendly SnackBar notification
+    try {
+      await ref.read(businessServiceProvider).createReview(review);
+
+      // Refresh providers
+      ref.invalidate(businessReviewsProvider(widget.booking.businessId));
+      ref.invalidate(businessDetailProvider(widget.booking.businessId));
+      ref.invalidate(businessListProvider);
+
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Thank you! Your $_selectedRating-star review for ${widget.booking.businessName} was posted.'),
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: NeumorphicColors.success,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isSubmitting = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(AppErrorFormatter.format(e, context: AppErrorContext.review)),
+            backgroundColor: NeumorphicColors.error,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
     }
   }
 

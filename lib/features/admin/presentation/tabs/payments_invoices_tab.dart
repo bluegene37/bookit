@@ -6,6 +6,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/theme/neumorphic_colors.dart';
+// Gene - Nov, 22, 2026: Added AppErrorFormatter import for user-friendly payments load error display
+import '../../../../core/utils/app_error_formatter.dart';
 import '../../../../core/widgets/neumorphic_container.dart';
 import '../../../../core/widgets/neumorphic_button.dart';
 import '../../../../core/widgets/status_badge.dart';
@@ -33,7 +35,23 @@ class PaymentsInvoicesTab extends ConsumerWidget {
 
     return paymentsAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
+      /*
+      // Gene - Nov, 04, 2026: Raw error string leaked DB/network exception details in PaymentsInvoicesTab
       error: (e, _) => Center(child: Text('Error loading payments: $e')),
+      */
+      // Gene - Nov, 22, 2026: Display user-friendly error message when payments fail to load
+      error: (e, _) => Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Text(
+            AppErrorFormatter.format(
+              e,
+              fallback: 'Unable to load payments right now. Please try again.',
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ),
+      ),
       data: (payments) {
         return PaymentsInvoicesView(
           payments: payments,

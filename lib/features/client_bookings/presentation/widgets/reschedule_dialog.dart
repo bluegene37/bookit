@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/theme/neumorphic_colors.dart';
+// Gene - Nov, 22, 2026: Added AppErrorFormatter import for user-friendly reschedule error notifications
+import '../../../../core/utils/app_error_formatter.dart';
 import '../../../../core/widgets/neumorphic_container.dart';
 import '../../../../core/widgets/neumorphic_button.dart';
 import '../../../../models/booking.dart';
@@ -158,8 +160,19 @@ class _RescheduleBookingDialogState extends ConsumerState<RescheduleBookingDialo
       setState(() => _isSubmitting = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
+          /*
+          // Gene - Nov, 05, 2026: Raw exception string leaked DB/network details in reschedule SnackBar
           content: Text(
             'Could not reschedule: ${e.toString().replaceFirst('Exception: ', '')}',
+          ),
+          */
+          // Gene - Nov, 22, 2026: Format reschedule error cleanly for users without status codes
+          content: Text(
+            AppErrorFormatter.format(
+              e,
+              context: AppErrorContext.booking,
+              fallback: 'Could not reschedule your booking right now. Please try again.',
+            ),
           ),
           behavior: SnackBarBehavior.floating,
           backgroundColor: NeumorphicColors.error,
