@@ -35,6 +35,19 @@ class BusinessTemplate {
   String get resourceType => (uiConfig['resource_type'] as String?) ?? 'person';
   String get resourceLabel => (uiConfig['resource_label'] as String?) ?? 'Specialist';
   String get serviceLabel => (uiConfig['service_label'] as String?) ?? 'Service';
+  // Gene - Nov, 22, 2026: Added universal template UI label & default currency getters
+  String get clientLabel => (uiConfig['client_label'] as String?) ?? 'Client';
+  String get venueLabel => (uiConfig['venue_label'] as String?) ?? 'Venue';
+  String get bookingLabel => (uiConfig['booking_label'] as String?) ?? 'Booking';
+  String get crmFlagLabel => (uiConfig['crm_flag_label'] as String?) ?? 'Client Alerts & Flags';
+  List<String> get crmFlagPresets {
+    final raw = uiConfig['crm_flag_presets'];
+    if (raw is List) {
+      return raw.map((e) => e.toString()).toList();
+    }
+    return const [];
+  }
+  String get defaultCurrency => (defaultSettings['currency'] as String?) ?? 'USD';
   bool get showStaffSelection => (uiConfig['show_staff_selection'] as bool?) ?? true;
   List<Map<String, dynamic>> get intakeFields {
     final fields = uiConfig['intake_fields'];

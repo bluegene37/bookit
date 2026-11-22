@@ -9,6 +9,8 @@ import '../../../../core/widgets/neumorphic_container.dart';
 import '../../../../core/widgets/neumorphic_button.dart';
 import '../../../../core/widgets/status_badge.dart';
 import '../../../../models/business.dart';
+// Gene - Nov, 22, 2026: Added PlatformConfig for DB-driven multi-currency formatting
+import '../../../../models/platform_config.dart';
 import '../../../../models/booking.dart';
 import '../../../../models/service_item.dart';
 import '../../../../models/business_staff.dart';
@@ -130,12 +132,15 @@ class DashboardOverviewTab extends ConsumerWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              b.clientName ?? 'Patient / Guest',
+                              // b.clientName ?? 'Patient / Guest',
+                              // Gene - Nov, 22, 2026: Dynamic client terminology from Business ui_config
+                              b.clientName ?? clientLabel,
                               style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              '${b.serviceName ?? 'Service'} • ${b.formattedSchedule}',
+                              // '${b.serviceName ?? 'Service'} • ${b.formattedSchedule}',
+                              '${b.serviceName ?? widget.business.serviceLabel} • ${b.formattedSchedule}',
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(fontSize: 13, color: isDark ? Colors.white70 : Colors.black87),
@@ -336,12 +341,18 @@ class _DashboardOverviewTabState extends ConsumerState<DashboardOverviewTab> {
     // Gene - Nov, 7, 2026: Use valueOrNull instead of value to safely handle error states
     final servicesList = servicesAsync.valueOrNull ?? <ServiceItem>[];
     final staffList = staffAsync.valueOrNull ?? <BusinessStaff>[];
+    // Gene - Nov, 22, 2026: Resolve DB-driven currency and industry terminology from Business ui_config
+    final currencyCode = widget.business.currency;
+    final clientLabel = widget.business.clientLabel;
+    final bookingLabel = widget.business.bookingLabel;
+    final resourceLabel = widget.business.resourceLabel;
 
     // Compute Chart Datasets
     final trendData = _buildTrendData(bookings, grossRevenue);
     final serviceDonutData = _buildServiceDonutData(servicesList, bookings, grossRevenue, accent);
     final hourlyData = _buildHourlyData(bookings);
-    final staffUtilizationData = _buildStaffUtilization(staffList, bookings, grossRevenue);
+    // final staffUtilizationData = _buildStaffUtilization(staffList, bookings, grossRevenue);
+    final staffUtilizationData = _buildStaffUtilization(staffList, bookings, grossRevenue, resourceLabel: resourceLabel);
 
     // Gene - Nov, 14, 2026: Adjust outer padding for compact mobile viewports (<360px)
     final viewportWidth = MediaQuery.sizeOf(context).width;
@@ -456,20 +467,26 @@ class _DashboardOverviewTabState extends ConsumerState<DashboardOverviewTab> {
                 children: [
                   KpiMetricCard(
                     label: 'Gross Revenue',
-                    value: '\$${NumberFormat('#,##0').format(grossRevenue)}',
+                    // value: '\$${NumberFormat('#,##0').format(grossRevenue)}',
+                    // Gene - Nov, 22, 2026: Format KPI currency dynamically from Business currency
+                    value: '${PlatformConfig.symbolFor(currencyCode)}${NumberFormat('#,##0').format(grossRevenue)}',
                     icon: Icons.attach_money_rounded,
                     accentColor: accent,
                     subtitle: '+14.2% vs prior $_timeRange',
                   ),
                   KpiMetricCard(
-                    label: 'Total Appointments',
+                    // label: 'Total Appointments',
+                    // Gene - Nov, 22, 2026: Derive KPI label dynamically from Business bookingLabel
+                    label: 'Total ${bookingLabel}s',
                     value: '$totalAppointmentsCount',
                     icon: Icons.calendar_today_rounded,
                     accentColor: isDark ? NeumorphicColors.cyanLight : NeumorphicColors.cyanAccent,
                     subtitle: '${confirmedBookings.length} upcoming scheduled',
                   ),
                   KpiMetricCard(
-                    label: 'Bay / Chair Occupancy',
+                    // label: 'Bay / Chair Occupancy',
+                    // Gene - Nov, 22, 2026: Industry-neutral resource utilization KPI title
+                    label: 'Resource Utilization',
                     value: '${occupancyRate.toStringAsFixed(1)}%',
                     icon: Icons.speed_rounded,
                     accentColor: NeumorphicColors.warningFor(isDark),
@@ -477,7 +494,9 @@ class _DashboardOverviewTabState extends ConsumerState<DashboardOverviewTab> {
                   ),
                   KpiMetricCard(
                     label: 'Average Ticket Value',
-                    value: '\$${avgTicket.toStringAsFixed(0)}',
+                    // value: '\$${avgTicket.toStringAsFixed(0)}',
+                    // Gene - Nov, 22, 2026: Format average ticket value with Business currency
+                    value: PlatformConfig.formatCurrency(avgTicket, currencyCode: currencyCode, decimals: 0),
                     icon: Icons.receipt_long_rounded,
                     accentColor: NeumorphicColors.warningFor(isDark),
                     subtitle: '${widget.business.ratingAvg.toStringAsFixed(1)} ★ (${widget.business.ratingCount} reviews)',
@@ -594,12 +613,15 @@ class _DashboardOverviewTabState extends ConsumerState<DashboardOverviewTab> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              b.clientName ?? 'Patient / Guest',
+                              // b.clientName ?? 'Patient / Guest',
+                              // Gene - Nov, 22, 2026: Dynamic client terminology from Business ui_config
+                              b.clientName ?? clientLabel,
                               style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              '${b.serviceName ?? 'Service'} • ${b.formattedSchedule}',
+                              // '${b.serviceName ?? 'Service'} • ${b.formattedSchedule}',
+                              '${b.serviceName ?? widget.business.serviceLabel} • ${b.formattedSchedule}',
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(fontSize: 13, color: isDark ? Colors.white70 : Colors.black87),
@@ -742,49 +764,60 @@ class _DashboardOverviewTabState extends ConsumerState<DashboardOverviewTab> {
                             crossAxisAlignment: WrapCrossAlignment.center,
                             spacing: 8,
                             runSpacing: 4,
-                            children: [
-                              Text(
-                                b.clientName ?? 'Patient',
-                                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
-                              ),
-                              StatusBadge(status: b.status),
-                            ],
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            '${b.serviceName ?? 'Service'} • ${b.formattedSchedule}',
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: isDark ? NeumorphicColors.darkTextSecondary : NeumorphicColors.lightTextSecondary,
+                              children: [
+                                Text(
+                                  // b.clientName ?? 'Patient',
+                                  // Gene - Nov, 22, 2026: Dynamic client terminology from Business ui_config
+                                  b.clientName ?? clientLabel,
+                                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                                ),
+                                StatusBadge(status: b.status),
+                              ],
                             ),
-                          ),
-                          if (b.staffName != null) ...[
-                            const SizedBox(height: 2),
-                            Text('With: ${b.staffName}', style: TextStyle(fontSize: 12, color: accent)),
+                            const SizedBox(height: 4),
+                            Text(
+                              // '${b.serviceName ?? 'Service'} • ${b.formattedSchedule}',
+                              '${b.serviceName ?? widget.business.serviceLabel} • ${b.formattedSchedule}',
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: isDark ? NeumorphicColors.darkTextSecondary : NeumorphicColors.lightTextSecondary,
+                              ),
+                            ),
+                            if (b.staffName != null) ...[
+                              const SizedBox(height: 2),
+                              Text('With: ${b.staffName}', style: TextStyle(fontSize: 12, color: accent)),
+                            ],
                           ],
-                        ],
-                      );
-                      final priceText = Text(
-                        '\$${b.totalPrice.toStringAsFixed(2)}',
-                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: accent),
-                      );
-                      final optionsMenu = PopupMenuButton<String>(
-                        tooltip: 'Appointment options',
-                        icon: const Icon(Icons.more_vert, size: 20),
-                        onSelected: (val) {
-                          if (val == 'complete') {
-                            ref.read(bookingsProvider.notifier).updateBookingStatus(b.id, 'completed');
-                          } else if (val == 'cancel') {
-                            ref.read(bookingsProvider.notifier).updateBookingStatus(b.id, 'cancelled');
-                          }
-                        },
-                        itemBuilder: (context) => const [
-                          PopupMenuItem(value: 'complete', child: Text('Mark as Completed')),
-                          PopupMenuItem(value: 'cancel', child: Text('Cancel Appointment')),
-                        ],
-                      );
+                        );
+                        final priceText = Text(
+                          // '\$${b.totalPrice.toStringAsFixed(2)}',
+                          // PlatformConfig.formatCurrency(b.totalPrice, currencyCode: b.currency ?? currencyCode),
+                          // Gene - Nov, 22, 2026: Format booking total dynamically with non-null currency fallback
+                          PlatformConfig.formatCurrency(
+                            b.totalPrice,
+                            currencyCode: b.currency.isNotEmpty ? b.currency : currencyCode,
+                          ),
+                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: accent),
+                        );
+                        final optionsMenu = PopupMenuButton<String>(
+                          tooltip: 'Appointment options',
+                          icon: const Icon(Icons.more_vert, size: 20),
+                          onSelected: (val) {
+                            if (val == 'complete') {
+                              ref.read(bookingsProvider.notifier).updateBookingStatus(b.id, 'completed');
+                            } else if (val == 'cancel') {
+                              ref.read(bookingsProvider.notifier).updateBookingStatus(b.id, 'cancelled');
+                            }
+                          },
+                          itemBuilder: (context) => [
+                            const PopupMenuItem(value: 'complete', child: Text('Mark as Completed')),
+                            // const PopupMenuItem(value: 'cancel', child: Text('Cancel Appointment')),
+                            // Gene - Nov, 22, 2026: Dynamic bookingLabel in cancellation action
+                            PopupMenuItem(value: 'cancel', child: Text('Cancel $bookingLabel')),
+                          ],
+                        );
 
                       if (stackFooter) {
                         return Column(
@@ -969,6 +1002,7 @@ class _DashboardOverviewTabState extends ConsumerState<DashboardOverviewTab> {
     ];
   }
 
+  /*
   List<StaffUtilizationData> _buildStaffUtilization(
     List<BusinessStaff> staffList,
     List<Booking> bookings,
@@ -1017,6 +1051,63 @@ class _DashboardOverviewTabState extends ConsumerState<DashboardOverviewTab> {
         id: 'staff-room-3',
         name: 'Procedure Suite / Bay A',
         role: 'Dedicated Treatment Station',
+        completedBookings: 8,
+        revenueGenerated: totalRevenue * 0.13,
+        utilizationRate: 0.56,
+      ),
+    ];
+  }
+  */
+  // Gene - Nov, 22, 2026: Dynamic DB-driven resourceLabel and industry-neutral fallback utilization rows
+  List<StaffUtilizationData> _buildStaffUtilization(
+    List<BusinessStaff> staffList,
+    List<Booking> bookings,
+    double totalRevenue, {
+    String resourceLabel = 'Specialist',
+  }) {
+    if (staffList.isNotEmpty) {
+      final rates = [0.88, 0.74, 0.62, 0.48];
+      final revShares = [0.44, 0.30, 0.16, 0.10];
+
+      return staffList.take(4).toList().asMap().entries.map((entry) {
+        final idx = entry.key;
+        final staff = entry.value;
+        final rev = totalRevenue * revShares[idx % revShares.length];
+
+        return StaffUtilizationData(
+          id: staff.id,
+          name: staff.name,
+          role: (staff.specialty != null && staff.specialty!.isNotEmpty)
+              ? staff.specialty!
+              : resourceLabel,
+          completedBookings: (rev / 110).round().clamp(2, 25),
+          revenueGenerated: rev,
+          utilizationRate: rates[idx % rates.length],
+        );
+      }).toList();
+    }
+
+    return [
+      StaffUtilizationData(
+        id: 'staff-lead-1',
+        name: 'Lead $resourceLabel',
+        role: 'Primary Services & Bookings',
+        completedBookings: 18,
+        revenueGenerated: totalRevenue * 0.55,
+        utilizationRate: 0.88,
+      ),
+      StaffUtilizationData(
+        id: 'staff-associate-2',
+        name: 'Associate $resourceLabel',
+        role: 'Standard Services & Sessions',
+        completedBookings: 12,
+        revenueGenerated: totalRevenue * 0.32,
+        utilizationRate: 0.72,
+      ),
+      StaffUtilizationData(
+        id: 'staff-room-3',
+        name: 'Dedicated Station / Room A',
+        role: 'Shared Facility Resource',
         completedBookings: 8,
         revenueGenerated: totalRevenue * 0.13,
         utilizationRate: 0.56,

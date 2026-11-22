@@ -57,10 +57,12 @@ class _RescheduleBookingDialogState extends ConsumerState<RescheduleBookingDialo
 */
 
 // Gene - Nov 07, 2026: Conflict-safe RescheduleBookingDialog using SlotCalculator time slots (excluding current booking ID)
+// Gene - Nov, 22, 2026: Use businessStaffProvider, advanceBookingDays/minNoticeHours, awaited reschedule RPC feedback, and universal wording
 class _RescheduleBookingDialogState extends ConsumerState<RescheduleBookingDialog> {
   late DateTime _selectedDate;
   TimeSlot? _selectedSlot;
   DateTimeRange? _selectedDateRange;
+  bool _isSubmitting = false;
 
   @override
   void initState() {
@@ -68,7 +70,6 @@ class _RescheduleBookingDialogState extends ConsumerState<RescheduleBookingDialo
     if (widget.booking.isSlotBased) {
       final candidate = widget.booking.startTime?.add(const Duration(days: 1)) ??
           DateTime.now().add(const Duration(days: 1));
-      // Avoid Sunday by default if clinic is closed on Sundays
       _selectedDate = candidate.weekday == DateTime.sunday
           ? candidate.add(const Duration(days: 1))
           : candidate;
@@ -82,12 +83,18 @@ class _RescheduleBookingDialogState extends ConsumerState<RescheduleBookingDialo
     }
   }
 
-  void _handlePickDate() async {
+  void _handlePickDate(Business business) async {
+    final minCutoff = DateTime.now().add(Duration(hours: business.minNoticeHours));
+    final firstDate = DateTime(minCutoff.year, minCutoff.month, minCutoff.day);
+    final lastDate = firstDate.add(Duration(days: business.advanceBookingDays));
+    final initial = _selectedDate.isBefore(firstDate)
+        ? firstDate
+        : (_selectedDate.isAfter(lastDate) ? lastDate : _selectedDate);
     final picked = await showDatePicker(
       context: context,
-      initialDate: _selectedDate,
-      firstDate: DateTime.now(),
-      lastDate: DateTime.now().add(const Duration(days: 180)),
+      initialDate: initial,
+      firstDate: firstDate,
+      lastDate: lastDate,
     );
     if (picked != null) {
       setState(() {
@@ -97,44 +104,68 @@ class _RescheduleBookingDialogState extends ConsumerState<RescheduleBookingDialo
     }
   }
 
-  void _handlePickDateRange() async {
+  void _handlePickDateRange(Business business) async {
+    final minCutoff = DateTime.now().add(Duration(hours: business.minNoticeHours));
+    final firstDate = DateTime(minCutoff.year, minCutoff.month, minCutoff.day);
+    final lastDate = firstDate.add(
+      Duration(days: business.advanceBookingDays > 180 ? business.advanceBookingDays : 180),
+    );
     final picked = await showDateRangePicker(
       context: context,
       initialDateRange: _selectedDateRange,
-      firstDate: DateTime.now(),
-      lastDate: DateTime.now().add(const Duration(days: 180)),
+      firstDate: firstDate,
+      lastDate: lastDate,
     );
     if (picked != null) {
       setState(() => _selectedDateRange = picked);
     }
   }
 
-  void _submitReschedule(TimeSlot? activeSlot) {
-    if (widget.booking.isSlotBased) {
-      if (activeSlot == null) return;
-      ref.read(bookingsProvider.notifier).rescheduleBooking(
-            bookingId: widget.booking.id,
-            newStartTime: activeSlot.startTime,
-            newEndTime: activeSlot.endTime,
-          );
-    } else {
-      if (_selectedDateRange != null) {
-        ref.read(bookingsProvider.notifier).rescheduleBooking(
+  Future<void> _submitReschedule(TimeSlot? activeSlot) async {
+    setState(() => _isSubmitting = true);
+    try {
+      if (widget.booking.isSlotBased) {
+        if (activeSlot == null) {
+          setState(() => _isSubmitting = false);
+          return;
+        }
+        await ref.read(bookingsProvider.notifier).rescheduleBooking(
+              bookingId: widget.booking.id,
+              newStartTime: activeSlot.startTime,
+              newEndTime: activeSlot.endTime,
+            );
+      } else if (_selectedDateRange != null) {
+        await ref.read(bookingsProvider.notifier).rescheduleBooking(
               bookingId: widget.booking.id,
               newDateFrom: _selectedDateRange!.start,
               newDateTo: _selectedDateRange!.end,
             );
       }
-    }
 
-    Navigator.pop(context);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Appointment with ${widget.booking.businessName} rescheduled successfully!'),
-        behavior: SnackBarBehavior.floating,
-        backgroundColor: NeumorphicColors.success,
-      ),
-    );
+      if (!mounted) return;
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Booking with ${widget.booking.businessName ?? 'provider'} rescheduled successfully!',
+          ),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: NeumorphicColors.success,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isSubmitting = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Could not reschedule: ${e.toString().replaceFirst('Exception: ', '')}',
+          ),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: NeumorphicColors.error,
+        ),
+      );
+    }
   }
 
   @override
@@ -144,14 +175,19 @@ class _RescheduleBookingDialogState extends ConsumerState<RescheduleBookingDialo
     final textPrimary = isDark ? NeumorphicColors.darkTextPrimary : NeumorphicColors.lightTextPrimary;
     final textSecondary = isDark ? NeumorphicColors.darkTextSecondary : NeumorphicColors.lightTextSecondary;
 
-    final business = ref.watch(businessDetailProvider(widget.booking.businessId)).value ??
+    final business = ref.watch(businessDetailProvider(widget.booking.businessId)).valueOrNull ??
         SupabaseService.mockBusinesses
             .where((b) => b.id == widget.booking.businessId)
             .firstOrNull ??
-        Business.fallback(id: widget.booking.businessId, name: widget.booking.businessName ?? 'Clinic');
+        Business.fallback(
+          id: widget.booking.businessId,
+          name: widget.booking.businessName ?? 'BookIt Business',
+        );
 
+    final staffList = ref.watch(businessStaffProvider(widget.booking.businessId)).valueOrNull ??
+        SupabaseService.mockStaff;
     final staffMember = widget.booking.staffId != null
-        ? SupabaseService.mockStaff.where((s) => s.id == widget.booking.staffId).firstOrNull
+        ? staffList.where((s) => s.id == widget.booking.staffId).firstOrNull
         : null;
 
     final otherBookings = ref
@@ -180,7 +216,10 @@ class _RescheduleBookingDialogState extends ConsumerState<RescheduleBookingDialo
         : slots.where((s) => s.isAvailable).firstOrNull;
 
     return AlertDialog(
-      title: Text('Reschedule Appointment', style: TextStyle(fontWeight: FontWeight.w800, color: textPrimary)),
+      title: Text(
+        'Reschedule ${business.bookingLabel}',
+        style: TextStyle(fontWeight: FontWeight.w800, color: textPrimary),
+      ),
       content: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 460),
         child: SingleChildScrollView(
@@ -201,7 +240,7 @@ class _RescheduleBookingDialogState extends ConsumerState<RescheduleBookingDialo
                 NeumorphicContainer(
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                   borderRadius: 14,
-                  onTap: _handlePickDate,
+                  onTap: () => _handlePickDate(business),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -290,7 +329,7 @@ class _RescheduleBookingDialogState extends ConsumerState<RescheduleBookingDialo
                 NeumorphicContainer(
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                   borderRadius: 14,
-                  onTap: _handlePickDateRange,
+                  onTap: () => _handlePickDateRange(business),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -316,8 +355,9 @@ class _RescheduleBookingDialogState extends ConsumerState<RescheduleBookingDialo
         ),
         NeumorphicButton(
           isPrimary: true,
+          isLoading: _isSubmitting,
           padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-          onPressed: (!widget.booking.isSlotBased || effectiveSlot != null)
+          onPressed: (!_isSubmitting && (!widget.booking.isSlotBased || effectiveSlot != null))
               ? () => _submitReschedule(effectiveSlot)
               : null,
           child: const Text('Confirm Reschedule', style: TextStyle(fontSize: 13)),

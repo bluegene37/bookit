@@ -33,7 +33,9 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('BookIt'), findsOneWidget);
-    expect(find.text('Find clinics, doctors & services'), findsOneWidget);
+    // expect(find.text('Find clinics, doctors & services'), findsOneWidget);
+    // Gene - Nov, 22, 2026: Synced with PlatformConfig BrandingConfig.discoverySubtitle
+    expect(find.text('Discover businesses, specialists & services'), findsOneWidget);
   });
 
   test('BusinessService CRUD and active/archive filtering for Services & Staff', () async {

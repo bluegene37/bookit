@@ -1,5 +1,6 @@
 // Gene - Nov, 03, 2026: Step 2A - Time Slot and Doctor picker for appointment-based clinics
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/theme/neumorphic_colors.dart';
 import '../../../../core/widgets/neumorphic_container.dart';
@@ -7,9 +8,18 @@ import '../../../../core/widgets/neumorphic_chip.dart';
 import '../../../../models/business.dart';
 import '../../../../models/business_staff.dart';
 import '../../../../models/booking.dart';
+import '../../../../services/booking_service.dart';
+import '../../../../services/supabase_service.dart';
 import '../../domain/slot_calculator.dart';
 
+/*
 class SlotTimePickerStep extends StatelessWidget {
+...
+}
+*/
+
+// Gene - Nov, 22, 2026: Converted to StatefulWidget with live RPC slot fetching, dynamic advanceBookingDays & minNoticeHours bounds, and universal venue messaging
+class SlotTimePickerStep extends StatefulWidget {
   final Business business;
   final List<BusinessStaff> staffList;
   final List<Booking> existingBookings;
@@ -19,24 +29,8 @@ class SlotTimePickerStep extends StatelessWidget {
   final ValueChanged<DateTime> onDateSelected;
   final ValueChanged<TimeSlot> onSlotSelected;
   final ValueChanged<BusinessStaff?> onStaffSelected;
-  // Gene - Nov 07, 2026: Added selected service duration to calculate accurate slot end times and buffer overlap
   final int? serviceDurationMinutes;
 
-  /*
-  const SlotTimePickerStep({
-    super.key,
-    required this.business,
-    required this.staffList,
-    required this.existingBookings,
-    required this.selectedDate,
-    required this.selectedSlot,
-    required this.selectedStaff,
-    required this.onDateSelected,
-    required this.onSlotSelected,
-    required this.onStaffSelected,
-  });
-  */
-  // Gene - Nov 07, 2026: Added optional serviceDurationMinutes parameter
   const SlotTimePickerStep({
     super.key,
     required this.business,
@@ -52,40 +46,80 @@ class SlotTimePickerStep extends StatelessWidget {
   });
 
   @override
+  State<SlotTimePickerStep> createState() => _SlotTimePickerStepState();
+}
+
+class _SlotTimePickerStepState extends State<SlotTimePickerStep> {
+  List<TimeSlot>? _liveSlots;
+  bool _loadingLiveSlots = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _maybeLoadLiveSlots());
+  }
+
+  @override
+  void didUpdateWidget(covariant SlotTimePickerStep oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.business.id != widget.business.id ||
+        !DateUtils.isSameDay(oldWidget.selectedDate, widget.selectedDate) ||
+        oldWidget.selectedStaff?.id != widget.selectedStaff?.id ||
+        oldWidget.serviceDurationMinutes != widget.serviceDurationMinutes) {
+      _maybeLoadLiveSlots();
+    }
+  }
+
+  Future<void> _maybeLoadLiveSlots() async {
+    if (SupabaseService.client == null) return;
+    setState(() => _loadingLiveSlots = true);
+    try {
+      final container = ProviderScope.containerOf(context, listen: false);
+      final slots = await container.read(bookingsProvider.notifier).fetchAvailableSlots(
+            business: widget.business,
+            date: widget.selectedDate,
+            customDurationMinutes: widget.serviceDurationMinutes,
+            filterStaffId: widget.selectedStaff?.id,
+            staffMember: widget.selectedStaff,
+          );
+      if (mounted) {
+        setState(() {
+          _liveSlots = slots;
+          _loadingLiveSlots = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _loadingLiveSlots = false);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final accent = isDark ? NeumorphicColors.tealLight : NeumorphicColors.tealPrimary;
+    final business = widget.business;
+    final staffList = widget.staffList;
+    final selectedDate = widget.selectedDate;
+    final selectedSlot = widget.selectedSlot;
+    final selectedStaff = widget.selectedStaff;
 
-    /*
-    // Gene - Nov, 03, 2026: Original slot calculation without staff shift and lunch break awareness
-    final availableSlots = SlotCalculator.calculateAvailableSlots(
-      business: business,
-      date: selectedDate,
-      existingBookings: existingBookings,
-      filterStaffId: selectedStaff?.id,
-    );
-    */
+    final minNoticeCutoff = DateTime.now().add(Duration(hours: business.minNoticeHours));
+    final firstSelectableDay = DateTime(minNoticeCutoff.year, minNoticeCutoff.month, minNoticeCutoff.day);
+    final advanceDays = business.advanceBookingDays;
 
-    /*
-    // Gene - Nov 06, 2026: Pass staffMember to enforce practitioner shift matrix & lunch breaks
-    final availableSlots = SlotCalculator.calculateAvailableSlots(
-      business: business,
-      date: selectedDate,
-      existingBookings: existingBookings,
-      filterStaffId: selectedStaff?.id,
-      staffMember: selectedStaff,
-    );
-    */
+    final rawSlots = _liveSlots ??
+        SlotCalculator.calculateAvailableSlots(
+          business: business,
+          date: selectedDate,
+          existingBookings: widget.existingBookings,
+          customDurationMinutes: widget.serviceDurationMinutes,
+          filterStaffId: selectedStaff?.id,
+          staffMember: selectedStaff,
+        );
 
-    // Gene - Nov 07, 2026: Pass customDurationMinutes from selectedService to enforce service duration & buffer time
-    final availableSlots = SlotCalculator.calculateAvailableSlots(
-      business: business,
-      date: selectedDate,
-      existingBookings: existingBookings,
-      customDurationMinutes: serviceDurationMinutes,
-      filterStaffId: selectedStaff?.id,
-      staffMember: selectedStaff,
-    );
+    final availableSlots = rawSlots
+        .where((s) => !s.startTime.isBefore(minNoticeCutoff))
+        .toList();
 
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(vertical: 8),
@@ -152,7 +186,7 @@ class SlotTimePickerStep extends StatelessWidget {
                   NeumorphicChip(
                     label: 'Any ${business.resourceLabel}',
                     isSelected: selectedStaff == null,
-                    onTap: () => onStaffSelected(null),
+                    onTap: () => widget.onStaffSelected(null),
                   ),
                   const SizedBox(width: 10),
                   ...staffList.map((st) {
@@ -163,7 +197,7 @@ class SlotTimePickerStep extends StatelessWidget {
                         label: st.name,
                         subtitle: st.specialty,
                         isSelected: isSelected,
-                        onTap: () => onStaffSelected(st),
+                        onTap: () => widget.onStaffSelected(st),
                       ),
                     );
                   }),
@@ -173,9 +207,9 @@ class SlotTimePickerStep extends StatelessWidget {
             const SizedBox(height: 24),
           ],
 
-          // 2. Horizontal Date Selector Strip (Next 14 Days)
+          // 2. Horizontal Date Selector Strip (advanceBookingDays Window)
           Text(
-            'Select Appointment Date',
+            'Select Date',
             style: TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.w700,
@@ -187,9 +221,9 @@ class SlotTimePickerStep extends StatelessWidget {
             height: 80,
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
-              itemCount: 14,
+              itemCount: advanceDays,
               itemBuilder: (context, index) {
-                final date = DateTime.now().add(Duration(days: index + 1));
+                final date = firstSelectableDay.add(Duration(days: index));
                 final isSelected = DateUtils.isSameDay(date, selectedDate);
                 final dayOfWeek = DateFormat('EEE').format(date);
                 final dayNum = DateFormat('d').format(date);
@@ -197,7 +231,7 @@ class SlotTimePickerStep extends StatelessWidget {
                 return Padding(
                   padding: const EdgeInsets.only(right: 10, bottom: 4),
                   child: GestureDetector(
-                    onTap: () => onDateSelected(date),
+                    onTap: () => widget.onDateSelected(date),
                     child: NeumorphicContainer(
                       width: 60,
                       borderRadius: 16.0,
@@ -254,12 +288,17 @@ class SlotTimePickerStep extends StatelessWidget {
           ),
           const SizedBox(height: 12),
 
-          if (availableSlots.isEmpty) ...[
+          if (_loadingLiveSlots) ...[
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 28),
+              child: Center(child: CircularProgressIndicator()),
+            ),
+          ] else if (availableSlots.isEmpty) ...[
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 24),
               child: Center(
                 child: Text(
-                  'No available slots on ${DateFormat('EEEE, MMM d').format(selectedDate)}. The clinic may be closed.',
+                  'No available slots on ${DateFormat('EEEE, MMM d').format(selectedDate)}. This ${business.venueLabel.toLowerCase()} may be closed or outside its advance notice window.',
                   textAlign: TextAlign.center,
                   style: TextStyle(color: isDark ? Colors.white54 : Colors.black54),
                 ),
@@ -288,7 +327,7 @@ class SlotTimePickerStep extends StatelessWidget {
                 }
 
                 return GestureDetector(
-                  onTap: () => onSlotSelected(slot),
+                  onTap: () => widget.onSlotSelected(slot),
                   child: NeumorphicContainer(
                     borderRadius: 14.0,
                     isInset: isSelected,

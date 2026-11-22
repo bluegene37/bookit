@@ -1,4 +1,6 @@
 // Gene - Nov, 03, 2026: Business model supporting polymorphic booking models (slot_based, date_range, daily)
+// Gene - Nov, 22, 2026: Imported SupabaseConfig to gate demo payment account fallbacks strictly to offline/demo mode
+import '../core/constants/supabase_config.dart';
 
 enum BookingModelType {
   slotBased,
@@ -28,6 +30,8 @@ enum BookingModelType {
     }
   }
 
+  /*
+  // Gene - Nov, 03, 2026: Clinic-specific display names
   String get displayName {
     switch (this) {
       case BookingModelType.slotBased:
@@ -36,6 +40,18 @@ enum BookingModelType {
         return 'Date Range (Stay / Rental / Multi-day)';
       case BookingModelType.daily:
         return 'Daily Session (Day Clinic / Pass)';
+    }
+  }
+  */
+  // Gene - Nov, 22, 2026: Industry-universal booking model display names
+  String get displayName {
+    switch (this) {
+      case BookingModelType.slotBased:
+        return 'Time Slot Appointment';
+      case BookingModelType.dateRange:
+        return 'Date Range (Stays / Multi-Day Rentals)';
+      case BookingModelType.daily:
+        return 'Daily Pass / Full-Day Session';
     }
   }
 }
@@ -139,6 +155,7 @@ class Business {
 
   Map<String, dynamic>? get workingHours => settings['working_hours'] as Map<String, dynamic>?;
 
+  /*
   // Gene - Nov 07, 2026: Hybrid payment channels configuration helper (Stripe Card, GCash, Maya, Bank Transfer)
   Map<String, dynamic> get paymentMethodsConfig {
     final raw = settings['payment_methods'];
@@ -157,11 +174,83 @@ class Business {
       'bank_account_number': map['bank_account_number'] as String? ?? '0042-8819-3021',
     };
   }
+  */
+  // Gene - Nov, 22, 2026: Database-driven scheduling, currency, CRM labels, and production-safe paymentMethodsConfig without fake merchant numbers in live mode
+  String get currency => (settings['currency'] as String?) ?? 'USD';
+  int get advanceBookingDays => ((settings['advance_booking_days'] as num?)?.toInt() ?? 14).clamp(1, 365);
+  int get minNoticeHours => ((settings['min_notice_hours'] as num?)?.toInt() ?? 0).clamp(0, 168);
+  int get minDays => ((settings['min_days'] as num?)?.toInt() ?? 1).clamp(1, 365);
+  int get maxDays => ((settings['max_days'] as num?)?.toInt() ?? 30).clamp(minDays, 365);
+
+  Map<String, dynamic> get paymentMethodsConfig {
+    final raw = settings['payment_methods'];
+    final hasExplicitConfig = raw is Map && raw.isNotEmpty;
+    final map = raw is Map ? Map<String, dynamic>.from(raw) : <String, dynamic>{};
+    final allowDemoDefaults = SupabaseConfig.isDemoModeEnabled && !SupabaseConfig.isConfigured;
+
+    if (hasExplicitConfig) {
+      return {
+        'stripe_enabled': map['stripe_enabled'] as bool? ?? true,
+        'gcash_enabled': map['gcash_enabled'] as bool? ?? false,
+        'gcash_account_name': map['gcash_account_name'] as String? ?? name,
+        'gcash_number': map['gcash_number'] as String? ?? '',
+        'maya_enabled': map['maya_enabled'] as bool? ?? false,
+        'maya_account_name': map['maya_account_name'] as String? ?? name,
+        'maya_number': map['maya_number'] as String? ?? '',
+        'bank_enabled': map['bank_enabled'] as bool? ?? false,
+        'bank_name': map['bank_name'] as String? ?? '',
+        'bank_account_name': map['bank_account_name'] as String? ?? name,
+        'bank_account_number': map['bank_account_number'] as String? ?? '',
+      };
+    }
+
+    if (allowDemoDefaults) {
+      return {
+        'stripe_enabled': true,
+        'gcash_enabled': true,
+        'gcash_account_name': name,
+        'gcash_number': '0917-555-0199',
+        'maya_enabled': true,
+        'maya_account_name': name,
+        'maya_number': '0918-555-0244',
+        'bank_enabled': true,
+        'bank_name': 'BDO Unibank / BPI',
+        'bank_account_name': name,
+        'bank_account_number': '0042-8819-3021',
+      };
+    }
+
+    return {
+      'stripe_enabled': true,
+      'gcash_enabled': false,
+      'gcash_account_name': name,
+      'gcash_number': '',
+      'maya_enabled': false,
+      'maya_account_name': name,
+      'maya_number': '',
+      'bank_enabled': false,
+      'bank_name': '',
+      'bank_account_name': name,
+      'bank_account_number': '',
+    };
+  }
 
   // Gene - Nov, 04, 2026: Modular UI and resource dynamic helpers for universal booking engine
   String get resourceType => (uiConfig['resource_type'] as String?) ?? 'person';
   String get resourceLabel => (uiConfig['resource_label'] as String?) ?? 'Specialist';
   String get serviceLabel => (uiConfig['service_label'] as String?) ?? 'Service';
+  // Gene - Nov, 22, 2026: Added industry-universal DB-driven UI label getters
+  String get clientLabel => (uiConfig['client_label'] as String?) ?? 'Client';
+  String get venueLabel => (uiConfig['venue_label'] as String?) ?? 'Venue';
+  String get bookingLabel => (uiConfig['booking_label'] as String?) ?? 'Booking';
+  String get crmFlagLabel => (uiConfig['crm_flag_label'] as String?) ?? 'Client Alerts & Flags';
+  List<String> get crmFlagPresets {
+    final raw = uiConfig['crm_flag_presets'];
+    if (raw is List) {
+      return raw.map((e) => e.toString()).toList();
+    }
+    return const [];
+  }
   bool get showStaffSelection => (uiConfig['show_staff_selection'] as bool?) ?? true;
   List<Map<String, dynamic>> get intakeFields {
     final fields = uiConfig['intake_fields'];
@@ -241,11 +330,20 @@ class Business {
   }
   */
 
-  // Gene - Nov, 05, 2026: Defensive fallback factory preventing crashes on null or missing business data
+  /*
+  // Gene - Nov, 05, 2026: Defensive fallback factory with Healthcare default category
   factory Business.fallback({
     String id = '00000000-0000-0000-0000-000000000000',
     String name = 'Sample Practice / Studio',
     String category = 'Healthcare & Clinics',
+    BookingModelType bookingModel = BookingModelType.slotBased,
+  }) {
+  */
+  // Gene - Nov, 22, 2026: Universal industry-neutral fallback defaults
+  factory Business.fallback({
+    String id = '00000000-0000-0000-0000-000000000000',
+    String name = 'BookIt Business',
+    String category = 'General Services',
     BookingModelType bookingModel = BookingModelType.slotBased,
   }) {
     return Business(

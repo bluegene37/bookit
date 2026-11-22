@@ -157,8 +157,11 @@ void main() {
       expect(find.text('Web Analytics • Live Performance'), findsOneWidget);
 
       expect(find.text('Gross Revenue'), findsOneWidget);
-      expect(find.text('Total Appointments'), findsOneWidget);
-      expect(find.text('Bay / Chair Occupancy'), findsOneWidget);
+      // expect(find.text('Total Appointments'), findsOneWidget);
+      // expect(find.text('Bay / Chair Occupancy'), findsOneWidget);
+      // Gene - Nov, 22, 2026: Dynamic Business.bookingLabel ('Booking') and neutral 'Resource Utilization' KPI
+      expect(find.text('Total Bookings'), findsOneWidget);
+      expect(find.text('Resource Utilization'), findsOneWidget);
       expect(find.text('Average Ticket Value'), findsOneWidget);
 
       // Verify all 4 chart components are present
@@ -289,7 +292,9 @@ void main() {
       await tester.pumpAndSettle();
       await tester.pump(const Duration(seconds: 5));
 
-      expect(find.text('CLINIC WORKSPACE'), findsOneWidget);
+      // expect(find.text('CLINIC WORKSPACE'), findsOneWidget);
+      // Gene - Nov, 22, 2026: Default venueLabel is 'Venue' when uiConfig does not specify a custom label
+      expect(find.text('VENUE WORKSPACE'), findsOneWidget);
       expect(find.text('Apex Precision Auto Spa Executive Dashboard'), findsOneWidget);
       expect(find.byType(RevenueTrendChart), findsOneWidget);
     });

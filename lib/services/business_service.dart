@@ -1,7 +1,8 @@
 // Gene - Nov, 03, 2026: Business, Services, and Staff repository service and providers
 // Gene - Nov, 04, 2026: Added category & template queries and transactional business onboarding
 // Gene - Nov, 05, 2026: Added foundation import for debugPrint logging
-import 'package:flutter/foundation.dart';
+// Gene - Nov, 22, 2026: Removed unused flutter/foundation import
+// import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/business.dart';
 import '../models/business_staff.dart';
@@ -86,6 +87,7 @@ class BusinessService {
   }
   */
 
+  /*
   // Gene - Nov 07, 2026: Upgraded getBusinesses with optional range pagination, structured error telemetry, and getBusinessesPaginated
   Future<List<Business>> getBusinesses({
     String? category,
@@ -151,6 +153,73 @@ class BusinessService {
     }
 
     return merged;
+  }
+  */
+
+  // Gene - Nov, 22, 2026: Strict live-vs-demo boundary and multi-column search across name, description, category, and city
+  Future<List<Business>> getBusinesses({
+    String? category,
+    String? query,
+    int? page,
+    int? pageSize,
+  }) async {
+    final client = SupabaseService.client;
+    if (client != null) {
+      try {
+        var queryBuilder = client.from('businesses').select().eq('is_active', true);
+        if (category != null && category != 'All') {
+          queryBuilder = queryBuilder.ilike('category', '%$category%');
+        }
+        if (query != null && query.trim().isNotEmpty) {
+          final safeQ = query
+              .trim()
+              .replaceAll(',', ' ')
+              .replaceAll('(', ' ')
+              .replaceAll(')', ' ');
+          queryBuilder = queryBuilder.or(
+            'name.ilike.%$safeQ%,description.ilike.%$safeQ%,category.ilike.%$safeQ%,city.ilike.%$safeQ%',
+          );
+        }
+        final dynamic data;
+        if (page != null && pageSize != null && page >= 0 && pageSize > 0) {
+          final from = page * pageSize;
+          final to = from + pageSize - 1;
+          data = await queryBuilder.order('rating_avg', ascending: false).range(from, to);
+        } else {
+          data = await queryBuilder.order('rating_avg', ascending: false);
+        }
+        return (data as List).map((json) => Business.fromJson(json)).toList();
+      } catch (e, st) {
+        AppErrorLogger.report(
+          service: 'BusinessService',
+          operation: 'getBusinesses',
+          error: e,
+          stackTrace: st,
+        );
+        return [];
+      }
+    }
+
+    final filteredMock = SupabaseService.mockBusinesses.where((b) {
+      final matchesCategory = category == null || _matchesCategory(b, category);
+      final q = query?.trim().toLowerCase() ?? '';
+      final matchesQuery = q.isEmpty ||
+          b.name.toLowerCase().contains(q) ||
+          (b.description?.toLowerCase().contains(q) ?? false) ||
+          b.category.toLowerCase().contains(q) ||
+          (b.city?.toLowerCase().contains(q) ?? false);
+      return matchesCategory && matchesQuery;
+    }).toList();
+
+    if (page != null && pageSize != null && page >= 0 && pageSize > 0) {
+      return PaginatedResult.fromFullList(
+        fullList: filteredMock,
+        page: page,
+        pageSize: pageSize,
+      ).items;
+    }
+
+    return filteredMock;
   }
 
   // Gene - Nov 07, 2026: Paginated discovery query returning PaginatedResult<Business> metadata (items, hasMore, totalCount)
@@ -222,6 +291,7 @@ class BusinessService {
   }
   */
 
+  /*
   // Gene - Nov, 05, 2026: Defensive getBusinessById with safe fallback to prevent StateError on empty collections
   Future<Business?> getBusinessById(String id) async {
     final client = SupabaseService.client;
@@ -230,6 +300,32 @@ class BusinessService {
         final data = await client.from('businesses').select().eq('id', id).single();
         return Business.fromJson(data);
       } catch (_) {}
+    }
+    return SupabaseService.mockBusinesses.firstWhere(
+      (b) => b.id == id,
+      orElse: () => SupabaseService.mockBusinesses.isNotEmpty
+          ? SupabaseService.mockBusinesses.first
+          : Business.fallback(id: id),
+    );
+  }
+  */
+
+  // Gene - Nov, 22, 2026: Live Supabase returns actual business or null (no mock leak); offline demo uses safe lookup
+  Future<Business?> getBusinessById(String id) async {
+    final client = SupabaseService.client;
+    if (client != null) {
+      try {
+        final data = await client.from('businesses').select().eq('id', id).maybeSingle();
+        return data != null ? Business.fromJson(data) : null;
+      } catch (e, st) {
+        AppErrorLogger.report(
+          service: 'BusinessService',
+          operation: 'getBusinessById',
+          error: e,
+          stackTrace: st,
+        );
+        return null;
+      }
     }
     return SupabaseService.mockBusinesses.firstWhere(
       (b) => b.id == id,
@@ -268,6 +364,7 @@ class BusinessService {
   }
   */
 
+  /*
   // Gene - Nov 07, 2026: Filter getServices to active-only for Client views and add getAdminServices returning all items for Admin catalog
   Future<List<ServiceItem>> getServices(String businessId) async {
     final client = SupabaseService.client;
@@ -291,6 +388,57 @@ class BusinessService {
       } catch (_) {}
     }
     return SupabaseService.mockServices.where((s) => s.businessId == businessId).toList();
+  }
+  */
+
+  // Gene - Nov, 22, 2026: Strict live-vs-demo boundary for service catalog queries
+  Future<List<ServiceItem>> getServices(String businessId) async {
+    final client = SupabaseService.client;
+    if (client != null) {
+      try {
+        final data = await client
+            .from('services')
+            .select()
+            .eq('business_id', businessId)
+            .eq('is_active', true);
+        return (data as List).map((json) => ServiceItem.fromJson(json)).toList();
+      } catch (e, st) {
+        AppErrorLogger.report(
+          service: 'BusinessService',
+          operation: 'getServices',
+          error: e,
+          stackTrace: st,
+        );
+        return [];
+      }
+    }
+    return SupabaseService.mockServices
+        .where((s) => s.businessId == businessId && s.isActive)
+        .toList();
+  }
+
+  Future<List<ServiceItem>> getAdminServices(String businessId) async {
+    final client = SupabaseService.client;
+    if (client != null) {
+      try {
+        final data = await client
+            .from('services')
+            .select()
+            .eq('business_id', businessId);
+        return (data as List).map((json) => ServiceItem.fromJson(json)).toList();
+      } catch (e, st) {
+        AppErrorLogger.report(
+          service: 'BusinessService',
+          operation: 'getAdminServices',
+          error: e,
+          stackTrace: st,
+        );
+        return [];
+      }
+    }
+    return SupabaseService.mockServices
+        .where((s) => s.businessId == businessId)
+        .toList();
   }
 
   /*
@@ -322,6 +470,7 @@ class BusinessService {
   }
   */
 
+  /*
   // Gene - Nov 07, 2026: Filter getStaff to active-only for Client views and add getAdminStaff returning all practitioners for Admin roster
   Future<List<BusinessStaff>> getStaff(String businessId) async {
     final client = SupabaseService.client;
@@ -345,6 +494,88 @@ class BusinessService {
       } catch (_) {}
     }
     return SupabaseService.mockStaff.where((st) => st.businessId == businessId).toList();
+  }
+  */
+
+  // Gene - Nov, 22, 2026: Strict live-vs-demo boundary for staff queries + assigned business lookup for staff RBAC scoping
+  Future<List<BusinessStaff>> getStaff(String businessId) async {
+    final client = SupabaseService.client;
+    if (client != null) {
+      try {
+        final data = await client
+            .from('business_staff')
+            .select()
+            .eq('business_id', businessId)
+            .eq('is_active', true);
+        return (data as List).map((json) => BusinessStaff.fromJson(json)).toList();
+      } catch (e, st) {
+        AppErrorLogger.report(
+          service: 'BusinessService',
+          operation: 'getStaff',
+          error: e,
+          stackTrace: st,
+        );
+        return [];
+      }
+    }
+    return SupabaseService.mockStaff
+        .where((st) => st.businessId == businessId && st.isActive)
+        .toList();
+  }
+
+  Future<List<BusinessStaff>> getAdminStaff(String businessId) async {
+    final client = SupabaseService.client;
+    if (client != null) {
+      try {
+        final data = await client
+            .from('business_staff')
+            .select()
+            .eq('business_id', businessId);
+        return (data as List).map((json) => BusinessStaff.fromJson(json)).toList();
+      } catch (e, st) {
+        AppErrorLogger.report(
+          service: 'BusinessService',
+          operation: 'getAdminStaff',
+          error: e,
+          stackTrace: st,
+        );
+        return [];
+      }
+    }
+    return SupabaseService.mockStaff
+        .where((st) => st.businessId == businessId)
+        .toList();
+  }
+
+  Future<List<String>> getStaffAssignedBusinessIds(String userId) async {
+    final client = SupabaseService.client;
+    if (client != null) {
+      try {
+        final data = await client
+            .from('business_staff')
+            .select('business_id')
+            .eq('user_id', userId)
+            .eq('is_active', true);
+        return (data as List)
+            .map((row) => row['business_id']?.toString() ?? '')
+            .where((id) => id.isNotEmpty)
+            .toSet()
+            .toList();
+      } catch (e, st) {
+        AppErrorLogger.report(
+          service: 'BusinessService',
+          operation: 'getStaffAssignedBusinessIds',
+          error: e,
+          stackTrace: st,
+        );
+        return [];
+      }
+    }
+    return SupabaseService.mockStaff
+        .where((st) => st.isActive && st.userId == userId)
+        .map((st) => st.businessId)
+        .toSet()
+        .toList();
   }
 
   /*
@@ -384,6 +615,7 @@ class BusinessService {
   }
   */
 
+  /*
   // Gene - Nov, 15, 2026: Merge local mock categories and templates when remote Supabase rows are empty or missing newly added presets
   Future<List<BusinessCategory>> getCategories() async {
     final client = SupabaseService.client;
@@ -438,6 +670,63 @@ class BusinessService {
     }
     return localFiltered;
   }
+  */
+
+  // Gene - Nov, 22, 2026: Strict DB-driven categories and templates when Supabase is connected; offline demo fallback only when client is null
+  Future<List<BusinessCategory>> getCategories() async {
+    final client = SupabaseService.client;
+    if (client != null) {
+      try {
+        final data = await client
+            .from('business_categories')
+            .select()
+            .eq('is_active', true)
+            .order('display_order', ascending: true);
+        return (data as List)
+            .map((json) => BusinessCategory.fromJson(json))
+            .toList();
+      } catch (e, st) {
+        AppErrorLogger.report(
+          service: 'BusinessService',
+          operation: 'getCategories',
+          error: e,
+          stackTrace: st,
+        );
+        return [];
+      }
+    }
+    return SupabaseService.mockCategories;
+  }
+
+  Future<List<BusinessTemplate>> getTemplates({String? categoryId}) async {
+    final client = SupabaseService.client;
+    if (client != null) {
+      try {
+        var query = client.from('business_templates').select().eq('is_active', true);
+        if (categoryId != null && categoryId != 'All') {
+          query = query.eq('category_id', categoryId);
+        }
+        final data = await query.order('display_order', ascending: true);
+        return (data as List)
+            .map((json) => BusinessTemplate.fromJson(json))
+            .toList();
+      } catch (e, st) {
+        AppErrorLogger.report(
+          service: 'BusinessService',
+          operation: 'getTemplates',
+          error: e,
+          stackTrace: st,
+        );
+        return [];
+      }
+    }
+    if (categoryId != null && categoryId != 'All') {
+      return SupabaseService.mockTemplates
+          .where((t) => t.categoryId == categoryId)
+          .toList();
+    }
+    return SupabaseService.mockTemplates;
+  }
 
   /*
   // Gene - Nov, 04, 2026: Original createBusiness implementation
@@ -481,6 +770,7 @@ class BusinessService {
   }
   */
 
+  /*
   // Gene - Nov, 05, 2026: Resilient createBusiness ensuring local memory persistence alongside Supabase remote sync
   Future<Business> createBusiness({
     required Business business,
@@ -633,6 +923,217 @@ class BusinessService {
     }
     return service;
   }
+  */
+
+  // Gene - Nov, 22, 2026: Strict live-vs-demo persistence on business, service, and staff mutations (rethrow live DB errors rather than masking)
+  Future<Business> createBusiness({
+    required Business business,
+    required List<ServiceItem> services,
+    required List<BusinessStaff> staff,
+  }) async {
+    final client = SupabaseService.client;
+    if (client != null) {
+      try {
+        final bizData = await client
+            .from('businesses')
+            .insert(business.toJson())
+            .select()
+            .single();
+        final createdBusiness = Business.fromJson(bizData);
+
+        if (services.isNotEmpty) {
+          final srvJsonList = services.map((s) => s.toJson()).toList();
+          await client.from('services').insert(srvJsonList);
+        }
+
+        if (staff.isNotEmpty) {
+          final staffJsonList = staff.map((st) => st.toJson()).toList();
+          await client.from('business_staff').insert(staffJsonList);
+        }
+
+        return createdBusiness;
+      } catch (e, st) {
+        AppErrorLogger.report(
+          service: 'BusinessService',
+          operation: 'createBusiness',
+          error: e,
+          stackTrace: st,
+        );
+        rethrow;
+      }
+    }
+
+    final existingIdx = SupabaseService.mockBusinesses.indexWhere((b) => b.id == business.id);
+    if (existingIdx != -1) {
+      SupabaseService.mockBusinesses[existingIdx] = business;
+    } else {
+      SupabaseService.mockBusinesses.insert(0, business);
+    }
+    for (final srv in services) {
+      if (!SupabaseService.mockServices.any((s) => s.id == srv.id)) {
+        SupabaseService.mockServices.add(srv);
+      }
+    }
+    for (final st in staff) {
+      if (!SupabaseService.mockStaff.any((s) => s.id == st.id)) {
+        SupabaseService.mockStaff.add(st);
+      }
+    }
+    return business;
+  }
+
+  Future<Business> updateBusiness(Business business) async {
+    final client = SupabaseService.client;
+    if (client != null) {
+      try {
+        final data = await client
+            .from('businesses')
+            .update(business.toJson())
+            .eq('id', business.id)
+            .select()
+            .single();
+        return Business.fromJson(data);
+      } catch (e, st) {
+        AppErrorLogger.report(
+          service: 'BusinessService',
+          operation: 'updateBusiness',
+          error: e,
+          stackTrace: st,
+        );
+        rethrow;
+      }
+    }
+
+    final existingIdx = SupabaseService.mockBusinesses.indexWhere((b) => b.id == business.id);
+    if (existingIdx != -1) {
+      SupabaseService.mockBusinesses[existingIdx] = business;
+    } else {
+      SupabaseService.mockBusinesses.insert(0, business);
+    }
+    return business;
+  }
+
+  Future<BusinessStaff> updateStaff(BusinessStaff staff) async {
+    final client = SupabaseService.client;
+    if (client != null) {
+      try {
+        final data = await client
+            .from('business_staff')
+            .update(staff.toJson())
+            .eq('id', staff.id)
+            .select()
+            .single();
+        return BusinessStaff.fromJson(data);
+      } catch (e, st) {
+        AppErrorLogger.report(
+          service: 'BusinessService',
+          operation: 'updateStaff',
+          error: e,
+          stackTrace: st,
+        );
+        rethrow;
+      }
+    }
+
+    final existingIdx = SupabaseService.mockStaff.indexWhere((st) => st.id == staff.id);
+    if (existingIdx != -1) {
+      SupabaseService.mockStaff[existingIdx] = staff;
+    } else {
+      SupabaseService.mockStaff.add(staff);
+    }
+    return staff;
+  }
+
+  Future<BusinessStaff> addStaff(BusinessStaff staff) async {
+    final client = SupabaseService.client;
+    if (client != null) {
+      try {
+        final data = await client
+            .from('business_staff')
+            .insert(staff.toJson())
+            .select()
+            .single();
+        return BusinessStaff.fromJson(data);
+      } catch (e, st) {
+        AppErrorLogger.report(
+          service: 'BusinessService',
+          operation: 'addStaff',
+          error: e,
+          stackTrace: st,
+        );
+        rethrow;
+      }
+    }
+
+    final existingIdx = SupabaseService.mockStaff.indexWhere((st) => st.id == staff.id);
+    if (existingIdx != -1) {
+      SupabaseService.mockStaff[existingIdx] = staff;
+    } else {
+      SupabaseService.mockStaff.add(staff);
+    }
+    return staff;
+  }
+
+  Future<ServiceItem> addService(ServiceItem service) async {
+    final client = SupabaseService.client;
+    if (client != null) {
+      try {
+        final data = await client
+            .from('services')
+            .insert(service.toJson())
+            .select()
+            .single();
+        return ServiceItem.fromJson(data);
+      } catch (e, st) {
+        AppErrorLogger.report(
+          service: 'BusinessService',
+          operation: 'addService',
+          error: e,
+          stackTrace: st,
+        );
+        rethrow;
+      }
+    }
+
+    final existingIdx = SupabaseService.mockServices.indexWhere((s) => s.id == service.id);
+    if (existingIdx != -1) {
+      SupabaseService.mockServices[existingIdx] = service;
+    } else {
+      SupabaseService.mockServices.add(service);
+    }
+    return service;
+  }
+
+  Future<ServiceItem> updateService(ServiceItem service) async {
+    final client = SupabaseService.client;
+    if (client != null) {
+      try {
+        final data = await client
+            .from('services')
+            .update(service.toJson())
+            .eq('id', service.id)
+            .select()
+            .single();
+        return ServiceItem.fromJson(data);
+      } catch (e, st) {
+        AppErrorLogger.report(
+          service: 'BusinessService',
+          operation: 'updateService',
+          error: e,
+          stackTrace: st,
+        );
+        rethrow;
+      }
+    }
+
+    final existingIdx = SupabaseService.mockServices.indexWhere((s) => s.id == service.id);
+    if (existingIdx != -1) {
+      SupabaseService.mockServices[existingIdx] = service;
+    } else {
+      SupabaseService.mockServices.add(service);
+    }
+    return service;
+  }
 
   /*
   // Gene - Nov, 04, 2026: Synchronize customer reviews from Supabase reviews table
@@ -695,6 +1196,7 @@ class BusinessService {
     SupabaseService.mockReviews.insert(0, review);
   */
 
+  /*
   // Gene - Nov 07, 2026: Ensure getReviews falls back to mockReviews when remote table is unseeded, and createReview always updates local memory + ratingAvg
   Future<List<Review>> getReviews(String businessId) async {
     final client = SupabaseService.client;
@@ -722,6 +1224,53 @@ class BusinessService {
         await client.from('reviews').insert(review.toJson());
       } catch (_) {}
     }
+  */
+
+  // Gene - Nov, 22, 2026: Strict live-vs-demo boundary for review queries and submissions
+  Future<List<Review>> getReviews(String businessId) async {
+    final client = SupabaseService.client;
+    if (client != null) {
+      try {
+        final data = await client
+            .from('reviews')
+            .select('*, profiles:client_id (full_name)')
+            .eq('business_id', businessId)
+            .order('created_at', ascending: false);
+        return (data as List).map((r) => Review.fromJson(r)).toList();
+      } catch (e, st) {
+        AppErrorLogger.report(
+          service: 'BusinessService',
+          operation: 'getReviews',
+          error: e,
+          stackTrace: st,
+        );
+        return [];
+      }
+    }
+    return SupabaseService.mockReviews
+        .where((r) => r.businessId == businessId)
+        .toList();
+  }
+
+  Future<bool> createReview(Review review) async {
+    final client = SupabaseService.client;
+    if (client != null) {
+      try {
+        await client.from('reviews').insert(review.toJson());
+        return true;
+      } catch (e, st) {
+        AppErrorLogger.report(
+          service: 'BusinessService',
+          operation: 'createReview',
+          error: e,
+          stackTrace: st,
+        );
+        rethrow;
+      }
+    }
+
+    // Offline / demo mode local recalculation
+    SupabaseService.mockReviews.insert(0, review);
 
     // Dynamic rating recalculation on targeted business
     final bizIndex = SupabaseService.mockBusinesses.indexWhere((b) => b.id == review.businessId);
@@ -818,4 +1367,10 @@ final businessTemplatesProvider = FutureProvider<List<BusinessTemplate>>((ref) a
 final businessReviewsProvider = FutureProvider.family<List<Review>, String>((ref, businessId) async {
   final service = ref.watch(businessServiceProvider);
   return service.getReviews(businessId);
+});
+
+// Gene - Nov, 22, 2026: Staff RBAC provider returning business IDs where user holds an active staff record
+final staffAssignedBusinessIdsProvider = FutureProvider.family<List<String>, String>((ref, userId) async {
+  final service = ref.watch(businessServiceProvider);
+  return service.getStaffAssignedBusinessIds(userId);
 });

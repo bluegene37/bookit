@@ -6,6 +6,9 @@ import '../../../../core/theme/neumorphic_colors.dart';
 import '../../../../core/widgets/neumorphic_container.dart';
 import '../../../../core/widgets/neumorphic_button.dart';
 import '../../../../models/business.dart';
+// Gene - Nov, 22, 2026: Added PlatformConfig and PlatformConfigService imports for DB-driven payment channels and multi-currency formatting
+import '../../../../models/platform_config.dart';
+import '../../../../services/platform_config_service.dart';
 import '../../../../services/business_service.dart';
 import '../../../../services/booking_service.dart';
 import '../providers/booking_wizard_provider.dart';
@@ -38,11 +41,36 @@ class UniversalBookingScreen extends ConsumerWidget {
       error: (e, _) => Scaffold(body: Center(child: Text('Error loading business: $e'))),
       data: (business) {
         if (business == null) {
-          return const Scaffold(body: Center(child: Text('Business not found')));
+          // Gene - Nov, 22, 2026: Provide actionable return CTA when business ID cannot be loaded
+          return Scaffold(
+            body: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.storefront_outlined, size: 48),
+                    const SizedBox(height: 12),
+                    const Text(
+                      'Business not found',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                    ),
+                    const SizedBox(height: 16),
+                    NeumorphicButton(
+                      isPrimary: true,
+                      onPressed: () => context.go('/'),
+                      child: const Text('Back to Explore'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
         }
 
         final wizardState = ref.watch(bookingWizardProvider(business));
         final wizardNotifier = ref.read(bookingWizardProvider(business).notifier);
+        final platformConfig = ref.watch(activePlatformConfigProvider);
 
         // final services = servicesAsync.value ?? [];
         // final staff = staffAsync.value ?? [];
@@ -289,6 +317,8 @@ class UniversalBookingScreen extends ConsumerWidget {
                                   service: wizardState.selectedService,
                                   startDate: wizardState.dateRangeStart,
                                   endDate: wizardState.dateRangeEnd,
+                                  minDays: business.minDays,
+                                  maxDays: business.maxDays,
                                   onRangeSelected: wizardNotifier.selectDateRange,
                                 );
 
@@ -300,26 +330,7 @@ class UniversalBookingScreen extends ConsumerWidget {
                                 );
                             }
 
-                          /*
-                          // Gene - Nov, 03, 2026: Previous ClientIntakeStep without business template binding
-                          case 2:
-                            return ClientIntakeStep(
-                              service: wizardState.selectedService,
-                              initialNotes: wizardState.clientNotes,
-                              onNotesChanged: wizardNotifier.updateNotes,
-                            );
-                          */
-                          /*
-                          // Gene - Nov, 04, 2026: Passed business instance for dynamic template intake fields
-                          case 2:
-                            return ClientIntakeStep(
-                              business: business,
-                              service: wizardState.selectedService,
-                              initialNotes: wizardState.clientNotes,
-                              onNotesChanged: wizardNotifier.updateNotes,
-                            );
-                          */
-                          // Gene - Nov, 7, 2026: Bound onBlockerChanged to wizardNotifier.setIntakeBlocker to gate clinical contraindications
+                          // Gene - Nov, 22, 2026: Pass initialResponses, onResponsesChanged, and onValidationChanged to persist Step 2 answers & gate required fields
                           case 2:
                             return ClientIntakeStep(
                               business: business,
@@ -327,41 +338,21 @@ class UniversalBookingScreen extends ConsumerWidget {
                               initialNotes: wizardState.clientNotes,
                               onNotesChanged: wizardNotifier.updateNotes,
                               onBlockerChanged: wizardNotifier.setIntakeBlocker,
+                              initialResponses: wizardState.intakeResponses,
+                              onResponsesChanged: (responses) => wizardNotifier.updateIntakeResponses(
+                                responses,
+                                hasMissingRequired: wizardState.hasMissingRequiredIntake,
+                              ),
+                              onValidationChanged: (hasMissing) => wizardNotifier.updateIntakeResponses(
+                                wizardState.intakeResponses,
+                                hasMissingRequired: hasMissing,
+                              ),
                             );
 
-                          /*
-                          case 3:
-                          default:
-                            if (wizardState.completedBooking != null) {
-                              return BookingConfirmationStep(
-                                booking: wizardState.completedBooking!,
-                                onViewBookings: () {
-                                  context.go('/my-bookings');
-                                },
-                              );
-                            }
-                            return const Center(child: Text('Booking finalized'));
-                          */
-                          /*
-                          // Gene - Nov, 04, 2026: Added Step 3 as Payment Review Step and moved Confirmation to Step 4
-                          case 3:
-                            return PaymentCheckoutStep(
-                              service: wizardState.selectedService,
-                              totalPrice: wizardState.calculateTotalPrice(),
-                              dueToday: wizardState.dueTodayAmount,
-                              dueAtVenue: wizardState.dueAtVenueAmount,
-                              practitionerName: wizardState.selectedStaff?.name,
-                              isLoading: wizardState.isSubmitting,
-                              onProceed: () async {
-                                final paymentService = ref.read(paymentServiceProvider);
-                                await wizardNotifier.proceedToPaymentAndConfirm(paymentService);
-                              },
-                            );
-                          */
-                          // Gene - Nov 07, 2026: Bound business and hybrid payment method/reference/sender state to PaymentCheckoutStep
                           case 3:
                             return PaymentCheckoutStep(
                               business: business,
+                              platformConfig: platformConfig,
                               service: wizardState.selectedService,
                               totalPrice: wizardState.calculateTotalPrice(),
                               dueToday: wizardState.dueTodayAmount,
@@ -474,19 +465,55 @@ class UniversalBookingScreen extends ConsumerWidget {
                           child: NeumorphicButton(
                             isPrimary: true,
                             isLoading: wizardState.isSubmitting,
-                            onPressed: wizardState.canProceed(business.bookingModel)
+                            // Gene - Nov, 22, 2026: Use canProceedToNextStep (honoring min/max nights & required intake) + currency formatter
+                            onPressed: wizardNotifier.canProceedToNextStep
                                 ? () {
                                     wizardNotifier.nextStep();
                                   }
                                 : null,
                             child: Text(
                               wizardState.currentStep == 2
-                                  ? 'Review & Pay (${business.bookingModel == BookingModelType.dateRange ? '\$${wizardState.calculateTotalPrice().toStringAsFixed(0)}' : wizardState.selectedService?.formattedPrice ?? ''})'
+                                  ? 'Review & Pay (${business.bookingModel == BookingModelType.dateRange ? PlatformConfig.formatCurrency(wizardState.calculateTotalPrice(), currencyCode: business.currency, decimals: 0, currencies: platformConfig.supportedCurrencies) : wizardState.selectedService?.formattedPrice ?? ''})'
                                   : 'Continue',
                             ),
                           ),
                         ),
                       ],
+                    ),
+                  ),
+                ],
+                // Gene - Nov, 22, 2026: Surface wizard validation/auth/payment error banner with Sign In shortcut when unauthenticated
+                if (wizardState.errorMessage != null && wizardState.currentStep < 4) ...[
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: NeumorphicColors.error.withValues(alpha: 0.14),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: NeumorphicColors.error.withValues(alpha: 0.4)),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.error_outline, size: 18, color: NeumorphicColors.error),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              wizardState.errorMessage!,
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: NeumorphicColors.error,
+                              ),
+                            ),
+                          ),
+                          if (wizardState.errorMessage!.toLowerCase().contains('sign in'))
+                            TextButton(
+                              onPressed: () => context.push('/login'),
+                              child: const Text('Sign In'),
+                            ),
+                        ],
+                      ),
                     ),
                   ),
                 ],

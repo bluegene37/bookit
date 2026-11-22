@@ -10,7 +10,11 @@ import '../../../../core/widgets/neumorphic_container.dart';
 import '../../../../core/widgets/neumorphic_button.dart';
 import '../../../../core/widgets/status_badge.dart';
 import '../../../../models/business.dart';
+// Gene - Nov, 22, 2026: Added Booking, PlatformConfig, and BookingService imports for real balance-due sums & dynamic currency formatting
+import '../../../../models/booking.dart';
+import '../../../../models/platform_config.dart';
 import '../../../../models/payment.dart';
+import '../../../../services/booking_service.dart';
 import '../../../../services/payment_service.dart';
 import '../widgets/kpi_metric_card.dart';
 import '../widgets/refund_dialog.dart';
@@ -23,6 +27,7 @@ class PaymentsInvoicesTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final paymentsAsync = ref.watch(businessPaymentsProvider(business.id));
+    final bookings = ref.watch(adminBookingsProvider(business.id));
     final stripeConnected = (business.stripeAccountId != null && business.stripeAccountId!.isNotEmpty) ||
         business.stripeChargesEnabled;
 
@@ -34,6 +39,9 @@ class PaymentsInvoicesTab extends ConsumerWidget {
           payments: payments,
           businessId: business.id,
           stripeConnected: stripeConnected,
+          bookings: bookings,
+          currencyCode: business.currency,
+          venueLabel: business.venueLabel,
         );
       },
     );
@@ -46,6 +54,9 @@ class PaymentsInvoicesView extends StatefulWidget {
   final bool stripeConnected;
   final VoidCallback? onOpenStripeDashboard;
   final VoidCallback? onConnectStripe;
+  final List<Booking>? bookings;
+  final String currencyCode;
+  final String venueLabel;
 
   const PaymentsInvoicesView({
     super.key,
@@ -54,6 +65,9 @@ class PaymentsInvoicesView extends StatefulWidget {
     this.stripeConnected = false,
     this.onOpenStripeDashboard,
     this.onConnectStripe,
+    this.bookings,
+    this.currencyCode = 'USD',
+    this.venueLabel = 'Venue',
   });
 
   @override
@@ -74,8 +88,17 @@ class _PaymentsInvoicesViewState extends State<PaymentsInvoicesView> {
         .fold(0.0, (sum, p) => sum + p.netAmount);
   }
 
+  // Gene - Nov, 22, 2026: Compute true balancesDue from booking.amountDue across active bookings rather than estimating 50% of deposit payments
   double get _balancesDue {
-    // Balances due at clinic for partial/deposit bookings
+    if (widget.bookings != null) {
+      return widget.bookings!
+          .where((b) =>
+              b.status != 'cancelled' &&
+              b.status != 'rejected' &&
+              b.status != 'no_show' &&
+              b.amountDue > 0)
+          .fold(0.0, (sum, b) => sum + b.amountDue);
+    }
     return widget.payments
         .where((p) => p.paymentStatus == 'deposit_paid')
         .fold(0.0, (sum, p) => sum + (p.grossAmount * 0.5));
@@ -236,7 +259,10 @@ class _PaymentsInvoicesViewState extends State<PaymentsInvoicesView> {
                     height: 130,
                     child: KpiMetricCard(
                       label: 'Gross Volume',
-                      value: '\$${_grossVolume.toStringAsFixed(2)}',
+                      value: PlatformConfig.formatCurrency(
+                        _grossVolume,
+                        currencyCode: widget.currencyCode,
+                      ),
                       icon: Icons.monetization_on_rounded,
                       accentColor: accent,
                       subtitle: '${widget.payments.length} transactions processed',
@@ -247,7 +273,10 @@ class _PaymentsInvoicesViewState extends State<PaymentsInvoicesView> {
                     height: 130,
                     child: KpiMetricCard(
                       label: 'Net Payouts',
-                      value: '\$${_netPayouts.toStringAsFixed(2)}',
+                      value: PlatformConfig.formatCurrency(
+                        _netPayouts,
+                        currencyCode: widget.currencyCode,
+                      ),
                       icon: Icons.account_balance_wallet_rounded,
                       accentColor: NeumorphicColors.success,
                       subtitle: 'Transferred via Stripe Express',
@@ -257,8 +286,11 @@ class _PaymentsInvoicesViewState extends State<PaymentsInvoicesView> {
                     width: cardWidth,
                     height: 130,
                     child: KpiMetricCard(
-                      label: 'Balances Due at Clinic',
-                      value: '\$${_balancesDue.toStringAsFixed(2)}',
+                      label: 'Balances Due at ${widget.venueLabel}',
+                      value: PlatformConfig.formatCurrency(
+                        _balancesDue,
+                        currencyCode: widget.currencyCode,
+                      ),
                       icon: Icons.pending_actions_rounded,
                       accentColor: NeumorphicColors.warning,
                       subtitle: 'Payable at reception',
@@ -269,7 +301,10 @@ class _PaymentsInvoicesViewState extends State<PaymentsInvoicesView> {
                     height: 130,
                     child: KpiMetricCard(
                       label: 'Refunds',
-                      value: '\$${_refundsTotal.toStringAsFixed(2)}',
+                      value: PlatformConfig.formatCurrency(
+                        _refundsTotal,
+                        currencyCode: widget.currencyCode,
+                      ),
                       icon: Icons.replay_rounded,
                       accentColor: NeumorphicColors.error,
                       subtitle: 'Reversed transactions',
@@ -663,13 +698,18 @@ class _PaymentsInvoicesViewState extends State<PaymentsInvoicesView> {
                       ),
                       DataCell(
                         Text(
-                          '\$ ${p.grossAmount.toStringAsFixed(2)}',
+                          PlatformConfig.formatCurrency(
+                            p.grossAmount,
+                            currencyCode: p.currency.toUpperCase(),
+                          ),
                           style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
                         ),
                       ),
                       DataCell(
                         Text(
-                          isRefunded ? '\$ 0.00' : '\$ ${p.grossAmount.toStringAsFixed(2)}',
+                          isRefunded
+                              ? PlatformConfig.formatCurrency(0.0, currencyCode: p.currency.toUpperCase())
+                              : PlatformConfig.formatCurrency(p.grossAmount, currencyCode: p.currency.toUpperCase()),
                           style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w700,
@@ -679,7 +719,7 @@ class _PaymentsInvoicesViewState extends State<PaymentsInvoicesView> {
                       ),
                       DataCell(
                         Text(
-                          '\$ 0.00',
+                          PlatformConfig.formatCurrency(0.0, currencyCode: p.currency.toUpperCase()),
                           style: TextStyle(
                             fontSize: 12,
                             color: isDark ? Colors.white60 : Colors.black54,

@@ -5,6 +5,8 @@ import '../models/notification_item.dart';
 import 'supabase_service.dart';
 // Gene - Nov 07, 2026: Added auth_service and demo_data imports for user-scoped notification filtering and markAllAsRead
 import 'auth_service.dart';
+// Gene - Nov, 22, 2026: Added SupabaseConfig import for strict live-vs-demo notification scoping
+import '../core/constants/supabase_config.dart';
 import '../core/constants/demo_data.dart';
 
 class NotificationsNotifier extends StateNotifier<List<NotificationItem>> {
@@ -31,6 +33,7 @@ class NotificationsNotifier extends StateNotifier<List<NotificationItem>> {
           ),
         ]);
   */
+  /*
   // Gene - Nov 07, 2026: Seed NotificationsNotifier from SupabaseService.mockNotifications
   NotificationsNotifier() : super(List.from(SupabaseService.mockNotifications));
 
@@ -52,6 +55,34 @@ class NotificationsNotifier extends StateNotifier<List<NotificationItem>> {
         if (list.isNotEmpty) {
           state = list;
         }
+      } catch (_) {}
+    }
+  }
+  */
+
+  // Gene - Nov, 22, 2026: Start with empty notifications in live mode and always replace state on loadNotifications
+  NotificationsNotifier()
+      : super(
+          SupabaseService.client != null
+              ? const []
+              : List.from(SupabaseService.mockNotifications),
+        );
+
+  void reloadDemoNotifications() {
+    if (!SupabaseConfig.isDemoModeEnabled) return;
+    state = List.from(SupabaseService.mockNotifications);
+  }
+
+  Future<void> loadNotifications(String userId) async {
+    final client = SupabaseService.client;
+    if (client != null) {
+      try {
+        final data = await client
+            .from('notifications')
+            .select()
+            .eq('user_id', userId)
+            .order('created_at', ascending: false);
+        state = (data as List).map((r) => NotificationItem.fromJson(r)).toList();
       } catch (_) {}
     }
   }
@@ -149,6 +180,7 @@ final unreadNotificationCountProvider = Provider<int>((ref) {
   }
 }
 
+/*
 final notificationsProvider = StateNotifierProvider<NotificationsNotifier, List<NotificationItem>>((ref) {
   return NotificationsNotifier();
 });
@@ -157,6 +189,35 @@ final notificationsProvider = StateNotifierProvider<NotificationsNotifier, List<
 final userNotificationsProvider = Provider<List<NotificationItem>>((ref) {
   final items = ref.watch(notificationsProvider);
   final user = ref.watch(authProvider).user;
+  if (user == null) {
+    return items.where((n) => n.userId == DemoData.clientUserId).toList();
+  }
+  final filtered = items.where((n) => n.userId == user.id).toList();
+  return filtered.isNotEmpty ? filtered : items;
+});
+*/
+
+// Gene - Nov, 22, 2026: Auto-load live user notifications on auth changes and strictly isolate notifications in live/release mode
+final notificationsProvider = StateNotifierProvider<NotificationsNotifier, List<NotificationItem>>((ref) {
+  final notifier = NotificationsNotifier();
+  final userId = ref.watch(authProvider.select((s) => s.user?.id));
+  if (userId != null && SupabaseService.client != null) {
+    Future.microtask(() => notifier.loadNotifications(userId));
+  }
+  return notifier;
+});
+
+final userNotificationsProvider = Provider<List<NotificationItem>>((ref) {
+  final items = ref.watch(notificationsProvider);
+  final user = ref.watch(authProvider).user;
+  final isLiveOrRelease =
+      SupabaseService.client != null || !SupabaseConfig.isDemoModeEnabled;
+
+  if (isLiveOrRelease) {
+    if (user == null) return const [];
+    return items.where((n) => n.userId == user.id).toList();
+  }
+
   if (user == null) {
     return items.where((n) => n.userId == DemoData.clientUserId).toList();
   }

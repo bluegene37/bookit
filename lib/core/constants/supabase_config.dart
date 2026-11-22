@@ -1,4 +1,6 @@
 // Gene - Nov, 04, 2026: Imported conditional test environment detector
+// Gene - Nov, 22, 2026: Added foundation import for unified kReleaseMode / isDemoModeEnabled checks without circular service imports
+import 'package:flutter/foundation.dart';
 import 'test_environment.dart';
 
 // Gene - Nov, 03, 2026: Configured Supabase project ref xjivgzyfewvdhiceaned with environment override support
@@ -57,6 +59,10 @@ class SupabaseConfig {
     'FORCE_MOCK_MODE',
     defaultValue: false,
   );
+
+  // Gene - Nov, 22, 2026: Centralized runtime demo/release guard shared across models, services, and UI
+  static bool debugSimulateReleaseMode = false;
+  static bool get isDemoModeEnabled => !kReleaseMode && !debugSimulateReleaseMode;
 
   static bool get isSecureUrl =>
       supabaseUrl.startsWith('https://') ||

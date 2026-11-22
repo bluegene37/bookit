@@ -241,11 +241,17 @@ void main() {
       await tester.pumpAndSettle();
 
       // On wide desktop screen, Web Top Bar and Left Sidebar exist
-      expect(find.text('CLINIC WORKSPACE'), findsOneWidget);
+      // expect(find.text('CLINIC WORKSPACE'), findsOneWidget);
+      // expect(find.text('Dashboard Overview'), findsOneWidget);
+      // expect(find.text('Appointments Calendar'), findsOneWidget);
+      // expect(find.text('Services & Pricing'), findsOneWidget);
+      // expect(find.text('Doctors & Specialists'), findsOneWidget);
+      // Gene - Nov, 22, 2026: Assert DB-driven universal defaults when Business uiConfig omits custom labels
+      expect(find.text('VENUE WORKSPACE'), findsOneWidget);
       expect(find.text('Dashboard Overview'), findsOneWidget);
-      expect(find.text('Appointments Calendar'), findsOneWidget);
+      expect(find.text('Bookings Calendar'), findsOneWidget);
       expect(find.text('Services & Pricing'), findsOneWidget);
-      expect(find.text('Doctors & Specialists'), findsOneWidget);
+      expect(find.text('Team & Specialists'), findsOneWidget);
       expect(find.text('Payments & Invoices'), findsOneWidget);
       expect(find.text('Template & Settings'), findsOneWidget);
     });
@@ -302,7 +308,9 @@ void main() {
       // Check KPI Summary Cards
       expect(find.text('Gross Volume'), findsOneWidget);
       expect(find.text('Net Payouts'), findsOneWidget);
-      expect(find.text('Balances Due at Clinic'), findsOneWidget);
+      // expect(find.text('Balances Due at Clinic'), findsOneWidget);
+      // Gene - Nov, 22, 2026: Assert DB-driven venueLabel ('Venue' default)
+      expect(find.text('Balances Due at Venue'), findsOneWidget);
       expect(find.text('Refunds'), findsOneWidget);
 
       // Verify transaction table header
@@ -443,9 +451,12 @@ void main() {
       // Clinic name
       expect(find.text('Apex Dental & Orthodontic Care'), findsOneWidget);
       // Dynamic service label catalog
-      expect(find.text('Service Catalog'), findsOneWidget);
+      // expect(find.text('Service Catalog'), findsOneWidget);
       // Dynamic resource label header
-      expect(find.text('Our Specialists'), findsOneWidget);
+      // expect(find.text('Our Specialists'), findsOneWidget);
+      // Gene - Nov, 22, 2026: Assert DemoData dental clinic uses DB/template ui_config ('Treatment', 'Doctor', 'Appointment')
+      expect(find.text('Treatment Catalog'), findsOneWidget);
+      expect(find.text('Our Doctors'), findsOneWidget);
       // CTA Book button
       expect(find.text('Book Appointment (Time Slot Appointment)'), findsOneWidget);
     });
@@ -471,7 +482,8 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Serenity Post-Op Recovery & Wellness Suites'), findsOneWidget);
-      expect(find.text('Service Catalog'), findsOneWidget);
+      // expect(find.text('Service Catalog'), findsOneWidget);
+      expect(find.text('Recovery Package Catalog'), findsOneWidget);
     });
   });
 

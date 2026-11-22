@@ -45,6 +45,16 @@ class Booking {
   final String? paymentReference;
   final String? paymentSender;
 
+  // Gene - Nov, 22, 2026: Added structured intakeResponses, walkinClientName, and currency fields for live PostgreSQL persistence
+  final Map<String, dynamic> intakeResponses;
+  final String? walkinClientName;
+  final String currency;
+
+  static final RegExp _uuidRegex = RegExp(
+    r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
+  );
+  static bool isValidUuid(String? value) => value != null && _uuidRegex.hasMatch(value);
+
   String get paymentMethodLabel {
     switch (paymentMethod) {
       case 'gcash':
@@ -153,6 +163,7 @@ class Booking {
   */
 
   // Gene - Nov 07, 2026: Updated constructor supporting paymentMethod, paymentReference, and paymentSender
+  // Gene - Nov, 22, 2026: Extended constructor with optional intakeResponses, walkinClientName, and currency
   const Booking({
     required this.id,
     required this.businessId,
@@ -186,6 +197,9 @@ class Booking {
     this.paymentMethod,
     this.paymentReference,
     this.paymentSender,
+    this.intakeResponses = const {},
+    this.walkinClientName,
+    this.currency = 'USD',
   });
 
   /*
@@ -317,6 +331,7 @@ class Booking {
   */
 
   // Gene - Nov 07, 2026: Extended copyWith supporting paymentMethod, paymentReference, and paymentSender
+  // Gene - Nov, 22, 2026: Extended copyWith supporting intakeResponses, walkinClientName, and currency
   Booking copyWith({
     String? id,
     String? businessId,
@@ -350,6 +365,9 @@ class Booking {
     String? paymentMethod,
     String? paymentReference,
     String? paymentSender,
+    Map<String, dynamic>? intakeResponses,
+    String? walkinClientName,
+    String? currency,
   }) {
     return Booking(
       id: id ?? this.id,
@@ -384,6 +402,9 @@ class Booking {
       paymentMethod: paymentMethod ?? this.paymentMethod,
       paymentReference: paymentReference ?? this.paymentReference,
       paymentSender: paymentSender ?? this.paymentSender,
+      intakeResponses: intakeResponses ?? this.intakeResponses,
+      walkinClientName: walkinClientName ?? this.walkinClientName,
+      currency: currency ?? this.currency,
     );
   }
 
@@ -453,7 +474,11 @@ class Booking {
       businessName: bMap != null ? bMap['name'] as String? : json['business_name'] as String?,
       serviceName: sMap != null ? sMap['name'] as String? : json['service_name'] as String?,
       staffName: stMap != null ? stMap['name'] as String? : json['staff_name'] as String?,
-      clientName: pMap != null ? pMap['full_name'] as String? : json['client_name'] as String?,
+      // Gene - Nov, 22, 2026: Support nullable walk-in client_id and walkin_client_name fallback
+      // clientName: pMap != null ? pMap['full_name'] as String? : json['client_name'] as String?,
+      clientName: pMap?['full_name'] as String? ??
+          json['walkin_client_name'] as String? ??
+          json['client_name'] as String?,
     );
   }
   */
@@ -489,7 +514,11 @@ class Booking {
       businessName: bMap != null ? bMap['name'] as String? : json['business_name'] as String?,
       serviceName: sMap != null ? sMap['name'] as String? : json['service_name'] as String?,
       staffName: stMap != null ? stMap['name'] as String? : json['staff_name'] as String?,
-      clientName: pMap != null ? pMap['full_name'] as String? : json['client_name'] as String?,
+      // Gene - Nov, 22, 2026: Support nullable walk-in client_id and walkin_client_name fallback
+      // clientName: pMap != null ? pMap['full_name'] as String? : json['client_name'] as String?,
+      clientName: pMap?['full_name'] as String? ??
+          json['walkin_client_name'] as String? ??
+          json['client_name'] as String?,
       paymentStatus: json['payment_status'] as String? ?? 'unpaid',
       holdExpiresAt: json['hold_expires_at'] != null
           ? DateTime.parse(json['hold_expires_at'] as String)
@@ -535,7 +564,9 @@ class Booking {
     return Booking(
       id: json['id'] as String? ?? 'bk-fallback-0',
       businessId: json['business_id'] as String? ?? '00000000-0000-0000-0000-000000000000',
-      clientId: json['client_id'] as String? ?? '00000000-0000-0000-0000-000000000003',
+      // Gene - Nov, 22, 2026: Allow nullable walk-in client_id without synthesizing mock UUID
+      // clientId: json['client_id'] as String? ?? '00000000-0000-0000-0000-000000000003',
+      clientId: json['client_id'] as String? ?? '',
       serviceId: json['service_id'] as String?,
       staffId: json['staff_id'] as String?,
       bookingModel: json['booking_model'] as String? ?? 'slot_based',
@@ -554,7 +585,11 @@ class Booking {
       businessName: bMap != null ? bMap['name'] as String? : json['business_name'] as String?,
       serviceName: sMap != null ? sMap['name'] as String? : json['service_name'] as String?,
       staffName: stMap != null ? stMap['name'] as String? : json['staff_name'] as String?,
-      clientName: pMap != null ? pMap['full_name'] as String? : json['client_name'] as String?,
+      // Gene - Nov, 22, 2026: Support nullable walk-in client_id and walkin_client_name fallback
+      // clientName: pMap != null ? pMap['full_name'] as String? : json['client_name'] as String?,
+      clientName: pMap?['full_name'] as String? ??
+          json['walkin_client_name'] as String? ??
+          json['client_name'] as String?,
       paymentStatus: json['payment_status'] as String? ?? 'unpaid',
       holdExpiresAt: json['hold_expires_at'] != null
           ? DateTime.tryParse(json['hold_expires_at'].toString())
@@ -585,7 +620,9 @@ class Booking {
     return Booking(
       id: bookingId,
       businessId: json['business_id'] as String? ?? '00000000-0000-0000-0000-000000000000',
-      clientId: json['client_id'] as String? ?? '00000000-0000-0000-0000-000000000003',
+      // Gene - Nov, 22, 2026: Allow nullable walk-in client_id without synthesizing mock UUID
+      // clientId: json['client_id'] as String? ?? '00000000-0000-0000-0000-000000000003',
+      clientId: json['client_id'] as String? ?? '',
       serviceId: json['service_id'] as String?,
       staffId: json['staff_id'] as String?,
       bookingModel: json['booking_model'] as String? ?? 'slot_based',
@@ -604,7 +641,11 @@ class Booking {
       businessName: bMap != null ? bMap['name'] as String? : json['business_name'] as String?,
       serviceName: sMap != null ? sMap['name'] as String? : json['service_name'] as String?,
       staffName: stMap != null ? stMap['name'] as String? : json['staff_name'] as String?,
-      clientName: pMap != null ? pMap['full_name'] as String? : json['client_name'] as String?,
+      // Gene - Nov, 22, 2026: Support nullable walk-in client_id and walkin_client_name fallback
+      // clientName: pMap != null ? pMap['full_name'] as String? : json['client_name'] as String?,
+      clientName: pMap?['full_name'] as String? ??
+          json['walkin_client_name'] as String? ??
+          json['client_name'] as String?,
       paymentStatus: json['payment_status'] as String? ?? 'unpaid',
       holdExpiresAt: json['hold_expires_at'] != null
           ? DateTime.tryParse(json['hold_expires_at'].toString())
@@ -632,6 +673,14 @@ class Booking {
       paymentMethod: json['payment_method'] as String?,
       paymentReference: json['payment_reference'] as String?,
       paymentSender: json['payment_sender'] as String?,
+      // Gene - Nov, 22, 2026: Parse intakeResponses JSONB, walkinClientName, and currency
+      intakeResponses: json['intake_responses'] is Map
+          ? Map<String, dynamic>.from(json['intake_responses'] as Map)
+          : const {},
+      walkinClientName: json['walkin_client_name'] as String?,
+      currency: bMap?['currency'] as String? ??
+          (json['currency'] as String?) ??
+          'USD',
     );
   }
 
@@ -701,6 +750,7 @@ class Booking {
   }
   */
 
+  /*
   // Gene - Nov 07, 2026: Updated toJson serialization with payment_method, payment_reference, and payment_sender
   Map<String, dynamic> toJson() {
     return {
@@ -732,6 +782,50 @@ class Booking {
       'payment_method': paymentMethod,
       'payment_reference': paymentReference,
       'payment_sender': paymentSender,
+    };
+  }
+  */
+
+  // Gene - Nov, 22, 2026: Updated toJson supporting nullable walk-in client_id, walkin_client_name, intake_responses, and currency
+  Map<String, dynamic> toJson() {
+    final normalizedClientId = isValidUuid(clientId) ? clientId : null;
+    final resolvedWalkinName = walkinClientName ??
+        (normalizedClientId == null && clientName?.isNotEmpty == true
+            ? clientName
+            : null);
+
+    return {
+      'id': id,
+      'business_id': businessId,
+      'client_id': normalizedClientId,
+      'walkin_client_name': resolvedWalkinName,
+      'service_id': serviceId,
+      'staff_id': staffId,
+      'booking_model': bookingModel,
+      'start_time': startTime?.toIso8601String(),
+      'end_time': endTime?.toIso8601String(),
+      'date_from': dateFrom != null ? DateFormat('yyyy-MM-dd').format(dateFrom!) : null,
+      'date_to': dateTo != null ? DateFormat('yyyy-MM-dd').format(dateTo!) : null,
+      'status': status,
+      'total_price': totalPrice,
+      'client_notes': clientNotes,
+      'admin_notes': adminNotes,
+      'cancellation_reason': cancellationReason,
+      'created_at': createdAt.toIso8601String(),
+      'payment_status': paymentStatus,
+      'hold_expires_at': holdExpiresAt?.toIso8601String(),
+      'amount_paid': amountPaid,
+      'amount_due': amountDue,
+      'reminder_24h_sent': reminder24hSent?.toIso8601String(),
+      'reminder_2h_sent': reminder2hSent?.toIso8601String(),
+      'checked_in_at': checkedInAt?.toIso8601String(),
+      'in_service_at': inServiceAt?.toIso8601String(),
+      'qr_token': qrToken,
+      'payment_method': paymentMethod,
+      'payment_reference': paymentReference,
+      'payment_sender': paymentSender,
+      'intake_responses': intakeResponses,
+      'currency': currency,
     };
   }
 

@@ -241,8 +241,20 @@ class _LiveReceptionQueueTabState extends ConsumerState<LiveReceptionQueueTab> {
                         color: isDark ? NeumorphicColors.darkTextPrimary : NeumorphicColors.lightTextPrimary,
                       ),
                     ),
+                    /*
                     Text(
                       'Real-time patient waiting room & SLA tracking',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: isDark ? NeumorphicColors.darkTextSecondary : NeumorphicColors.lightTextSecondary,
+                      ),
+                    ),
+                    */
+                    // Gene - Nov, 22, 2026: Derive client terminology dynamically from Business ui_config
+                    Text(
+                      'Real-time ${(widget.business?.clientLabel ?? 'client').toLowerCase()} check-in queue & SLA tracking',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(

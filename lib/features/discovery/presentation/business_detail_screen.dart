@@ -36,7 +36,31 @@ class BusinessDetailScreen extends ConsumerWidget {
       error: (e, _) => Scaffold(body: Center(child: Text('Error loading business: $e'))),
       data: (business) {
         if (business == null) {
-          return const Scaffold(body: Center(child: Text('Business not found')));
+          // Gene - Nov, 22, 2026: Provide actionable return CTA when business ID is not found
+          return Scaffold(
+            body: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.storefront_outlined, size: 48),
+                    const SizedBox(height: 12),
+                    const Text(
+                      'Business not found',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                    ),
+                    const SizedBox(height: 16),
+                    NeumorphicButton(
+                      isPrimary: true,
+                      onPressed: () => context.go('/'),
+                      child: const Text('Back to Explore'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
         }
 
         // final services = servicesAsync.value ?? [];
@@ -274,11 +298,27 @@ class BusinessDetailScreen extends ConsumerWidget {
                                             backgroundImage: NetworkImage(st.avatarUrl ?? 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?w=200'),
                                           ),
                                           */
-                                          // Gene - Nov, 7, 2026: Added onBackgroundImageError handler to prevent uncaught NetworkImageLoadException on broken avatar URLs
+                                          // Gene - Nov, 22, 2026: Show crisp monogram avatar when staff member has no custom avatarUrl instead of hardcoded doctor photo
                                           CircleAvatar(
                                             radius: 24,
-                                            backgroundImage: NetworkImage(st.avatarUrl ?? 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?w=200'),
-                                            onBackgroundImageError: (_, _) {},
+                                            backgroundColor: accent.withValues(alpha: 0.16),
+                                            backgroundImage: (st.avatarUrl != null && st.avatarUrl!.trim().isNotEmpty)
+                                                ? NetworkImage(st.avatarUrl!)
+                                                : null,
+                                            onBackgroundImageError: (st.avatarUrl != null && st.avatarUrl!.trim().isNotEmpty)
+                                                ? (_, _) {}
+                                                : null,
+                                            child: (st.avatarUrl == null || st.avatarUrl!.trim().isEmpty)
+                                                ? Text(
+                                                    st.name.trim().isNotEmpty
+                                                        ? st.name.trim()[0].toUpperCase()
+                                                        : '?',
+                                                    style: TextStyle(
+                                                      fontWeight: FontWeight.w800,
+                                                      color: accent,
+                                                    ),
+                                                  )
+                                                : null,
                                           ),
                                           const SizedBox(height: 8),
                                           Text(

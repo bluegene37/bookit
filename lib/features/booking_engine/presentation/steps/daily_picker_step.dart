@@ -17,10 +17,28 @@ class DailyPickerStep extends StatelessWidget {
     required this.onDateSelected,
   });
 
+  /*
+  // Next 14 days grid
+  GridView.builder( ... itemCount: 10 ... )
+  */
+  // Gene - Nov, 22, 2026: Honor business.advanceBookingDays, minNoticeHours, and closed days from business.workingHours
+  bool _isDayOpen(DateTime date) {
+    final workingHoursMap = business.workingHours;
+    if (workingHoursMap == null) return true;
+    final weekdayName = DateFormat('EEEE').format(date).toLowerCase();
+    if (!workingHoursMap.containsKey(weekdayName)) return true;
+    final dayConfig = workingHoursMap[weekdayName];
+    if (dayConfig is Map && dayConfig['is_open'] == false) return false;
+    return true;
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final accent = isDark ? NeumorphicColors.tealLight : NeumorphicColors.tealPrimary;
+    final minCutoff = DateTime.now().add(Duration(hours: business.minNoticeHours));
+    final firstDate = DateTime(minCutoff.year, minCutoff.month, minCutoff.day);
+    final dayCount = business.advanceBookingDays;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(vertical: 8),
@@ -55,36 +73,45 @@ class DailyPickerStep extends StatelessWidget {
               crossAxisSpacing: 12,
               mainAxisSpacing: 12,
             ),
-            itemCount: 10,
+            itemCount: dayCount,
             itemBuilder: (context, index) {
-              final date = DateTime.now().add(Duration(days: index + 1));
-              final isSelected = DateUtils.isSameDay(date, selectedDate);
+              final date = firstDate.add(Duration(days: index));
+              final isOpen = _isDayOpen(date);
+              final isSelected = isOpen && DateUtils.isSameDay(date, selectedDate);
 
               return GestureDetector(
-                onTap: () => onDateSelected(date),
-                child: NeumorphicContainer(
-                  borderRadius: 16.0,
-                  isInset: isSelected,
-                  border: isSelected ? Border.all(color: accent, width: 2) : null,
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        DateFormat('EEE, MMM d').format(date),
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                          color: isSelected ? accent : (isDark ? Colors.white : Colors.black87),
+                onTap: isOpen ? () => onDateSelected(date) : null,
+                child: Opacity(
+                  opacity: isOpen ? 1.0 : 0.45,
+                  child: NeumorphicContainer(
+                    borderRadius: 16.0,
+                    isInset: isSelected,
+                    border: isSelected ? Border.all(color: accent, width: 2) : null,
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          DateFormat('EEE, MMM d').format(date),
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: isSelected
+                                ? accent
+                                : (isDark ? Colors.white : Colors.black87),
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Full Day Pass Available',
-                        style: TextStyle(fontSize: 11, color: isDark ? Colors.white54 : Colors.black54),
-                      ),
-                    ],
+                        const SizedBox(height: 4),
+                        Text(
+                          isOpen ? 'Full Day Pass Available' : 'Closed on this day',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: isDark ? Colors.white54 : Colors.black54,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               );

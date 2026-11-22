@@ -9,6 +9,8 @@ import 'package:bookit/core/widgets/neumorphic_container.dart';
 import 'package:bookit/core/widgets/safe_network_image.dart';
 import 'package:bookit/models/business.dart';
 import 'package:bookit/services/location_geocoding_service.dart';
+// Gene - Nov, 22, 2026: Added PlatformConfigService import for DB-driven default map coordinates
+import 'package:bookit/services/platform_config_service.dart';
 
 final isDiscoveryMapViewProvider = StateProvider<bool>((ref) => false);
 final selectedDiscoveryBusinessProvider = StateProvider<Business?>((ref) => null);
@@ -33,10 +35,14 @@ class _DiscoveryMapViewState extends ConsumerState<DiscoveryMapView> {
   }
 
   LatLngBounds _calculateBounds() {
+    // Gene - Nov, 22, 2026: Resolve default coordinates from DB-driven branding config
+    final branding = ref.read(activePlatformConfigProvider).branding;
+    final defLat = branding.defaultLatitude;
+    final defLng = branding.defaultLongitude;
     if (widget.businesses.isEmpty) {
       return LatLngBounds(
-        const LatLng(37.70, -122.52),
-        const LatLng(37.82, -122.35),
+        LatLng(defLat - 0.06, defLng - 0.08),
+        LatLng(defLat + 0.06, defLng + 0.08),
       );
     }
 
@@ -44,8 +50,8 @@ class _DiscoveryMapViewState extends ConsumerState<DiscoveryMapView> {
     double minLng = 180.0, maxLng = -180.0;
 
     for (final b in widget.businesses) {
-      final lat = b.latitude ?? 37.7749;
-      final lng = b.longitude ?? -122.4194;
+      final lat = b.latitude ?? defLat;
+      final lng = b.longitude ?? defLng;
       if (lat < minLat) minLat = lat;
       if (lat > maxLat) maxLat = lat;
       if (lng < minLng) minLng = lng;
@@ -100,13 +106,17 @@ class _DiscoveryMapViewState extends ConsumerState<DiscoveryMapView> {
     final accent = isDark ? NeumorphicColors.tealLight : NeumorphicColors.tealPrimary;
     final selectedBusiness = ref.watch(selectedDiscoveryBusinessProvider);
 
+    final branding = ref.watch(activePlatformConfigProvider).branding;
+    final defLat = branding.defaultLatitude;
+    final defLng = branding.defaultLongitude;
+
     final tileUrl = isDark
         ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png'
         : 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png';
 
     final initialCenter = widget.businesses.isNotEmpty
-        ? LatLng(widget.businesses.first.latitude ?? 37.7749, widget.businesses.first.longitude ?? -122.4194)
-        : const LatLng(37.7749, -122.4194);
+        ? LatLng(widget.businesses.first.latitude ?? defLat, widget.businesses.first.longitude ?? defLng)
+        : LatLng(defLat, defLng);
 
     return Stack(
       children: [
@@ -132,7 +142,7 @@ class _DiscoveryMapViewState extends ConsumerState<DiscoveryMapView> {
             MarkerLayer(
               markers: widget.businesses.map((biz) {
                 final isSelected = selectedBusiness?.id == biz.id;
-                final pos = LatLng(biz.latitude ?? 37.7749, biz.longitude ?? -122.4194);
+                final pos = LatLng(biz.latitude ?? defLat, biz.longitude ?? defLng);
                 return Marker(
                   point: pos,
                   width: isSelected ? 56 : 46,

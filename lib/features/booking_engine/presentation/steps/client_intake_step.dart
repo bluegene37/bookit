@@ -35,7 +35,11 @@ class ClientIntakeStep extends StatefulWidget {
   });
   */
 
-  // Gene - Nov, 7, 2026: Updated constructor accepting optional onBlockerChanged callback
+  // Gene - Nov, 22, 2026: Added initialResponses, onResponsesChanged, and onValidationChanged for Back/Next state persistence and required intake validation
+  final Map<String, dynamic> initialResponses;
+  final ValueChanged<Map<String, dynamic>>? onResponsesChanged;
+  final ValueChanged<bool>? onValidationChanged;
+
   const ClientIntakeStep({
     super.key,
     this.business,
@@ -43,6 +47,9 @@ class ClientIntakeStep extends StatefulWidget {
     required this.initialNotes,
     required this.onNotesChanged,
     this.onBlockerChanged,
+    this.initialResponses = const {},
+    this.onResponsesChanged,
+    this.onValidationChanged,
   });
 
   @override
@@ -59,6 +66,7 @@ class _ClientIntakeStepState extends State<ClientIntakeStep> {
   final Map<String, Set<String>> _dynamicMultiSelects = {};
   final Map<String, bool> _dynamicSignatures = {};
 
+  /*
   @override
   void initState() {
     super.initState();
@@ -82,6 +90,95 @@ class _ClientIntakeStepState extends State<ClientIntakeStep> {
           _dynamicControllers[id] = TextEditingController();
         }
       }
+    }
+  }
+  */
+
+  // Gene - Nov, 22, 2026: Restore saved initialResponses on Step 2 re-entry and emit initial required-field validation status
+  @override
+  void initState() {
+    super.initState();
+    final hasCustomFields =
+        widget.business != null && widget.business!.intakeFields.isNotEmpty;
+    final savedGeneral = widget.initialResponses['__additional_notes']?.toString();
+    _notesController = TextEditingController(
+      text: hasCustomFields ? (savedGeneral ?? '') : widget.initialNotes,
+    );
+
+    if (hasCustomFields) {
+      for (final field in widget.business!.intakeFields) {
+        final id = field['id'] as String;
+        final type = field['type'] as String? ?? 'text';
+        final saved = widget.initialResponses[id];
+        if (type == 'boolean') {
+          _dynamicBooleans[id] = saved is bool ? saved : false;
+        } else if (type == 'select') {
+          final options =
+              (field['options'] as List?)?.map((e) => e.toString()).toList() ?? [];
+          final savedStr = saved?.toString();
+          _dynamicSelects[id] = (savedStr != null && options.contains(savedStr))
+              ? savedStr
+              : (options.isNotEmpty ? options.first : '');
+        } else if (type == 'multiselect') {
+          if (saved is List) {
+            _dynamicMultiSelects[id] = saved.map((e) => e.toString()).toSet();
+          } else {
+            _dynamicMultiSelects[id] = <String>{};
+          }
+        } else if (type == 'signature') {
+          _dynamicSignatures[id] = saved is bool ? saved : false;
+        } else {
+          _dynamicControllers[id] = TextEditingController(
+            text: saved?.toString() ?? '',
+          );
+        }
+      }
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _emitStructuredValidation();
+    });
+  }
+
+  void _emitStructuredValidation() {
+    if (widget.business != null && widget.business!.intakeFields.isNotEmpty) {
+      final responses = <String, dynamic>{
+        if (_notesController.text.trim().isNotEmpty)
+          '__additional_notes': _notesController.text.trim(),
+      };
+      bool hasMissingRequired = false;
+
+      for (final field in widget.business!.intakeFields) {
+        final id = field['id'] as String;
+        final type = field['type'] as String? ?? 'text';
+        final isReq = field['required'] as bool? ?? false;
+
+        if (type == 'boolean') {
+          responses[id] = _dynamicBooleans[id] ?? false;
+        } else if (type == 'select') {
+          final val = _dynamicSelects[id] ?? '';
+          responses[id] = val;
+          if (isReq && val.trim().isEmpty) hasMissingRequired = true;
+        } else if (type == 'multiselect') {
+          final set = _dynamicMultiSelects[id] ?? <String>{};
+          responses[id] = set.toList();
+          if (isReq && set.isEmpty) hasMissingRequired = true;
+        } else if (type == 'signature') {
+          final signed = _dynamicSignatures[id] ?? false;
+          responses[id] = signed;
+          if (isReq && !signed) hasMissingRequired = true;
+        } else {
+          final val = _dynamicControllers[id]?.text.trim() ?? '';
+          responses[id] = val;
+          if (isReq && val.isEmpty) hasMissingRequired = true;
+        }
+      }
+
+      widget.onResponsesChanged?.call(responses);
+      widget.onValidationChanged?.call(hasMissingRequired);
+    } else {
+      widget.onResponsesChanged?.call(const {});
+      widget.onValidationChanged?.call(false);
     }
   }
 
@@ -137,9 +234,11 @@ class _ClientIntakeStepState extends State<ClientIntakeStep> {
         return isBlocking && (_dynamicBooleans[id] == true);
       });
       widget.onBlockerChanged?.call(hasBlocker);
+      _emitStructuredValidation();
     } else {
       widget.onNotesChanged(_notesController.text);
       widget.onBlockerChanged?.call(false);
+      _emitStructuredValidation();
     }
   }
 

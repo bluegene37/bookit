@@ -1,4 +1,7 @@
 // Gene - Nov, 03, 2026: Service item model for dental and medical procedures or packages
+// Gene - Nov, 22, 2026: Added PlatformConfig import for database-driven currency symbol formatting
+import 'platform_config.dart';
+
 class ServiceItem {
   final String id;
   final String businessId;
@@ -42,6 +45,7 @@ class ServiceItem {
     this.depositAmount = 20.00,
   });
 
+  /*
   String get formattedPrice => '\$$price';
   String get formattedDuration => '$durationMinutes min';
 
@@ -53,6 +57,41 @@ class ServiceItem {
       return double.parse((price * (depositAmount / 100)).toStringAsFixed(2));
     }
     return depositAmount > price ? price : depositAmount;
+  }
+  */
+  // Gene - Nov, 22, 2026: Format price with service currency symbol and support both 'deposit' and 'deposit_required' policies
+  String get formattedPrice {
+    final symbol = PlatformConfig.symbolFor(currency);
+    final display = price == price.roundToDouble() ? price.toStringAsFixed(0) : price.toStringAsFixed(2);
+    return '$symbol$display';
+  }
+
+  String get formattedDuration => '$durationMinutes min';
+
+  /*
+  double calculateDepositAmount() {
+    if (paymentPolicy == 'pay_at_venue' || paymentPolicy == 'free_consultation') return 0.0;
+    if (paymentPolicy == 'deposit' || paymentPolicy == 'deposit_required') {
+      if (depositType == 'percentage') {
+        return double.parse((price * (depositAmount / 100)).toStringAsFixed(2));
+      }
+      return depositAmount > price ? price : depositAmount;
+    }
+    return price;
+  }
+  */
+
+  // Gene - Nov, 22, 2026: Accept optional totalOverride (e.g. multi-day bookings) when calculating required deposit
+  double calculateDepositAmount({double? totalOverride}) {
+    final base = totalOverride ?? price;
+    if (paymentPolicy == 'pay_at_venue' || paymentPolicy == 'free_consultation') return 0.0;
+    if (paymentPolicy == 'deposit' || paymentPolicy == 'deposit_required') {
+      if (depositType == 'percentage') {
+        return double.parse((base * (depositAmount / 100)).toStringAsFixed(2));
+      }
+      return depositAmount > base ? base : depositAmount;
+    }
+    return base;
   }
 
   /*
@@ -93,14 +132,18 @@ class ServiceItem {
   factory ServiceItem.fallback({
     String id = 'srv-fallback-0',
     String businessId = '00000000-0000-0000-0000-000000000000',
-    String name = 'Standard Consultation',
+    String name = 'Standard Service',
     double price = 50.0,
   }) {
     return ServiceItem(
       id: id,
       businessId: businessId,
       name: name,
+      /*
       description: 'Standard session and clinical consultation.',
+      */
+      // Gene - Nov, 22, 2026: Universal industry-neutral service fallback description
+      description: 'Standard service booking.',
       durationMinutes: 30,
       price: price,
       currency: 'USD',

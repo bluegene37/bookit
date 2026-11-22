@@ -4,6 +4,8 @@ import '../../../../core/theme/neumorphic_colors.dart';
 import '../../../../core/widgets/neumorphic_container.dart';
 import '../../../../core/widgets/neumorphic_button.dart';
 import '../../../../models/booking.dart';
+// Gene - Nov, 22, 2026: Added PlatformConfig import for booking currency formatting
+import '../../../../models/platform_config.dart';
 // Gene - Nov, 05, 2026: Imported CalendarSyncService for 1-Tap Google Calendar and .ics invite generation
 import '../../../../services/calendar_sync_service.dart';
 // Gene - Nov, 05, 2026: Added digital QR boarding pass modal and pass preview
@@ -208,13 +210,14 @@ class BookingConfirmationStep extends StatelessWidget {
                 ),
                 const Divider(height: 24),
 
+                // Gene - Nov, 22, 2026: Universal industry-neutral labels & multi-currency formatting in confirmation receipt
                 Text(
-                  booking.businessName ?? 'Clinic',
+                  booking.businessName ?? 'BookIt Business',
                   style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  booking.serviceName ?? 'General Consultation',
+                  booking.serviceName ?? 'Selected Service',
                   style: TextStyle(
                     fontSize: 14,
                     color: isDark ? NeumorphicColors.darkTextSecondary : NeumorphicColors.lightTextSecondary,
@@ -228,7 +231,7 @@ class BookingConfirmationStep extends StatelessWidget {
                       Icon(Icons.person_pin, size: 16, color: accent),
                       const SizedBox(width: 6),
                       Text(
-                        'Practitioner: ${booking.staffName}',
+                        'Provider: ${booking.staffName}',
                         style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
                       ),
                     ],
@@ -255,7 +258,7 @@ class BookingConfirmationStep extends StatelessWidget {
                   children: [
                     const Text('Total Amount:', style: TextStyle(fontSize: 14)),
                     Text(
-                      '\$${booking.totalPrice.toStringAsFixed(2)}',
+                      PlatformConfig.formatCurrency(booking.totalPrice, currencyCode: booking.currency),
                       style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: accent),
                     ),
                   ],
@@ -310,7 +313,7 @@ class BookingConfirmationStep extends StatelessWidget {
                             const Icon(Icons.check_circle_outline, size: 14, color: NeumorphicColors.tealPrimary),
                             const SizedBox(width: 5),
                             Text(
-                              'Deposit Paid: \$${booking.amountPaid.toStringAsFixed(2)}',
+                              'Deposit Paid: ${PlatformConfig.formatCurrency(booking.amountPaid, currencyCode: booking.currency)}',
                               style: const TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w700,
@@ -333,7 +336,7 @@ class BookingConfirmationStep extends StatelessWidget {
                             const Icon(Icons.schedule, size: 14, color: NeumorphicColors.warning),
                             const SizedBox(width: 5),
                             Text(
-                              'Balance Due at Clinic: \$${booking.amountDue.toStringAsFixed(2)}',
+                              'Balance Due at Venue: ${PlatformConfig.formatCurrency(booking.amountDue, currencyCode: booking.currency)}',
                               style: const TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w700,
@@ -362,7 +365,7 @@ class BookingConfirmationStep extends StatelessWidget {
                         const Icon(Icons.verified_outlined, size: 14, color: NeumorphicColors.success),
                         const SizedBox(width: 5),
                         Text(
-                          'Paid in Full: \$${booking.amountPaid.toStringAsFixed(2)}',
+                          'Paid in Full: ${PlatformConfig.formatCurrency(booking.amountPaid, currencyCode: booking.currency)}',
                           style: const TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w700,
@@ -389,7 +392,7 @@ class BookingConfirmationStep extends StatelessWidget {
                         const Icon(Icons.payment_outlined, size: 14, color: NeumorphicColors.info),
                         const SizedBox(width: 5),
                         Text(
-                          'Balance Due at Clinic: \$${(booking.amountDue > 0 ? booking.amountDue : booking.totalPrice).toStringAsFixed(2)}',
+                          'Balance Due at Venue: ${PlatformConfig.formatCurrency(booking.amountDue > 0 ? booking.amountDue : booking.totalPrice, currencyCode: booking.currency)}',
                           style: const TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w700,

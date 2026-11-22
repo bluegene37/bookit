@@ -12,6 +12,9 @@ import '../../../../models/business.dart';
 // Gene - Nov, 04, 2026: Removed unused direct category model import; managed via providers
 // import '../../../../models/business_category.dart';
 import '../../../../models/business_template.dart';
+// Gene - Nov, 22, 2026: Added PlatformConfig and PlatformConfigService imports for DB-driven currencies and defaults
+import '../../../../models/platform_config.dart';
+import '../../../../services/platform_config_service.dart';
 import '../../../../models/service_item.dart';
 import '../../../../models/business_staff.dart';
 import '../../../../services/business_service.dart';
@@ -35,9 +38,11 @@ class AdminOnboardingWizard extends ConsumerStatefulWidget {
 class _AdminOnboardingWizardState extends ConsumerState<AdminOnboardingWizard> {
   int _currentStep = 0;
 
-  // Step 0: Selected Template
+  // Step 0: Selected Template & Currency
   String? _selectedCategoryId;
   BusinessTemplate? _selectedTemplate;
+  // Gene - Nov, 22, 2026: Added DB-driven _selectedCurrency state & dynamic branding coordinates
+  String _selectedCurrency = 'USD';
 
   // Step 1: Business Details
   final _nameController = TextEditingController();
@@ -49,14 +54,17 @@ class _AdminOnboardingWizardState extends ConsumerState<AdminOnboardingWizard> {
   final _descriptionController = TextEditingController();
 
   // Gene - Nov 06, 2026: Coordinates and debouncer for interactive map pin-picker
-  double? _latitude = 37.7749;
-  double? _longitude = -122.4194;
+  double? _latitude;
+  double? _longitude;
   final GlobalKey<LocationPinPickerState> _pinPickerKey = GlobalKey<LocationPinPickerState>();
   Timer? _addressDebounce;
 
   @override
   void initState() {
     super.initState();
+    final branding = ref.read(activePlatformConfigProvider).branding;
+    _latitude = branding.defaultLatitude;
+    _longitude = branding.defaultLongitude;
     _addressController.addListener(_onAddressChanged);
     _cityController.addListener(_onAddressChanged);
   }
@@ -104,6 +112,8 @@ class _AdminOnboardingWizardState extends ConsumerState<AdminOnboardingWizard> {
   void _onTemplateSelected(BusinessTemplate template) {
     setState(() {
       _selectedTemplate = template;
+      // Gene - Nov, 22, 2026: Adopt template defaultCurrency and preserve deposit_type ('fixed' vs 'percentage')
+      _selectedCurrency = template.defaultCurrency;
       // Pre-fill starter services
       _customServices.clear();
       for (final srv in template.starterServices) {
@@ -113,6 +123,7 @@ class _AdminOnboardingWizardState extends ConsumerState<AdminOnboardingWizard> {
           'duration_minutes': srv['duration_minutes'] ?? 45,
           'price': (srv['price'] as num?)?.toDouble() ?? 50.0,
           'payment_policy': srv['payment_policy'] ?? 'pay_at_venue',
+          'deposit_type': srv['deposit_type'] ?? 'fixed',
           'deposit_amount': (srv['deposit_amount'] as num?)?.toDouble() ?? 0.0,
           'is_included': true,
         });
@@ -185,6 +196,7 @@ class _AdminOnboardingWizardState extends ConsumerState<AdminOnboardingWizard> {
       );
       */
       // Gene - Nov 06, 2026: Included latitude and longitude captured from interactive LocationPinPicker
+      // Gene - Nov, 22, 2026: Merge selected currency into defaultSettings & preserve deposit_type + currency on provisioned services
       final newBusiness = Business(
         id: businessId,
         ownerId: ownerId,
@@ -202,33 +214,13 @@ class _AdminOnboardingWizardState extends ConsumerState<AdminOnboardingWizard> {
         longitude: _longitude,
         contactPhone: _phoneController.text.trim().isNotEmpty ? _phoneController.text.trim() : null,
         contactEmail: _emailController.text.trim().isNotEmpty ? _emailController.text.trim() : null,
-        settings: _selectedTemplate!.defaultSettings,
+        settings: {
+          ..._selectedTemplate!.defaultSettings,
+          'currency': _selectedCurrency,
+        },
         uiConfig: _selectedTemplate!.uiConfig,
       );
 
-      /*
-      // Gene - Nov, 04, 2026: Non-UUID service IDs
-      final servicesToInsert = <ServiceItem>[];
-      for (int i = 0; i < _customServices.length; i++) {
-        final s = _customServices[i];
-        if (s['is_included'] == true) {
-          servicesToInsert.add(
-            ServiceItem(
-              id: 'srv-${DateTime.now().millisecondsSinceEpoch}-$i',
-              businessId: businessId,
-              name: s['name'] as String,
-              description: s['description'] as String?,
-              durationMinutes: s['duration_minutes'] as int,
-              price: (s['price'] as num).toDouble(),
-              paymentPolicy: s['payment_policy'] as String? ?? 'pay_at_venue',
-              depositAmount: (s['deposit_amount'] as num?)?.toDouble() ?? 0.0,
-            ),
-          );
-        }
-      }
-      */
-
-      // Gene - Nov, 05, 2026: Generate UUID v4 for each provisioned service
       final servicesToInsert = <ServiceItem>[];
       for (int i = 0; i < _customServices.length; i++) {
         final s = _customServices[i];
@@ -241,7 +233,9 @@ class _AdminOnboardingWizardState extends ConsumerState<AdminOnboardingWizard> {
               description: s['description'] as String?,
               durationMinutes: s['duration_minutes'] as int,
               price: (s['price'] as num).toDouble(),
+              currency: _selectedCurrency,
               paymentPolicy: s['payment_policy'] as String? ?? 'pay_at_venue',
+              depositType: s['deposit_type'] as String? ?? 'fixed',
               depositAmount: (s['deposit_amount'] as num?)?.toDouble() ?? 0.0,
             ),
           );
@@ -1125,7 +1119,11 @@ class _AdminOnboardingWizardState extends ConsumerState<AdminOnboardingWizard> {
 
   // --- Step 1: Business Profile ---
   // Gene - Nov, 14, 2026: Stack 2-column form rows vertically when narrow (< 520px) to prevent modal overflows
+  // Gene - Nov, 22, 2026: Added DB-driven supported currency dropdown & industry-neutral placeholders
   Widget _buildBusinessProfileStep(bool isDark, Color accent) {
+    final platformConfig = ref.watch(activePlatformConfigProvider);
+    final venueLabel = _selectedTemplate?.venueLabel ?? 'Business';
+    final currencies = platformConfig.supportedCurrencies;
     return LayoutBuilder(
       builder: (context, constraints) {
         final isNarrow = constraints.maxWidth < 520;
@@ -1136,7 +1134,9 @@ class _AdminOnboardingWizardState extends ConsumerState<AdminOnboardingWizard> {
             const SizedBox(height: 6),
             NeumorphicTextField(
               controller: _nameController,
-              hintText: 'e.g. Skyline Orthodontics & Dental Studio',
+              // hintText: 'e.g. Summit ${venueLabel} & Studio',
+              // Gene - Nov, 22, 2026: Clean string interpolation
+              hintText: 'e.g. Summit $venueLabel & Studio',
               onChanged: _generateSlug,
             ),
           ],
@@ -1148,7 +1148,7 @@ class _AdminOnboardingWizardState extends ConsumerState<AdminOnboardingWizard> {
             const SizedBox(height: 6),
             NeumorphicTextField(
               controller: _slugController,
-              hintText: 'skyline-orthodontics',
+              hintText: 'summit-venue',
             ),
           ],
         );
@@ -1181,7 +1181,7 @@ class _AdminOnboardingWizardState extends ConsumerState<AdminOnboardingWizard> {
             const SizedBox(height: 6),
             NeumorphicTextField(
               controller: _addressController,
-              hintText: '100 Medical Center Parkway, Suite 400',
+              hintText: '123 Main Street, Suite 400',
             ),
           ],
         );
@@ -1192,7 +1192,35 @@ class _AdminOnboardingWizardState extends ConsumerState<AdminOnboardingWizard> {
             const SizedBox(height: 6),
             NeumorphicTextField(
               controller: _cityController,
-              hintText: 'San Francisco',
+              hintText: 'City',
+            ),
+          ],
+        );
+        final currencyField = Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Billing Currency', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+            const SizedBox(height: 6),
+            NeumorphicContainer(
+              borderRadius: 14,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<String>(
+                  value: currencies.any((c) => c.code == _selectedCurrency)
+                      ? _selectedCurrency
+                      : currencies.first.code,
+                  isExpanded: true,
+                  items: currencies
+                      .map((c) => DropdownMenuItem(
+                            value: c.code,
+                            child: Text('${c.code} (${c.symbol}) — ${c.name}', style: const TextStyle(fontSize: 13)),
+                          ))
+                      .toList(),
+                  onChanged: (val) {
+                    if (val != null) setState(() => _selectedCurrency = val);
+                  },
+                ),
+              ),
             ),
           ],
         );
@@ -1243,12 +1271,14 @@ class _AdminOnboardingWizardState extends ConsumerState<AdminOnboardingWizard> {
                 ),
               // Gene - Nov 06, 2026: Embedded interactive LocationPinPicker with bidirectional sync
               const SizedBox(height: 16),
+              currencyField,
+              const SizedBox(height: 16),
               LocationPinPicker(
                 key: _pinPickerKey,
-                initialLatitude: _latitude ?? 37.7749,
-                initialLongitude: _longitude ?? -122.4194,
+                initialLatitude: _latitude ?? platformConfig.branding.defaultLatitude,
+                initialLongitude: _longitude ?? platformConfig.branding.defaultLongitude,
                 height: 200,
-                label: 'Clinic Map Location (Drag or tap map to set pin)',
+                label: '$venueLabel Map Location (Drag or tap map to set pin)',
                 onLocationChanged: (loc) {
                   setState(() {
                     _latitude = loc.latitude;
@@ -1371,15 +1401,23 @@ class _AdminOnboardingWizardState extends ConsumerState<AdminOnboardingWizard> {
                       color: accent.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(6),
                     ),
+                    // Gene - Nov, 22, 2026: Accurate fixed vs percentage deposit preview badge + multi-currency formatting
                     child: Text(
-                      srv['payment_policy'] == 'deposit_required'
-                          ? 'Deposit \$${srv['deposit_amount']}'
-                          : (srv['payment_policy'] == 'full_upfront' ? 'Full Upfront' : 'Pay at Venue'),
+                      (srv['payment_policy'] == 'deposit_required' || srv['payment_policy'] == 'deposit')
+                          ? (srv['deposit_type'] == 'percentage'
+                              ? 'Deposit ${srv['deposit_amount']}%'
+                              : 'Deposit ${PlatformConfig.formatCurrency((srv['deposit_amount'] as num?)?.toDouble() ?? 0.0, currencyCode: _selectedCurrency, decimals: 0)}')
+                          : (srv['payment_policy'] == 'free_consultation'
+                              ? 'Free Session'
+                              : (srv['payment_policy'] == 'full_upfront' ? 'Full Upfront' : 'Pay at Venue')),
                       style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: accent),
                     ),
                   );
                   final priceText = Text(
-                    '\$${(srv['price'] as num).toStringAsFixed(2)}',
+                    PlatformConfig.formatCurrency(
+                      (srv['price'] as num).toDouble(),
+                      currencyCode: _selectedCurrency,
+                    ),
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w800,
@@ -1526,6 +1564,7 @@ class _AdminOnboardingWizardState extends ConsumerState<AdminOnboardingWizard> {
 
                 // Settings Breakdown
                 _buildSummaryRow('Chosen Template', _selectedTemplate?.name ?? 'Generic'),
+                _buildSummaryRow('Currency', _selectedCurrency),
                 _buildSummaryRow('Booking Model', _selectedTemplate?.bookingModel.displayName ?? ''),
                 _buildSummaryRow('Resource Archetype', '${uiConfig['resource_type']} (${uiConfig['resource_label']})'),
                 _buildSummaryRow('Time Slot Interval', '${settings['slot_interval_minutes'] ?? 30} minutes'),

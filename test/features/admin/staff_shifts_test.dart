@@ -285,7 +285,9 @@ void main() {
       await tester.pumpAndSettle();
 
       // Check Staff list title
-      expect(find.text('Doctors & Specialists Roster'), findsOneWidget);
+      // expect(find.text('Doctors & Specialists Roster'), findsOneWidget);
+      // Gene - Nov, 22, 2026: Universal Business.resourceLabel defaults to Specialist
+      expect(find.text('Specialists Roster'), findsOneWidget);
       expect(find.text('Elena Rostova'), findsOneWidget);
 
       // Check shift summary chip

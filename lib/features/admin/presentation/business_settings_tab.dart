@@ -6,6 +6,11 @@ import '../../../../core/widgets/neumorphic_container.dart';
 import '../../../../core/widgets/neumorphic_button.dart';
 import '../../../../core/widgets/neumorphic_text_field.dart';
 import '../../../../models/business.dart';
+// Gene - Nov, 22, 2026: Added PlatformConfigService and SupabaseConfig imports for DB-driven dropdown presets & safe payment input defaults
+import '../../../../core/constants/supabase_config.dart';
+// import '../../../../models/platform_config.dart';
+// Gene - Nov, 22, 2026: Commented out unused platform_config import (provided transitively / via service)
+import '../../../../services/platform_config_service.dart';
 import '../../../../services/business_service.dart';
 // Gene - Nov, 05, 2026: Added Storefront QR Standee Studio import
 import 'widgets/qr_standee_studio_card.dart';
@@ -31,6 +36,12 @@ class _BusinessSettingsTabState extends ConsumerState<BusinessSettingsTab> {
   late int _slotInterval;
   late int _bufferMinutes;
   late bool _requiresApproval;
+  // Gene - Nov, 22, 2026: Added DB-driven currency, advance booking horizon, min notice window, and date-range stay bounds
+  late String _selectedCurrency;
+  late int _advanceBookingDays;
+  late int _minNoticeHours;
+  late int _minDays;
+  late int _maxDays;
   bool _saved = false;
 
   // Gene - Nov 06, 2026: Added coordinates and debounce for interactive map pin-picker
@@ -38,7 +49,7 @@ class _BusinessSettingsTabState extends ConsumerState<BusinessSettingsTab> {
   late double? _longitude;
   final GlobalKey<LocationPinPickerState> _pinPickerKey = GlobalKey<LocationPinPickerState>();
   Timer? _addressDebounce;
-  // Gene - Nov 07, 2026: Weekly clinic working hours map for editing open/close schedule per day
+  // Gene - Nov 07, 2026: Weekly venue working hours map for editing open/close schedule per day
   late Map<String, Map<String, dynamic>> _workingHours;
   static const List<String> _weekdays = [
     'monday',
@@ -66,6 +77,7 @@ class _BusinessSettingsTabState extends ConsumerState<BusinessSettingsTab> {
   @override
   void initState() {
     super.initState();
+    final branding = ref.read(activePlatformConfigProvider).branding;
     _selectedModel = widget.business.bookingModel;
     _nameController = TextEditingController(text: widget.business.name);
     _addressController = TextEditingController(text: widget.business.address ?? '');
@@ -73,22 +85,28 @@ class _BusinessSettingsTabState extends ConsumerState<BusinessSettingsTab> {
     _slotInterval = widget.business.slotIntervalMinutes;
     _bufferMinutes = widget.business.bufferMinutes;
     _requiresApproval = widget.business.requiresApproval;
-    _latitude = widget.business.latitude ?? 37.7749;
-    _longitude = widget.business.longitude ?? -122.4194;
+    _selectedCurrency = widget.business.currency;
+    _advanceBookingDays = widget.business.advanceBookingDays;
+    _minNoticeHours = widget.business.minNoticeHours;
+    _minDays = widget.business.minDays;
+    _maxDays = widget.business.maxDays;
+    _latitude = widget.business.latitude ?? branding.defaultLatitude;
+    _longitude = widget.business.longitude ?? branding.defaultLongitude;
     _workingHours = _initWorkingHours(widget.business.workingHours);
 
     final payCfg = widget.business.paymentMethodsConfig;
+    final allowDemo = SupabaseConfig.isDemoModeEnabled && !SupabaseConfig.isConfigured;
     _stripeEnabled = payCfg['stripe_enabled'] as bool? ?? true;
-    _gcashEnabled = payCfg['gcash_enabled'] as bool? ?? true;
+    _gcashEnabled = payCfg['gcash_enabled'] as bool? ?? allowDemo;
     _gcashNameController = TextEditingController(text: payCfg['gcash_account_name'] as String? ?? widget.business.name);
-    _gcashNumberController = TextEditingController(text: payCfg['gcash_number'] as String? ?? '0917-555-0199');
-    _mayaEnabled = payCfg['maya_enabled'] as bool? ?? true;
+    _gcashNumberController = TextEditingController(text: payCfg['gcash_number'] as String? ?? '');
+    _mayaEnabled = payCfg['maya_enabled'] as bool? ?? allowDemo;
     _mayaNameController = TextEditingController(text: payCfg['maya_account_name'] as String? ?? widget.business.name);
-    _mayaNumberController = TextEditingController(text: payCfg['maya_number'] as String? ?? '0918-555-0244');
-    _bankEnabled = payCfg['bank_enabled'] as bool? ?? true;
-    _bankNameController = TextEditingController(text: payCfg['bank_name'] as String? ?? 'BDO Unibank / BPI');
+    _mayaNumberController = TextEditingController(text: payCfg['maya_number'] as String? ?? '');
+    _bankEnabled = payCfg['bank_enabled'] as bool? ?? allowDemo;
+    _bankNameController = TextEditingController(text: payCfg['bank_name'] as String? ?? '');
     _bankAccountNameController = TextEditingController(text: payCfg['bank_account_name'] as String? ?? widget.business.name);
-    _bankAccountNumberController = TextEditingController(text: payCfg['bank_account_number'] as String? ?? '0042-8819-3021');
+    _bankAccountNumberController = TextEditingController(text: payCfg['bank_account_number'] as String? ?? '');
 
     _addressController.addListener(_onAddressChanged);
   }
@@ -194,9 +212,14 @@ class _BusinessSettingsTabState extends ConsumerState<BusinessSettingsTab> {
         'working_hours': _workingHours,
       },
       */
-      // Gene - Nov 07, 2026: Persist updated working_hours and hybrid payment_methods configuration
+      // Gene - Nov, 22, 2026: Persist DB-driven currency, advance booking horizon, min notice, min/max nights, working hours & payment methods
       settings: {
         ...widget.business.settings,
+        'currency': _selectedCurrency,
+        'advance_booking_days': _advanceBookingDays,
+        'min_notice_hours': _minNoticeHours,
+        'min_days': _minDays,
+        'max_days': _maxDays,
         'slot_interval_minutes': _slotInterval,
         'buffer_minutes': _bufferMinutes,
         'requires_approval': _requiresApproval,
@@ -223,7 +246,7 @@ class _BusinessSettingsTabState extends ConsumerState<BusinessSettingsTab> {
       setState(() => _saved = true);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Saved clinic settings & map location!'),
+          content: Text('Saved ${widget.business.venueLabel.toLowerCase()} settings & map location!'),
           backgroundColor: NeumorphicColors.tealPrimary,
         ),
       );
@@ -237,6 +260,40 @@ class _BusinessSettingsTabState extends ConsumerState<BusinessSettingsTab> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final accent = isDark ? NeumorphicColors.tealLight : NeumorphicColors.tealPrimary;
+    // Gene - Nov, 22, 2026: Load global booking models, currencies, scheduling presets, and payment channels from PlatformConfig
+    final platformConfig = ref.watch(activePlatformConfigProvider);
+    final schedulingPresets = platformConfig.schedulingPresets;
+    /*
+    final slotIntervalOptions = schedulingPresets.slotIntervals.contains(_slotInterval)
+        ? schedulingPresets.slotIntervals
+        : [...schedulingPresets.slotIntervals, _slotInterval]..sort();
+    final bufferOptions = schedulingPresets.bufferOptions.contains(_bufferMinutes)
+        ? schedulingPresets.bufferOptions
+        : [...schedulingPresets.bufferOptions, _bufferMinutes]..sort();
+    */
+    // Gene - Nov, 22, 2026: Parenthesize spread+sort so unmodifiable const default lists are never sorted in-place
+    final slotIntervalOptions = schedulingPresets.slotIntervals.contains(_slotInterval)
+        ? schedulingPresets.slotIntervals
+        : ([...schedulingPresets.slotIntervals, _slotInterval]..sort());
+    final bufferOptions = schedulingPresets.bufferOptions.contains(_bufferMinutes)
+        ? schedulingPresets.bufferOptions
+        : ([...schedulingPresets.bufferOptions, _bufferMinutes]..sort());
+    final currencies = platformConfig.supportedCurrencies;
+    final openOptions = schedulingPresets.openTimes;
+    final closeOptions = schedulingPresets.closeTimes;
+
+    BookingModelType parseModelType(String id) => BookingModelType.fromString(id);
+    IconData resolveModelIcon(String iconName) {
+      switch (iconName) {
+        case 'date_range':
+          return Icons.date_range;
+        case 'view_day':
+          return Icons.view_day;
+        case 'calendar_today':
+        default:
+          return Icons.calendar_today;
+      }
+    }
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
@@ -272,29 +329,19 @@ class _BusinessSettingsTabState extends ConsumerState<BusinessSettingsTab> {
           ),
           const SizedBox(height: 12),
 
-          _buildTemplateOption(
-            type: BookingModelType.slotBased,
-            title: '1. Time Slot Appointments (Clinic / Doctor)',
-            description: 'Clients select procedures, choose a dentist/doctor, and book discrete 15-60 min time slots.',
-            icon: Icons.calendar_today,
-          ),
-          const SizedBox(height: 12),
-
-          _buildTemplateOption(
-            type: BookingModelType.dateRange,
-            title: '2. Date Range Booking (Stay / Recovery / Rental)',
-            description: 'Clients pick "Date From" and "Date To", with automatic nightly rate calculation.',
-            icon: Icons.date_range,
-          ),
-          const SizedBox(height: 12),
-
-          _buildTemplateOption(
-            type: BookingModelType.daily,
-            title: '3. Daily Session (Day Clinic / Passes)',
-            description: 'Clients book single calendar days with capacity tracking.',
-            icon: Icons.view_day,
-          ),
-          const SizedBox(height: 28),
+          // Gene - Nov, 22, 2026: Dynamic DB-driven booking models, scheduling presets, notice/horizon bounds, currency & payment channel labels
+          ...platformConfig.bookingModels.map((bm) {
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: _buildTemplateOption(
+                type: parseModelType(bm.id),
+                title: bm.title,
+                description: bm.description,
+                icon: resolveModelIcon(bm.icon),
+              ),
+            );
+          }),
+          const SizedBox(height: 16),
 
           // Template-Specific Parameters
           if (_selectedModel == BookingModelType.slotBased) ...[
@@ -322,12 +369,9 @@ class _BusinessSettingsTabState extends ConsumerState<BusinessSettingsTab> {
                           value: _slotInterval,
                           isExpanded: true,
                           underline: const SizedBox(),
-                          items: const [
-                            DropdownMenuItem(value: 15, child: Text('15 Minutes')),
-                            DropdownMenuItem(value: 30, child: Text('30 Minutes (Standard)')),
-                            DropdownMenuItem(value: 45, child: Text('45 Minutes')),
-                            DropdownMenuItem(value: 60, child: Text('60 Minutes')),
-                          ],
+                          items: slotIntervalOptions
+                              .map((m) => DropdownMenuItem(value: m, child: Text('$m Minutes')))
+                              .toList(),
                           onChanged: (val) {
                             if (val != null) setState(() => _slotInterval = val);
                           },
@@ -344,17 +388,18 @@ class _BusinessSettingsTabState extends ConsumerState<BusinessSettingsTab> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text('Buffer Time Between Patients', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                        const Text('Buffer Time', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
                         const SizedBox(height: 8),
                         DropdownButton<int>(
                           value: _bufferMinutes,
                           isExpanded: true,
                           underline: const SizedBox(),
-                          items: const [
-                            DropdownMenuItem(value: 0, child: Text('No buffer')),
-                            DropdownMenuItem(value: 10, child: Text('10 Min Clean & Prep')),
-                            DropdownMenuItem(value: 15, child: Text('15 Min Buffer')),
-                          ],
+                          items: bufferOptions
+                              .map((m) => DropdownMenuItem(
+                                    value: m,
+                                    child: Text(m == 0 ? 'No buffer' : '$m Min Buffer'),
+                                  ))
+                              .toList(),
                           onChanged: (val) {
                             if (val != null) setState(() => _bufferMinutes = val);
                           },
@@ -368,10 +413,152 @@ class _BusinessSettingsTabState extends ConsumerState<BusinessSettingsTab> {
             const SizedBox(height: 24),
           ],
 
-          // Gene - Nov 07, 2026: Weekly Clinic Operating Hours Editor Card
+          // Currency, Booking Window & Stay Constraints
+          Text(
+            'Currency & Booking Window',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: isDark ? NeumorphicColors.darkTextPrimary : NeumorphicColors.lightTextPrimary,
+            ),
+          ),
+          const SizedBox(height: 12),
+          NeumorphicContainer(
+            borderRadius: 18.0,
+            padding: const EdgeInsets.all(16),
+            child: Wrap(
+              spacing: 16,
+              runSpacing: 14,
+              children: [
+                SizedBox(
+                  width: 200,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Billing Currency', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                      DropdownButton<String>(
+                        value: currencies.any((c) => c.code == _selectedCurrency)
+                            ? _selectedCurrency
+                            : currencies.first.code,
+                        isExpanded: true,
+                        underline: const SizedBox(),
+                        items: currencies
+                            .map((c) => DropdownMenuItem(
+                                  value: c.code,
+                                  child: Text('${c.code} (${c.symbol})'),
+                                ))
+                            .toList(),
+                        onChanged: (val) {
+                          if (val != null) setState(() => _selectedCurrency = val);
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+                SizedBox(
+                  width: 170,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Advance Booking Window', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                      DropdownButton<int>(
+                        value: const [7, 14, 30, 60, 90, 180, 365].contains(_advanceBookingDays)
+                            ? _advanceBookingDays
+                            : 14,
+                        isExpanded: true,
+                        underline: const SizedBox(),
+                        items: const [7, 14, 30, 60, 90, 180, 365]
+                            .map((d) => DropdownMenuItem(value: d, child: Text('$d Days')))
+                            .toList(),
+                        onChanged: (val) {
+                          if (val != null) setState(() => _advanceBookingDays = val);
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+                SizedBox(
+                  width: 170,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Minimum Notice', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                      DropdownButton<int>(
+                        value: const [0, 1, 2, 4, 12, 24, 48].contains(_minNoticeHours)
+                            ? _minNoticeHours
+                            : 0,
+                        isExpanded: true,
+                        underline: const SizedBox(),
+                        items: const [0, 1, 2, 4, 12, 24, 48]
+                            .map((h) => DropdownMenuItem(
+                                  value: h,
+                                  child: Text(h == 0 ? 'Instant / Same-Hour' : '$h Hours Notice'),
+                                ))
+                            .toList(),
+                        onChanged: (val) {
+                          if (val != null) setState(() => _minNoticeHours = val);
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+                if (_selectedModel == BookingModelType.dateRange) ...[
+                  SizedBox(
+                    width: 140,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('Min Nights', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                        DropdownButton<int>(
+                          value: const [1, 2, 3, 5, 7, 14].contains(_minDays) ? _minDays : 1,
+                          isExpanded: true,
+                          underline: const SizedBox(),
+                          items: const [1, 2, 3, 5, 7, 14]
+                              .map((d) => DropdownMenuItem(value: d, child: Text('$d Night${d == 1 ? '' : 's'}')))
+                              .toList(),
+                          onChanged: (val) {
+                            if (val != null) {
+                              setState(() {
+                                _minDays = val;
+                                if (_maxDays < _minDays) _maxDays = _minDays;
+                              });
+                            }
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                  SizedBox(
+                    width: 140,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('Max Nights', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                        DropdownButton<int>(
+                          value: const [7, 14, 30, 60, 90, 180].contains(_maxDays) ? _maxDays : 30,
+                          isExpanded: true,
+                          underline: const SizedBox(),
+                          items: const [7, 14, 30, 60, 90, 180]
+                              .where((d) => d >= _minDays)
+                              .map((d) => DropdownMenuItem(value: d, child: Text('$d Nights')))
+                              .toList(),
+                          onChanged: (val) {
+                            if (val != null) setState(() => _maxDays = val);
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
+
+          // Weekly Venue Operating Hours Editor Card
           if (_selectedModel != BookingModelType.dateRange) ...[
             Text(
-              'Weekly Clinic Operating Hours',
+              'Weekly ${widget.business.venueLabel} Operating Hours',
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w700,
@@ -389,9 +576,6 @@ class _BusinessSettingsTabState extends ConsumerState<BusinessSettingsTab> {
                   final openTime = dayCfg['open'] as String? ?? '09:00';
                   final closeTime = dayCfg['close'] as String? ?? '17:00';
                   final label = day[0].toUpperCase() + day.substring(1);
-
-                  const openOptions = ['07:00', '08:00', '08:30', '09:00', '09:30', '10:00', '11:00'];
-                  const closeOptions = ['14:00', '15:00', '16:00', '17:00', '17:30', '18:00', '19:00', '20:00'];
 
                   return Padding(
                     padding: const EdgeInsets.symmetric(vertical: 4),
@@ -439,7 +623,7 @@ class _BusinessSettingsTabState extends ConsumerState<BusinessSettingsTab> {
                               crossAxisAlignment: WrapCrossAlignment.center,
                               children: [
                                 DropdownButton<String>(
-                                  value: openOptions.contains(openTime) ? openTime : openOptions[3],
+                                  value: openOptions.contains(openTime) ? openTime : openOptions.first,
                                   isDense: true,
                                   underline: const SizedBox(),
                                   items: openOptions
@@ -455,7 +639,7 @@ class _BusinessSettingsTabState extends ConsumerState<BusinessSettingsTab> {
                                 ),
                                 const Text('to', style: TextStyle(fontSize: 12)),
                                 DropdownButton<String>(
-                                  value: closeOptions.contains(closeTime) ? closeTime : closeOptions[3],
+                                  value: closeOptions.contains(closeTime) ? closeTime : closeOptions.first,
                                   isDense: true,
                                   underline: const SizedBox(),
                                   items: closeOptions
@@ -526,13 +710,16 @@ class _BusinessSettingsTabState extends ConsumerState<BusinessSettingsTab> {
           const SizedBox(height: 12),
           NeumorphicTextField(controller: _nameController, labelText: 'Business Name'),
           const SizedBox(height: 12),
-          NeumorphicTextField(controller: _addressController, labelText: 'Clinic Address'),
+          NeumorphicTextField(
+            controller: _addressController,
+            labelText: '${widget.business.venueLabel} Address',
+          ),
           // Gene - Nov 06, 2026: Embedded interactive LocationPinPicker for business location configuration
           const SizedBox(height: 12),
           LocationPinPicker(
             key: _pinPickerKey,
-            initialLatitude: _latitude ?? 37.7749,
-            initialLongitude: _longitude ?? -122.4194,
+            initialLatitude: _latitude ?? platformConfig.branding.defaultLatitude,
+            initialLongitude: _longitude ?? platformConfig.branding.defaultLongitude,
             height: 220,
             label: 'Location Pin on Map',
             onLocationChanged: (loc) {

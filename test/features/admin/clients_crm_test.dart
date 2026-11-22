@@ -8,7 +8,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:bookit/models/booking.dart';
+// Gene - Nov, 22, 2026: Import Business & BusinessService to override businessDetailProvider for universal CRM assertions
+import 'package:bookit/models/business.dart';
 import 'package:bookit/models/client_crm_profile.dart';
+import 'package:bookit/services/business_service.dart';
 import 'package:bookit/services/crm_service.dart';
 import 'package:bookit/services/booking_service.dart';
 import 'package:bookit/features/admin/presentation/tabs/clients_crm_tab.dart';
@@ -153,6 +156,17 @@ void main() {
         ProviderScope(
           overrides: [
             bookingsProvider.overrideWith((ref) => BookingNotifier()..state = sampleBookings),
+            // Gene - Nov, 22, 2026: Provide neutral business uiConfig instead of falling back to Apex Dental fixture
+            businessDetailProvider('biz-crm').overrideWith(
+              (ref) async => const Business(
+                id: 'biz-crm',
+                ownerId: 'owner-crm',
+                name: 'Universal Test Venue',
+                slug: 'universal-test-venue',
+                category: 'Services',
+                bookingModel: BookingModelType.slotBased,
+              ),
+            ),
           ],
           child: const MaterialApp(
             home: Scaffold(
@@ -165,13 +179,19 @@ void main() {
       await tester.pumpAndSettle();
 
       // Check Header
-      expect(find.text('Patients & Clients Directory'), findsOneWidget);
+      // expect(find.text('Patients & Clients Directory'), findsOneWidget);
+      // Gene - Nov, 22, 2026: Universal DB-driven clientLabel terminology defaults to Client
+
+      expect(find.text('Clients Directory'), findsOneWidget);
 
       // Check KPI Cards
-      expect(find.text('Total Patients'), findsOneWidget);
+      // expect(find.text('Total Patients'), findsOneWidget);
+      expect(find.text('Total Clients'), findsOneWidget);
       expect(find.text('Returning Rate'), findsOneWidget);
-      expect(find.text('Average Patient LTV'), findsOneWidget);
-      expect(find.text('VIP Patients'), findsOneWidget);
+      // expect(find.text('Average Patient LTV'), findsOneWidget);
+      // expect(find.text('VIP Patients'), findsOneWidget);
+      expect(find.text('Average Client LTV'), findsOneWidget);
+      expect(find.text('VIP Clients'), findsOneWidget);
 
       // Check table entries
       expect(find.text('Dr. John Doe'), findsOneWidget);
@@ -187,6 +207,17 @@ void main() {
         ProviderScope(
           overrides: [
             bookingsProvider.overrideWith((ref) => BookingNotifier()..state = sampleBookings),
+            // Gene - Nov, 22, 2026: Provide neutral business uiConfig instead of falling back to Apex Dental fixture
+            businessDetailProvider('biz-crm').overrideWith(
+              (ref) async => const Business(
+                id: 'biz-crm',
+                ownerId: 'owner-crm',
+                name: 'Universal Test Venue',
+                slug: 'universal-test-venue',
+                category: 'Services',
+                bookingModel: BookingModelType.slotBased,
+              ),
+            ),
           ],
           child: const MaterialApp(
             home: Scaffold(
@@ -262,7 +293,9 @@ void main() {
       await tester.pumpAndSettle();
 
       // Enter note in dialog
-      expect(find.text('Add Clinical / Internal Note'), findsOneWidget);
+      // expect(find.text('Add Clinical / Internal Note'), findsOneWidget);
+      // Gene - Nov, 22, 2026: Universal neutral note dialog title
+      expect(find.text('Add Staff / Internal Note'), findsOneWidget);
       final noteField = find.byType(TextField);
       await tester.enterText(noteField, 'Follow-up call completed with patient.');
       await tester.pumpAndSettle();

@@ -1,6 +1,10 @@
 // Gene - Nov, 03, 2026: Enhanced Authentication service with SignUp, SignIn, PasswordReset, Demo accounts, and Supabase Auth integration
+// Gene - Nov, 22, 2026: Added dart:async, supabase_flutter alias, and SupabaseConfig imports for live session hydration & shared demo guard
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' as supa;
+import '../core/constants/supabase_config.dart';
 import '../models/user_profile.dart';
 import 'supabase_service.dart';
 // Gene - Nov, 05, 2026: Added DemoData import for multi-persona switching and testing
@@ -45,6 +49,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
   // Gene - Nov, 05, 2026: Unconditional demo user auto-login on cold boot
   AuthNotifier() : super(AuthState(user: SupabaseService.mockCurrentUser));
   */
+  /*
   // Gene - Nov, 14, 2026: Unified demo guard with test hook & unauthenticated cold start in release mode
   @visibleForTesting
   static bool debugSimulateReleaseMode = false;
@@ -54,6 +59,89 @@ class AuthNotifier extends StateNotifier<AuthState> {
   static final RegExp _emailRegex = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
 
   AuthNotifier() : super(AuthState(user: isDemoModeEnabled ? SupabaseService.mockCurrentUser : null));
+  */
+
+  // Gene - Nov, 22, 2026: Delegate demo guard to SupabaseConfig, never auto-login mock user when live Supabase is connected, and hydrate active Supabase session
+  @visibleForTesting
+  static bool get debugSimulateReleaseMode => SupabaseConfig.debugSimulateReleaseMode;
+  @visibleForTesting
+  static set debugSimulateReleaseMode(bool value) =>
+      SupabaseConfig.debugSimulateReleaseMode = value;
+
+  static bool get isDemoModeEnabled => SupabaseConfig.isDemoModeEnabled;
+
+  static final RegExp _emailRegex = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
+
+  StreamSubscription<supa.AuthState>? _authSub;
+
+  AuthNotifier()
+      : super(AuthState(
+          user: (SupabaseService.client == null && isDemoModeEnabled)
+              ? SupabaseService.mockCurrentUser
+              : null,
+        )) {
+    _initSupabaseSession();
+  }
+
+  Future<void> _initSupabaseSession() async {
+    final client = SupabaseService.client;
+    if (client == null) return;
+
+    final existingSession = client.auth.currentSession;
+    if (existingSession != null && state.user == null) {
+      final profile = await _loadUserProfile(client, existingSession.user);
+      if (mounted) {
+        state = AuthState(user: profile);
+      }
+    }
+
+    _authSub = client.auth.onAuthStateChange.listen((authEvent) async {
+      if (!mounted) return;
+      final session = authEvent.session;
+      if (session != null) {
+        final profile = await _loadUserProfile(client, session.user);
+        if (mounted) {
+          state = AuthState(user: profile);
+        }
+      } else if (authEvent.event == supa.AuthChangeEvent.signedOut) {
+        state = const AuthState(user: null);
+      }
+    });
+  }
+
+  Future<UserProfile> _loadUserProfile(
+    supa.SupabaseClient client,
+    supa.User authUser,
+  ) async {
+    try {
+      final profileData = await client
+          .from('profiles')
+          .select()
+          .eq('id', authUser.id)
+          .maybeSingle();
+      if (profileData != null) {
+        return UserProfile.fromJson(profileData);
+      }
+    } catch (_) {
+      // Fallback to auth user metadata if profile row query is delayed
+    }
+
+    return UserProfile(
+      id: authUser.id,
+      email: authUser.email ?? '',
+      fullName: (authUser.userMetadata?['full_name'] as String?) ??
+          (authUser.email?.split('@').first ?? 'BookIt User'),
+      role: (authUser.userMetadata?['role'] as String?) ?? 'client',
+      phone: authUser.userMetadata?['phone'] as String?,
+      createdAt: DateTime.tryParse(authUser.createdAt) ?? DateTime.now(),
+    );
+  }
+
+  @override
+  void dispose() {
+    _authSub?.cancel();
+    super.dispose();
+  }
 
   // Gene - Nov, 03, 2026: Sign In implementation with Supabase Auth & Demo fallback
   Future<bool> signIn(String email, String password) async {
@@ -71,8 +159,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
       if (client != null) {
         final res = await client.auth.signInWithPassword(email: normalizedEmail, password: password);
         if (res.user != null) {
-          final profileData = await client.from('profiles').select().eq('id', res.user!.id).single();
-          state = AuthState(user: UserProfile.fromJson(profileData));
+          // Gene - Nov, 22, 2026: Use safe profile loader with metadata fallback instead of brittle .single()
+          // final profileData = await client.from('profiles').select().eq('id', res.user!.id).single();
+          // state = AuthState(user: UserProfile.fromJson(profileData));
+          final profile = await _loadUserProfile(client, res.user!);
+          state = AuthState(user: profile);
           return true;
         }
       }

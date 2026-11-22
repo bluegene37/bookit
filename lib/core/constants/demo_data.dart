@@ -85,8 +85,15 @@ class DemoData {
       templateId: 'b0000001-0000-0000-0000-000000000001',
       uiConfig: {
         'resource_type': 'person',
-        'resource_label': 'Specialist',
-        'service_label': 'Service',
+        'resource_label': 'Doctor',
+        // 'resource_label': 'Specialist',
+        'service_label': 'Treatment',
+        // 'service_label': 'Service',
+        // Gene - Nov, 22, 2026: Synced full universal ui_config labels matching DB templates
+        'client_label': 'Patient',
+        'venue_label': 'Clinic',
+        'booking_label': 'Appointment',
+        'crm_flag_label': 'Medical & Clinical Flags',
         'show_staff_selection': true,
         'intake_fields': [
           {'id': 'dental_insurance', 'label': 'Do you have dental insurance?', 'type': 'boolean', 'required': false},
@@ -130,7 +137,13 @@ class DemoData {
       uiConfig: {
         'resource_type': 'facility',
         'resource_label': 'Care Suite / Room',
-        'service_label': 'Service',
+        'service_label': 'Recovery Package',
+        // 'service_label': 'Service',
+        // Gene - Nov, 22, 2026: Synced full universal ui_config labels matching DB templates
+        'client_label': 'Guest',
+        'venue_label': 'Retreat',
+        'booking_label': 'Reservation',
+        'crm_flag_label': 'Dietary & Care Preferences',
         'show_staff_selection': false,
         'intake_fields': [
           {'id': 'surgery_type', 'label': 'Surgical procedure type & hospital', 'type': 'text', 'placeholder': 'e.g. Knee replacement at UCSF', 'required': true},
@@ -167,6 +180,11 @@ class DemoData {
         'resource_type': 'person',
         'resource_label': 'Physician / Doctor',
         'service_label': 'Procedure / Consultation',
+        // Gene - Nov, 22, 2026: Synced full universal ui_config labels matching DB templates
+        'client_label': 'Patient',
+        'venue_label': 'Clinic',
+        'booking_label': 'Appointment',
+        'crm_flag_label': 'Medical & Clinical Flags',
         'show_staff_selection': true,
         'intake_fields': [
           {'id': 'skin_concerns', 'label': 'Primary skin concerns or condition', 'type': 'textarea', 'placeholder': 'Acne, mole check, pigmentation...', 'required': true},
@@ -209,6 +227,11 @@ class DemoData {
         'resource_type': 'person',
         'resource_label': 'Therapist / Counselor',
         'service_label': 'Session Type',
+        // Gene - Nov, 22, 2026: Synced full universal ui_config labels matching DB templates
+        'client_label': 'Client',
+        'venue_label': 'Practice',
+        'booking_label': 'Session',
+        'crm_flag_label': 'Care Preferences & Flags',
         'show_staff_selection': true,
         'intake_fields': [
           {'id': 'session_format', 'label': 'Preferred Format (In-Person or Video)', 'type': 'text', 'placeholder': 'In-Person or Video', 'required': true},
@@ -252,6 +275,11 @@ class DemoData {
         'resource_type': 'person',
         'resource_label': 'Stylist / Barber',
         'service_label': 'Hair & Grooming Service',
+        // Gene - Nov, 22, 2026: Synced full universal ui_config labels matching DB templates
+        'client_label': 'Guest',
+        'venue_label': 'Salon',
+        'booking_label': 'Appointment',
+        'crm_flag_label': 'Style & Sensitivity Notes',
         'show_staff_selection': true,
         'intake_fields': [
           {'id': 'hair_length', 'label': 'Current hair length', 'type': 'text', 'placeholder': 'Short, medium, long', 'required': false},
@@ -294,6 +322,11 @@ class DemoData {
         'resource_type': 'person',
         'resource_label': 'Coach / Trainer',
         'service_label': 'Training Program',
+        // Gene - Nov, 22, 2026: Synced full universal ui_config labels matching DB templates
+        'client_label': 'Member',
+        'venue_label': 'Studio',
+        'booking_label': 'Session',
+        'crm_flag_label': 'Injury & Performance Flags',
         'show_staff_selection': true,
         'intake_fields': [
           {'id': 'fitness_goal', 'label': 'Primary Fitness Goal', 'type': 'text', 'placeholder': 'Strength, fat loss, mobility...', 'required': true},
@@ -336,6 +369,11 @@ class DemoData {
         'resource_type': 'person',
         'resource_label': 'Attorney / Partner',
         'service_label': 'Counsel Engagement',
+        // Gene - Nov, 22, 2026: Synced full universal ui_config labels matching DB templates
+        'client_label': 'Client',
+        'venue_label': 'Firm',
+        'booking_label': 'Consultation',
+        'crm_flag_label': 'Engagement & Compliance Flags',
         'show_staff_selection': true,
         'intake_fields': [
           {'id': 'matter_type', 'label': 'Type of Legal Matter', 'type': 'text', 'placeholder': 'Corporate, IP, Contract, Tax', 'required': true},
@@ -379,6 +417,11 @@ class DemoData {
         'resource_type': 'facility',
         'resource_label': 'Studio Room / Bay',
         'service_label': 'Rental Session',
+        // Gene - Nov, 22, 2026: Synced full universal ui_config labels matching DB templates
+        'client_label': 'Producer / Guest',
+        'venue_label': 'Studio',
+        'booking_label': 'Booking',
+        'crm_flag_label': 'Access & Gear Notes',
         'show_staff_selection': true,
         'intake_fields': [
           {'id': 'crew_size', 'label': 'Estimated Crew / Cast Size', 'type': 'text', 'placeholder': 'e.g. 4 people', 'required': true},
@@ -424,6 +467,11 @@ class DemoData {
         'resource_type': 'wash_bay',
         'resource_label': 'Wash Bay',
         'service_label': 'Car Wash Package',
+        // Gene - Nov, 22, 2026: Synced full universal ui_config labels matching DB templates
+        'client_label': 'Driver / Guest',
+        'venue_label': 'Wash Center',
+        'booking_label': 'Wash Slot',
+        'crm_flag_label': 'Vehicle & Care Alerts',
         'show_staff_selection': true,
         'intake_fields': [
           {

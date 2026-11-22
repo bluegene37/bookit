@@ -81,7 +81,9 @@ void main() {
         price: 350.00,
       );
 
-      expect(service.formattedPrice, '\$350.0');
+      // expect(service.formattedPrice, '\$350.0');
+      // Gene - Nov, 22, 2026: PlatformConfig currency formatter omits '.00' on whole currency amounts
+      expect(service.formattedPrice, '\$350');
       expect(service.formattedDuration, '60 min');
     });
   });

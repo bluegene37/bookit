@@ -1,6 +1,8 @@
 // Gene - Nov, 03, 2026: Staff and Doctor Roster Manager Tab for Admin Web
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+// Gene - Nov, 22, 2026: Added Uuid for RFC 4122 UUID generation on new staff creation
+import 'package:uuid/uuid.dart';
 import '../../../../core/theme/neumorphic_colors.dart';
 import '../../../../core/widgets/neumorphic_container.dart';
 import '../../../../core/widgets/neumorphic_button.dart';
@@ -65,26 +67,27 @@ class StaffManagerTab extends ConsumerWidget {
       builder: (dialogCtx) {
         return StatefulBuilder(
           builder: (dialogCtx, setDialogState) {
+            // Gene - Nov, 22, 2026: Universal DB-driven resourceLabel wording & RFC 4122 UUID v4 generation
             return AlertDialog(
-              title: Text(isEditing ? 'Edit Practitioner / Specialist' : 'Add Practitioner / Specialist'),
+              title: Text(isEditing ? 'Edit ${business.resourceLabel}' : 'Add ${business.resourceLabel}'),
               content: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     TextField(
                       controller: nameCtrl,
-                      decoration: const InputDecoration(labelText: 'Doctor Name (e.g. Dr. Alex Vance, DDS)'),
+                      decoration: InputDecoration(labelText: '${business.resourceLabel} Name (e.g. Alex Reyes)'),
                     ),
                     const SizedBox(height: 10),
                     TextField(
                       controller: specialtyCtrl,
-                      decoration: const InputDecoration(labelText: 'Specialty (e.g. Orthodontist)'),
+                      decoration: const InputDecoration(labelText: 'Specialty / Role (e.g. Senior Specialist)'),
                     ),
                     const SizedBox(height: 10),
                     TextField(
                       controller: bioCtrl,
                       maxLines: 2,
-                      decoration: const InputDecoration(labelText: 'Clinical Bio & Credentials (Optional)'),
+                      decoration: const InputDecoration(labelText: 'Bio & Credentials (Optional)'),
                     ),
                     if (isEditing) ...[
                       const SizedBox(height: 12),
@@ -105,8 +108,8 @@ class StaffManagerTab extends ConsumerWidget {
                 ),
                 ElevatedButton(
                   onPressed: () async {
-                    final parsedName = nameCtrl.text.trim().isEmpty ? 'Dr. Specialist' : nameCtrl.text.trim();
-                    final parsedSpecialty = specialtyCtrl.text.trim().isEmpty ? 'General Practitioner' : specialtyCtrl.text.trim();
+                    final parsedName = nameCtrl.text.trim().isEmpty ? business.resourceLabel : nameCtrl.text.trim();
+                    final parsedSpecialty = specialtyCtrl.text.trim().isEmpty ? 'Specialist' : specialtyCtrl.text.trim();
                     final parsedBio = bioCtrl.text.trim().isEmpty ? null : bioCtrl.text.trim();
 
                     if (isEditing) {
@@ -119,7 +122,7 @@ class StaffManagerTab extends ConsumerWidget {
                       await ref.read(businessServiceProvider).updateStaff(updated);
                     } else {
                       final newStaff = BusinessStaff(
-                        id: 'staff-${DateTime.now().millisecondsSinceEpoch}',
+                        id: const Uuid().v4(),
                         businessId: business.id,
                         name: parsedName,
                         specialty: parsedSpecialty,
@@ -188,8 +191,9 @@ class StaffManagerTab extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // Gene - Nov, 22, 2026: Dynamic DB-driven resourceLabel roster headers
                     Text(
-                      'Doctors & Specialists Roster',
+                      '${business.resourceLabel}s Roster',
                       style: TextStyle(
                         fontSize: 22,
                         fontWeight: FontWeight.w800,
@@ -198,7 +202,7 @@ class StaffManagerTab extends ConsumerWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Manage practitioners, shifts, and credentials',
+                      'Manage ${business.resourceLabel.toLowerCase()}s, shift schedules, and credentials',
                       style: TextStyle(fontSize: 13, color: isDark ? Colors.white60 : Colors.black54),
                     ),
                   ],
@@ -210,7 +214,7 @@ class StaffManagerTab extends ConsumerWidget {
                 height: 44,
                 icon: Icons.person_add,
                 onPressed: () => _showStaffFormDialog(context, ref),
-                child: const Text('Add Specialist'),
+                child: Text('Add ${business.resourceLabel}'),
               ),
             ],
           ),
@@ -221,7 +225,7 @@ class StaffManagerTab extends ConsumerWidget {
             error: (e, _) => Center(child: Text('Error: $e')),
             data: (staff) {
               if (staff.isEmpty) {
-                return const Center(child: Text('No practitioners registered yet.'));
+                return Center(child: Text('No ${business.resourceLabel.toLowerCase()}s registered yet.'));
               }
 
               /*
@@ -313,14 +317,22 @@ class StaffManagerTab extends ConsumerWidget {
                             ),
                           ),
                           */
-                          // Gene - Nov, 7, 2026: Added onBackgroundImageError handler to prevent uncaught NetworkImageLoadException on broken avatar URLs
+                          // Gene - Nov, 22, 2026: Monogram avatar fallback when no custom avatarUrl is stored (remove hardcoded doctor photo)
                           CircleAvatar(
                             radius: 26,
-                            backgroundImage: NetworkImage(
-                              st.avatarUrl ??
-                                  'https://images.unsplash.com/photo-1622253692010-333f2da6031d?w=200',
-                            ),
-                            onBackgroundImageError: (_, _) {},
+                            backgroundColor: accent.withValues(alpha: 0.16),
+                            backgroundImage: (st.avatarUrl != null && st.avatarUrl!.trim().isNotEmpty)
+                                ? NetworkImage(st.avatarUrl!)
+                                : null,
+                            onBackgroundImageError: (st.avatarUrl != null && st.avatarUrl!.trim().isNotEmpty)
+                                ? (_, _) {}
+                                : null,
+                            child: (st.avatarUrl == null || st.avatarUrl!.trim().isEmpty)
+                                ? Text(
+                                    st.name.trim().isNotEmpty ? st.name.trim()[0].toUpperCase() : '?',
+                                    style: TextStyle(fontWeight: FontWeight.w800, color: accent),
+                                  )
+                                : null,
                           ),
                           const SizedBox(width: 16),
                           Expanded(

@@ -5,6 +5,8 @@ import 'supabase_service.dart';
 // Gene - Nov 07, 2026: Added auth_service and demo_data imports for user-scoped clientBookingsProvider filtering
 import 'auth_service.dart';
 import '../core/constants/demo_data.dart';
+// Gene - Nov, 22, 2026: Added SupabaseConfig for strict live-vs-demo client booking isolation
+import '../core/constants/supabase_config.dart';
 // Gene - Nov 07, 2026: Added notification_item and notification_service imports for real-time lifecycle notifications
 import '../models/notification_item.dart';
 import 'notification_service.dart';
@@ -28,8 +30,20 @@ class BookingNotifier extends StateNotifier<List<Booking>> {
   }
   */
 
+  /*
   // Gene - Nov 07, 2026: Added optional Ref to dispatch real-time in-app notifications on booking lifecycle events
   BookingNotifier([this._ref]) : super(List.from(SupabaseService.mockBookings)) {
+    loadBookings();
+  }
+  */
+
+  // Gene - Nov, 22, 2026: Start with empty list in live Supabase mode so mock bookings never flash or linger
+  BookingNotifier([this._ref])
+      : super(
+          SupabaseService.client != null
+              ? const []
+              : List.from(SupabaseService.mockBookings),
+        ) {
     loadBookings();
   }
 
@@ -41,6 +55,8 @@ class BookingNotifier extends StateNotifier<List<Booking>> {
     required String body,
     required String type,
   }) {
+    // Gene - Nov, 22, 2026: Skip notification emission when clientId is empty (e.g. walk-in guest without user profile)
+    if (userId.trim().isEmpty) return;
     final item = NotificationItem(
       id: 'notif-${DateTime.now().microsecondsSinceEpoch}',
       userId: userId,
@@ -127,9 +143,11 @@ class BookingNotifier extends StateNotifier<List<Booking>> {
             .order('created_at', ascending: false)
             .range(offset, offset + limit - 1);
         final list = (data as List).map((row) => Booking.fromJson(row)).toList();
-        if (list.isNotEmpty) {
-          state = list;
-        }
+        // Gene - Nov, 22, 2026: Always assign live list (including empty) so stale mock items never persist
+        // if (list.isNotEmpty) {
+        //   state = list;
+        // }
+        state = list;
       } catch (e, st) {
         AppErrorLogger.report(
           service: 'BookingNotifier',
@@ -163,7 +181,11 @@ class BookingNotifier extends StateNotifier<List<Booking>> {
             'p_staff_id': filterStaffId,
           },
         );
-        if (rpcData is List && rpcData.isNotEmpty) {
+        // Gene - Nov, 22, 2026: Trust live RPC result even when empty (e.g., closed day / outside notice window)
+        // if (rpcData is List && rpcData.isNotEmpty) {
+        //   return SlotCalculator.fromRpcResponse(rpcData, staffMember: staffMember);
+        // }
+        if (rpcData is List) {
           return SlotCalculator.fromRpcResponse(rpcData, staffMember: staffMember);
         }
       } catch (e, st) {
@@ -264,6 +286,8 @@ class BookingNotifier extends StateNotifier<List<Booking>> {
       amountPaid: booking.amountPaid,
     );
 
+    // Gene - Nov, 22, 2026: Optional businessOwnerId prevents falling back to DemoData.adminOwnerId for notifications and propagates live DB errors instead of masking them
+    /*
     final client = SupabaseService.client;
     if (client != null) {
       try {
@@ -295,6 +319,55 @@ class BookingNotifier extends StateNotifier<List<Booking>> {
       title: bookingToInsert.status == 'checked_in' ? 'New Walk-In Checked In' : 'New Booking Received',
       body:
           '${bookingToInsert.clientName ?? 'Client'} booked ${bookingToInsert.serviceName ?? 'Appointment'} (${bookingToInsert.formattedSchedule}).',
+      type: 'booking_${bookingToInsert.status}',
+    );
+    return bookingToInsert;
+    */
+    final client = SupabaseService.client;
+    if (client != null) {
+      try {
+        final res = await client.from('bookings').insert(bookingToInsert.toJson()).select('''
+          *,
+          businesses (name, currency),
+          services (name),
+          business_staff (name),
+          profiles:client_id (full_name)
+        ''').single();
+        final newBooking = Booking.fromJson(res);
+        state = [newBooking, ...state];
+        return newBooking;
+      } catch (e, st) {
+        AppErrorLogger.report(
+          service: 'BookingNotifier',
+          operation: 'createBooking',
+          error: e,
+          stackTrace: st,
+        );
+        rethrow;
+      }
+    }
+
+    // Local mock state update
+    state = [bookingToInsert, ...state];
+    final venueName = bookingToInsert.businessName ?? 'BookIt Business';
+    _emitNotification(
+      userId: bookingToInsert.clientId,
+      businessId: bookingToInsert.businessId,
+      bookingId: bookingToInsert.id,
+      title: bookingToInsert.status == 'checked_in'
+          ? 'Walk-In Checked In'
+          : (bookingToInsert.status == 'confirmed' ? 'Booking Confirmed' : 'Booking Request Submitted'),
+      body:
+          '${bookingToInsert.serviceName ?? 'Booking'} at $venueName (${bookingToInsert.formattedSchedule}).',
+      type: 'booking_${bookingToInsert.status}',
+    );
+    _emitNotification(
+      userId: DemoData.adminOwnerId,
+      businessId: bookingToInsert.businessId,
+      bookingId: bookingToInsert.id,
+      title: bookingToInsert.status == 'checked_in' ? 'New Walk-In Checked In' : 'New Booking Received',
+      body:
+          '${bookingToInsert.clientName ?? 'Client'} booked ${bookingToInsert.serviceName ?? 'Service'} (${bookingToInsert.formattedSchedule}).',
       type: 'booking_${bookingToInsert.status}',
     );
     return bookingToInsert;
@@ -464,6 +537,7 @@ class BookingNotifier extends StateNotifier<List<Booking>> {
     state = List.from(SupabaseService.mockBookings);
   }
 
+  /*
   // Gene - Nov, 05, 2026: Reschedule booking with support for slot and date range models
   Future<void> rescheduleBooking({
     required String bookingId,
@@ -510,6 +584,83 @@ class BookingNotifier extends StateNotifier<List<Booking>> {
       return b;
     }).toList();
   }
+  */
+
+  // Gene - Nov, 22, 2026: Use secure reschedule_client_booking RPC on live Supabase & universal venue wording
+  Future<void> rescheduleBooking({
+    required String bookingId,
+    DateTime? newStartTime,
+    DateTime? newEndTime,
+    DateTime? newDateFrom,
+    DateTime? newDateTo,
+  }) async {
+    String? fmtDate(DateTime? d) => d == null
+        ? null
+        : '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
+    final client = SupabaseService.client;
+    if (client != null) {
+      try {
+        final rpcRes = await client.rpc(
+          'reschedule_client_booking',
+          params: {
+            'p_booking_id': bookingId,
+            'p_new_start_time': newStartTime?.toIso8601String(),
+            'p_new_end_time': newEndTime?.toIso8601String(),
+            'p_new_date_from': fmtDate(newDateFrom),
+            'p_new_date_to': fmtDate(newDateTo),
+          },
+        );
+        if (rpcRes is Map<String, dynamic>) {
+          final serverBooking = Booking.fromJson(rpcRes);
+          state = state.map((b) {
+            if (b.id == bookingId) {
+              return b.copyWith(
+                status: serverBooking.status,
+                startTime: serverBooking.startTime,
+                endTime: serverBooking.endTime,
+                dateFrom: serverBooking.dateFrom,
+                dateTo: serverBooking.dateTo,
+              );
+            }
+            return b;
+          }).toList();
+          return;
+        }
+      } catch (e, st) {
+        AppErrorLogger.report(
+          service: 'BookingNotifier',
+          operation: 'rescheduleBooking',
+          error: e,
+          stackTrace: st,
+        );
+        rethrow;
+      }
+    }
+
+    state = state.map((b) {
+      if (b.id == bookingId) {
+        final updated = b.copyWith(
+          status: 'confirmed',
+          startTime: newStartTime ?? b.startTime,
+          endTime: newEndTime ?? b.endTime,
+          dateFrom: newDateFrom ?? b.dateFrom,
+          dateTo: newDateTo ?? b.dateTo,
+        );
+        _emitNotification(
+          userId: updated.clientId,
+          businessId: updated.businessId,
+          bookingId: updated.id,
+          title: 'Booking Rescheduled',
+          body:
+              'Your ${updated.serviceName ?? 'booking'} at ${updated.businessName ?? 'BookIt Business'} is now scheduled for ${updated.formattedSchedule}.',
+          type: 'booking_rescheduled',
+        );
+        return updated;
+      }
+      return b;
+    }).toList();
+  }
 
   // Gene - Nov, 05, 2026: Robust updateBookingStatus preserving payment, hold, and financial states via copyWith
   Future<void> updateBookingStatus(String bookingId, String newStatus) async {
@@ -529,8 +680,10 @@ class BookingNotifier extends StateNotifier<List<Booking>> {
           businessId: updated.businessId,
           bookingId: updated.id,
           title: 'Booking Status: ${newStatus.replaceAll('_', ' ').toUpperCase()}',
+          // Gene - Nov, 22, 2026: Replaced hardcoded 'Clinic' fallback with industry-neutral 'BookIt Business'
+          // body: 'Your ${updated.serviceName ?? 'appointment'} at ${updated.businessName ?? 'Clinic'} was updated to ${newStatus.replaceAll('_', ' ')}.',
           body:
-              'Your ${updated.serviceName ?? 'appointment'} at ${updated.businessName ?? 'Clinic'} was updated to ${newStatus.replaceAll('_', ' ')}.',
+              'Your ${updated.serviceName ?? 'booking'} at ${updated.businessName ?? 'BookIt Business'} was updated to ${newStatus.replaceAll('_', ' ')}.',
           type: 'booking_$newStatus',
         );
         return updated;
@@ -559,14 +712,23 @@ class BookingNotifier extends StateNotifier<List<Booking>> {
           cancellationReason: reason,
           paymentStatus: hasPaid ? 'refunded' : b.paymentStatus,
         );
-        // Gene - Nov 07, 2026: Emit notification on booking cancellation
+        // Gene - Nov, 22, 2026: Replaced hardcoded 'Clinic' fallback with industry-neutral wording
+        // _emitNotification(
+        //   userId: updated.clientId,
+        //   businessId: updated.businessId,
+        //   bookingId: updated.id,
+        //   title: 'Appointment Cancelled',
+        //   body:
+        //       'Your ${updated.serviceName ?? 'appointment'} at ${updated.businessName ?? 'Clinic'} has been cancelled ($reason).',
+        //   type: 'booking_cancelled',
+        // );
         _emitNotification(
           userId: updated.clientId,
           businessId: updated.businessId,
           bookingId: updated.id,
-          title: 'Appointment Cancelled',
+          title: 'Booking Cancelled',
           body:
-              'Your ${updated.serviceName ?? 'appointment'} at ${updated.businessName ?? 'Clinic'} has been cancelled ($reason).',
+              'Your ${updated.serviceName ?? 'booking'} at ${updated.businessName ?? 'BookIt Business'} has been cancelled ($reason).',
           type: 'booking_cancelled',
         );
         return updated;
@@ -592,12 +754,21 @@ class BookingNotifier extends StateNotifier<List<Booking>> {
         if (b.id == bookingId)
           () {
             final updated = b.copyWith(status: 'checked_in', checkedInAt: now);
+            // Gene - Nov, 22, 2026: Replaced hardcoded 'Clinic' fallback with industry-neutral wording
+            // _emitNotification(
+            //   userId: updated.clientId,
+            //   businessId: updated.businessId,
+            //   bookingId: updated.id,
+            //   title: 'Checked In at Reception',
+            //   body: 'You are checked in for ${updated.serviceName ?? 'your visit'} at ${updated.businessName ?? 'Clinic'}.',
+            //   type: 'booking_checked_in',
+            // );
             _emitNotification(
               userId: updated.clientId,
               businessId: updated.businessId,
               bookingId: updated.id,
               title: 'Checked In at Reception',
-              body: 'You are checked in for ${updated.serviceName ?? 'your visit'} at ${updated.businessName ?? 'Clinic'}.',
+              body: 'You are checked in for ${updated.serviceName ?? 'your visit'} at ${updated.businessName ?? 'BookIt Business'}.',
               type: 'booking_checked_in',
             );
             return updated;
@@ -659,6 +830,7 @@ final clientBookingsProvider = Provider<List<Booking>>((ref) {
   return all;
 });
 */
+/*
 // Gene - Nov 07, 2026: Filter clientBookingsProvider by authenticated client user ID (with Demo Client fallback when previewing as Demo Admin)
 final clientBookingsProvider = Provider<List<Booking>>((ref) {
   final all = ref.watch(bookingsProvider);
@@ -682,6 +854,61 @@ final clientBookingsProvider = Provider<List<Booking>>((ref) {
 
   return all.where((b) => b.clientId == DemoData.clientUserId).toList();
 });
+*/
+
+// Gene - Nov, 22, 2026: Strict user-scoped isolation in live/release mode; demo preview fallback only in offline demo mode
+final clientBookingsProvider = Provider<List<Booking>>((ref) {
+  final all = ref.watch(bookingsProvider);
+  final user = ref.watch(authProvider).user;
+  final isLiveOrRelease =
+      SupabaseService.client != null || !SupabaseConfig.isDemoModeEnabled;
+
+  if (isLiveOrRelease) {
+    if (user == null) return const [];
+    return all.where((b) => b.clientId == user.id).toList();
+  }
+
+  if (user == null) {
+    return all
+        .where((b) =>
+            b.clientId == DemoData.clientUserId ||
+            b.clientId.startsWith('guest-client-'))
+        .toList();
+  }
+
+  final userBookings = all
+      .where((b) =>
+          b.clientId == user.id || b.clientId.startsWith('guest-client-'))
+      .toList();
+
+  if (userBookings.isNotEmpty || !user.isBusinessOwner) {
+    return userBookings;
+  }
+
+  return all.where((b) => b.clientId == DemoData.clientUserId).toList();
+});
+
+// Gene - Nov, 22, 2026: Live slot availability query provider backed by fetchAvailableSlots / get_available_slots RPC
+typedef AvailableSlotsQuery = ({
+  Business business,
+  DateTime date,
+  int? customDurationMinutes,
+  String? filterStaffId,
+  BusinessStaff? staffMember,
+});
+
+final availableSlotsProvider =
+    FutureProvider.autoDispose.family<List<TimeSlot>, AvailableSlotsQuery>(
+  (ref, query) async {
+    return ref.read(bookingsProvider.notifier).fetchAvailableSlots(
+          business: query.business,
+          date: query.date,
+          customDurationMinutes: query.customDurationMinutes,
+          filterStaffId: query.filterStaffId,
+          staffMember: query.staffMember,
+        );
+  },
+);
 
 final adminBookingsProvider = Provider.family<List<Booking>, String>((ref, businessId) {
   final all = ref.watch(bookingsProvider);

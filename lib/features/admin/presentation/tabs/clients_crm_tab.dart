@@ -7,6 +7,9 @@ import '../../../../core/widgets/neumorphic_container.dart';
 import '../../../../core/widgets/neumorphic_button.dart';
 import '../../../../core/widgets/neumorphic_chip.dart';
 import '../../../../models/client_crm_profile.dart';
+// Gene - Nov, 22, 2026: Added PlatformConfig and BusinessService imports for DB-driven clientLabel & multi-currency LTV formatting
+import '../../../../models/platform_config.dart';
+import '../../../../services/business_service.dart';
 import '../../../../services/crm_service.dart';
 import '../widgets/client_dossier_modal.dart';
 import '../widgets/kpi_metric_card.dart';
@@ -29,6 +32,9 @@ class ClientsCrmTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final clientsAsync = ref.watch(businessClientsProvider(businessId));
+    final business = ref.watch(businessDetailProvider(businessId)).valueOrNull;
+    final clientLabel = business?.clientLabel ?? 'Client';
+    final currencyCode = business?.currency ?? 'USD';
     final searchQuery = ref.watch(crmSearchQueryProvider);
     final selectedTag = ref.watch(crmSelectedTagProvider);
 
@@ -41,11 +47,12 @@ class ClientsCrmTab extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Header & Description
+          // Gene - Nov, 22, 2026: Universal DB-driven clientLabel terminology & multi-currency LTV KPIs
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Patients & Clients Directory',
+                '${clientLabel}s Directory',
                 style: TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.w800,
@@ -54,7 +61,7 @@ class ClientsCrmTab extends ConsumerWidget {
               ),
               const SizedBox(height: 4),
               Text(
-                'Track patient visit histories, lifetime value (LTV), clinical allergies, and staff notes',
+                'Track ${clientLabel.toLowerCase()} visit histories, lifetime value (LTV), preferences, and staff notes',
                 style: TextStyle(fontSize: 13, color: isDark ? Colors.white60 : Colors.black54),
               ),
             ],
@@ -97,7 +104,7 @@ class ClientsCrmTab extends ConsumerWidget {
                     children: [
                       Expanded(
                         child: KpiMetricCard(
-                          label: 'Total Patients',
+                          label: 'Total ${clientLabel}s',
                           value: '$totalClients',
                           icon: Icons.people_alt_rounded,
                           accentColor: accent,
@@ -115,8 +122,12 @@ class ClientsCrmTab extends ConsumerWidget {
                       const SizedBox(width: 14),
                       Expanded(
                         child: KpiMetricCard(
-                          label: 'Average Patient LTV',
-                          value: '\$${avgLtv.toStringAsFixed(0)}',
+                          label: 'Average $clientLabel LTV',
+                          value: PlatformConfig.formatCurrency(
+                            avgLtv,
+                            currencyCode: currencyCode,
+                            decimals: 0,
+                          ),
                           icon: Icons.monetization_on_rounded,
                           accentColor: Colors.green,
                         ),
@@ -124,7 +135,7 @@ class ClientsCrmTab extends ConsumerWidget {
                       const SizedBox(width: 14),
                       Expanded(
                         child: KpiMetricCard(
-                          label: 'VIP Patients',
+                          label: 'VIP ${clientLabel}s',
                           value: '$vipCount',
                           icon: Icons.star_rounded,
                           accentColor: Colors.amber,
@@ -150,7 +161,7 @@ class ClientsCrmTab extends ConsumerWidget {
                           child: TextField(
                             onChanged: (val) => ref.read(crmSearchQueryProvider.notifier).state = val,
                             decoration: InputDecoration(
-                              hintText: 'Search patients by name, email, or phone...',
+                              hintText: 'Search ${clientLabel.toLowerCase()}s by name, email, or phone...',
                               hintStyle: TextStyle(fontSize: 13, color: isDark ? Colors.white38 : Colors.black38),
                               prefixIcon: Icon(Icons.search, size: 18, color: accent),
                               border: InputBorder.none,
@@ -193,7 +204,7 @@ class ClientsCrmTab extends ConsumerWidget {
                             Icon(Icons.search_off_rounded, size: 48, color: isDark ? Colors.white24 : Colors.black26),
                             const SizedBox(height: 12),
                             Text(
-                              'No patients match your search criteria',
+                              'No ${clientLabel.toLowerCase()}s match your search criteria',
                               style: TextStyle(
                                 fontSize: 14,
                                 color: isDark ? NeumorphicColors.darkTextSecondary : NeumorphicColors.lightTextSecondary,

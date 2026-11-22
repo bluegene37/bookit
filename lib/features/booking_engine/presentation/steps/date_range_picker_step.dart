@@ -5,6 +5,8 @@ import '../../../../core/theme/neumorphic_colors.dart';
 import '../../../../core/widgets/neumorphic_container.dart';
 import '../../../../models/business.dart';
 import '../../../../models/service_item.dart';
+// Gene - Nov, 22, 2026: Added PlatformConfig import for dynamic multi-currency formatting
+import '../../../../models/platform_config.dart';
 
 class DateRangePickerStep extends StatelessWidget {
   final Business business;
@@ -13,6 +15,10 @@ class DateRangePickerStep extends StatelessWidget {
   final DateTime? endDate;
   final Function(DateTime start, DateTime end) onRangeSelected;
 
+  // Gene - Nov, 22, 2026: Added optional minDays/maxDays constraints, dark-mode DateRangePicker theme, notice window bounds, and dynamic currency formatting
+  final int? minDays;
+  final int? maxDays;
+
   const DateRangePickerStep({
     super.key,
     required this.business,
@@ -20,27 +26,46 @@ class DateRangePickerStep extends StatelessWidget {
     required this.startDate,
     required this.endDate,
     required this.onRangeSelected,
+    this.minDays,
+    this.maxDays,
   });
 
   Future<void> _pickDateRange(BuildContext context) async {
-    final initialRange = DateTimeRange(
-      start: startDate ?? DateTime.now().add(const Duration(days: 1)),
-      end: endDate ?? DateTime.now().add(const Duration(days: 4)),
-    );
+    final now = DateTime.now();
+    final minStart = now.add(Duration(hours: business.minNoticeHours));
+    final firstDate = DateTime(minStart.year, minStart.month, minStart.day);
+    final maxHorizon = business.advanceBookingDays > 30 ? business.advanceBookingDays : 365;
+    final lastDate = firstDate.add(Duration(days: maxHorizon));
+    final initialStart = (startDate != null && !startDate!.isBefore(firstDate))
+        ? startDate!
+        : firstDate.add(const Duration(days: 1));
+    final defaultEnd = initialStart.add(Duration(days: minDays ?? business.minDays));
+    final initialEnd = (endDate != null && endDate!.isAfter(initialStart))
+        ? endDate!
+        : (defaultEnd.isAfter(lastDate) ? initialStart.add(const Duration(days: 1)) : defaultEnd);
+
+    final initialRange = DateTimeRange(start: initialStart, end: initialEnd);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     final picked = await showDateRangePicker(
       context: context,
-      firstDate: DateTime.now().add(const Duration(days: 1)),
-      lastDate: DateTime.now().add(const Duration(days: 365)),
+      firstDate: firstDate,
+      lastDate: lastDate,
       initialDateRange: initialRange,
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: ColorScheme.light(
-              primary: NeumorphicColors.tealPrimary,
-              onPrimary: Colors.white,
-              surface: Theme.of(context).scaffoldBackgroundColor,
-            ),
+            colorScheme: isDark
+                ? ColorScheme.dark(
+                    primary: NeumorphicColors.tealLight,
+                    onPrimary: Colors.black,
+                    surface: NeumorphicColors.darkSurface,
+                  )
+                : ColorScheme.light(
+                    primary: NeumorphicColors.tealPrimary,
+                    onPrimary: Colors.white,
+                    surface: Theme.of(context).scaffoldBackgroundColor,
+                  ),
           ),
           child: child!,
         );
@@ -61,6 +86,10 @@ class DateRangePickerStep extends StatelessWidget {
     final totalDays = hasRange ? endDate!.difference(startDate!).inDays : 0;
     final pricePerDay = service?.price ?? 0.0;
     final totalPrice = totalDays * pricePerDay;
+    // Gene - Nov, 22, 2026: Enforce minDays/maxDays constraints cleanly with inline validation banner
+    final effectiveMin = minDays ?? business.minDays;
+    final effectiveMax = maxDays ?? business.maxDays;
+    final isRangeOutOfBounds = hasRange && (totalDays < effectiveMin || totalDays > effectiveMax);
 
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(vertical: 8),
@@ -220,6 +249,7 @@ class DateRangePickerStep extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 8),
+                  /*
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -233,6 +263,48 @@ class DateRangePickerStep extends StatelessWidget {
                       ),
                     ],
                   ),
+                  */
+                  // Gene - Nov, 22, 2026: Dynamic multi-currency rate & total formatting + min/max nights warning banner
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Daily Rate (${PlatformConfig.formatCurrency(pricePerDay, currencyCode: business.currency, decimals: 0)} x $totalDays)',
+                        style: TextStyle(fontSize: 14, color: isDark ? Colors.white70 : Colors.black87),
+                      ),
+                      Text(
+                        PlatformConfig.formatCurrency(totalPrice, currencyCode: business.currency),
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: accent),
+                      ),
+                    ],
+                  ),
+                  if (isRangeOutOfBounds) ...[
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: NeumorphicColors.error.withValues(alpha: 0.14),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: NeumorphicColors.error.withValues(alpha: 0.45)),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.error_outline, size: 16, color: NeumorphicColors.error),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Please select between $effectiveMin and $effectiveMax nights.',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: NeumorphicColors.error,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),

@@ -7,6 +7,9 @@ import '../../../../core/theme/neumorphic_colors.dart';
 import '../../../../core/widgets/neumorphic_container.dart';
 import '../../../../core/widgets/neumorphic_button.dart';
 import '../../../../core/widgets/neumorphic_text_field.dart';
+// Gene - Nov, 22, 2026: Added SupabaseConfig and PlatformConfig for release-safe manual checkout validation and multi-currency formatting
+import '../../../../core/constants/supabase_config.dart';
+import '../../../../models/platform_config.dart';
 import '../../../../models/business.dart';
 import '../../../../models/service_item.dart';
 
@@ -32,10 +35,11 @@ class PaymentCheckoutStep extends StatelessWidget {
   });
 */
 
-// Gene - Nov 07, 2026: Converted PaymentCheckoutStep to StatefulWidget supporting Hybrid Payment Methods (Stripe Card, GCash, Maya, Bank Transfer)
+// Gene - Nov, 22, 2026: Added optional PlatformConfig for DB-driven payment channel labels & multi-currency formatting + release-mode validation
 class PaymentCheckoutStep extends StatefulWidget {
   final ServiceItem? service;
   final Business? business;
+  final PlatformConfig? platformConfig;
   final double totalPrice;
   final double dueToday;
   final double dueAtVenue;
@@ -53,6 +57,7 @@ class PaymentCheckoutStep extends StatefulWidget {
     super.key,
     this.service,
     this.business,
+    this.platformConfig,
     required this.totalPrice,
     required this.dueToday,
     required this.dueAtVenue,
@@ -75,13 +80,38 @@ class _PaymentCheckoutStepState extends State<PaymentCheckoutStep> {
   late String _activeMethod;
   late TextEditingController _referenceController;
   late TextEditingController _senderController;
+  String? _validationError;
 
   @override
   void initState() {
     super.initState();
-    _activeMethod = widget.selectedPaymentMethod;
+    _activeMethod = _resolveInitialMethod(widget.selectedPaymentMethod);
     _referenceController = TextEditingController(text: widget.initialReferenceNumber);
     _senderController = TextEditingController(text: widget.initialSenderAccount);
+  }
+
+  String _resolveInitialMethod(String requested) {
+    final cfg = widget.business?.paymentMethodsConfig;
+    if (cfg == null) return requested;
+    bool isEnabled(String method) {
+      switch (method) {
+        case 'gcash':
+          return cfg['gcash_enabled'] == true;
+        case 'maya':
+          return cfg['maya_enabled'] == true;
+        case 'bank_transfer':
+          return cfg['bank_enabled'] == true;
+        case 'stripe_card':
+        default:
+          return cfg['stripe_enabled'] != false;
+      }
+    }
+
+    if (isEnabled(requested)) return requested;
+    for (final candidate in const ['stripe_card', 'gcash', 'maya', 'bank_transfer']) {
+      if (isEnabled(candidate)) return candidate;
+    }
+    return requested;
   }
 
   @override
@@ -102,6 +132,7 @@ class _PaymentCheckoutStepState extends State<PaymentCheckoutStep> {
   void _selectMethod(String method) {
     setState(() {
       _activeMethod = method;
+      _validationError = null;
     });
     widget.onPaymentMethodChanged?.call(method);
   }
@@ -173,21 +204,32 @@ class _PaymentCheckoutStepState extends State<PaymentCheckoutStep> {
     final textPrimary = isDark ? NeumorphicColors.darkTextPrimary : NeumorphicColors.lightTextPrimary;
     final textSecondary = isDark ? NeumorphicColors.darkTextSecondary : NeumorphicColors.lightTextSecondary;
 
-    final isPayOnArrival = dueToday <= 0 || service?.paymentPolicy == 'pay_at_venue';
+    final isPayOnArrival = dueToday <= 0 ||
+        service?.paymentPolicy == 'pay_at_venue' ||
+        service?.paymentPolicy == 'free_consultation';
+    final currencyCode = widget.business?.currency ?? service?.currency ?? 'USD';
+    final config = widget.platformConfig ?? PlatformConfig.defaults();
+    final venueLabel = widget.business?.venueLabel ?? 'Venue';
+    final bookingLabelLower = widget.business?.bookingLabel.toLowerCase() ?? 'booking';
+
+    final allowDemoDefaults =
+        SupabaseConfig.isDemoModeEnabled && !SupabaseConfig.isConfigured;
     final paymentConfig = widget.business?.paymentMethodsConfig ??
-        const {
-          'stripe_enabled': true,
-          'gcash_enabled': true,
-          'gcash_account_name': 'BookIt Partner Clinic',
-          'gcash_number': '0917-555-0199',
-          'maya_enabled': true,
-          'maya_account_name': 'BookIt Partner Clinic',
-          'maya_number': '0918-555-0244',
-          'bank_enabled': true,
-          'bank_name': 'BDO Unibank / BPI',
-          'bank_account_name': 'BookIt Partner Clinic',
-          'bank_account_number': '0042-8819-3021',
-        };
+        (allowDemoDefaults
+            ? const {
+                'stripe_enabled': true,
+                'gcash_enabled': true,
+                'gcash_account_name': 'BookIt Partner Account',
+                'gcash_number': '0917-555-0199',
+                'maya_enabled': true,
+                'maya_account_name': 'BookIt Partner Account',
+                'maya_number': '0918-555-0244',
+                'bank_enabled': true,
+                'bank_name': 'BDO Unibank / BPI',
+                'bank_account_name': 'BookIt Partner Account',
+                'bank_account_number': '0042-8819-3021',
+              }
+            : const {'stripe_enabled': true});
 
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(vertical: 8),
@@ -205,7 +247,7 @@ class _PaymentCheckoutStepState extends State<PaymentCheckoutStep> {
           ),
           const SizedBox(height: 6),
           Text(
-            'Confirm appointment details and complete checkout securely.',
+            'Confirm $bookingLabelLower details and complete checkout securely.',
             style: TextStyle(
               fontSize: 13,
               color: textSecondary,
@@ -239,15 +281,14 @@ class _PaymentCheckoutStepState extends State<PaymentCheckoutStep> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
-                        /*
-                        service?.paymentPolicy == 'deposit'
-                            ? 'Deposit Policy'
-                            : (service?.paymentPolicy == 'pay_at_venue' ? 'Pay at Venue' : 'Full Payment'),
-                        */
-                        // Gene - Nov 06, 2026: Support both 'deposit' and 'deposit_required' policy keys for deposit badge
+                        // Gene - Nov, 22, 2026: Support free_consultation and deposit_required payment policy badges
                         (service?.paymentPolicy == 'deposit' || service?.paymentPolicy == 'deposit_required')
                             ? 'Deposit Policy'
-                            : (service?.paymentPolicy == 'pay_at_venue' ? 'Pay at Venue' : 'Full Payment'),
+                            : (service?.paymentPolicy == 'free_consultation'
+                                ? 'Free Session'
+                                : (service?.paymentPolicy == 'pay_at_venue'
+                                    ? 'Pay at $venueLabel'
+                                    : 'Full Payment')),
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w700,
@@ -330,7 +371,11 @@ class _PaymentCheckoutStepState extends State<PaymentCheckoutStep> {
                 _buildFeeRow(
                   context,
                   label: 'Total Fee',
-                  amount: '\$${totalPrice.toStringAsFixed(2)}',
+                  amount: PlatformConfig.formatCurrency(
+                    totalPrice,
+                    currencyCode: currencyCode,
+                    currencies: config.supportedCurrencies,
+                  ),
                   isBold: true,
                   textColor: textPrimary,
                 ),
@@ -339,21 +384,31 @@ class _PaymentCheckoutStepState extends State<PaymentCheckoutStep> {
                 // Due Today / Deposit
                 _buildFeeRow(
                   context,
-                  label: (service?.paymentPolicy == 'deposit' || dueAtVenue > 0)
+                  label: (service?.paymentPolicy == 'deposit' ||
+                          service?.paymentPolicy == 'deposit_required' ||
+                          dueAtVenue > 0)
                       ? 'Due Today (Deposit)'
                       : 'Due Today',
-                  amount: '\$${dueToday.toStringAsFixed(2)}',
+                  amount: PlatformConfig.formatCurrency(
+                    dueToday,
+                    currencyCode: currencyCode,
+                    currencies: config.supportedCurrencies,
+                  ),
                   isBold: true,
                   textColor: accent,
                 ),
 
-                // Remaining Balance Due at Clinic
+                // Remaining Balance Due at Venue
                 if (dueAtVenue > 0) ...[
                   const SizedBox(height: 12),
                   _buildFeeRow(
                     context,
-                    label: 'Remaining Balance (Due at Clinic)',
-                    amount: '\$${dueAtVenue.toStringAsFixed(2)}',
+                    label: 'Remaining Balance (Due at $venueLabel)',
+                    amount: PlatformConfig.formatCurrency(
+                      dueAtVenue,
+                      currencyCode: currencyCode,
+                      currencies: config.supportedCurrencies,
+                    ),
                     isBold: false,
                     textColor: textSecondary,
                   ),
@@ -414,6 +469,7 @@ class _PaymentCheckoutStepState extends State<PaymentCheckoutStep> {
               scrollDirection: Axis.horizontal,
               child: Row(
                 children: [
+                  // Gene - Nov, 22, 2026: Only render wallet/bank channels when explicitly enabled in business paymentConfig (avoid showing unconfigured null channels in live mode)
                   if (paymentConfig['stripe_enabled'] != false)
                     Padding(
                       padding: const EdgeInsets.only(right: 10),
@@ -425,7 +481,7 @@ class _PaymentCheckoutStepState extends State<PaymentCheckoutStep> {
                         isDark: isDark,
                       ),
                     ),
-                  if (paymentConfig['gcash_enabled'] != false)
+                  if (paymentConfig['gcash_enabled'] == true)
                     Padding(
                       padding: const EdgeInsets.only(right: 10),
                       child: _buildMethodChip(
@@ -436,7 +492,7 @@ class _PaymentCheckoutStepState extends State<PaymentCheckoutStep> {
                         isDark: isDark,
                       ),
                     ),
-                  if (paymentConfig['maya_enabled'] != false)
+                  if (paymentConfig['maya_enabled'] == true)
                     Padding(
                       padding: const EdgeInsets.only(right: 10),
                       child: _buildMethodChip(
@@ -447,7 +503,7 @@ class _PaymentCheckoutStepState extends State<PaymentCheckoutStep> {
                         isDark: isDark,
                       ),
                     ),
-                  if (paymentConfig['bank_enabled'] != false)
+                  if (paymentConfig['bank_enabled'] == true)
                     _buildMethodChip(
                       id: 'bank_transfer',
                       label: 'Bank Transfer',
@@ -495,7 +551,21 @@ class _PaymentCheckoutStepState extends State<PaymentCheckoutStep> {
           ),
           const SizedBox(height: 20),
 
-          // 3. Neumorphic Action Button
+          // 3. Inline validation error & Neumorphic Action Button
+          if (_validationError != null) ...[
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Text(
+                _validationError!,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: NeumorphicColors.error,
+                ),
+              ),
+            ),
+          ],
           NeumorphicButton(
             isPrimary: true,
             isLoading: isLoading,
@@ -505,8 +575,17 @@ class _PaymentCheckoutStepState extends State<PaymentCheckoutStep> {
                     if (!isPayOnArrival &&
                         _activeMethod != 'stripe_card' &&
                         _referenceController.text.trim().isEmpty) {
-                      _autoFillDemoDetails();
+                      if (SupabaseConfig.isDemoModeEnabled) {
+                        _autoFillDemoDetails();
+                      } else {
+                        setState(() {
+                          _validationError =
+                              'Please enter your transaction reference number to proceed.';
+                        });
+                        return;
+                      }
                     }
+                    setState(() => _validationError = null);
                     onProceed();
                   },
             icon: _submitButtonIcon(isPayOnArrival),
@@ -573,27 +652,36 @@ class _PaymentCheckoutStepState extends State<PaymentCheckoutStep> {
   }) {
     final bool isGcash = _activeMethod == 'gcash';
     final bool isMaya = _activeMethod == 'maya';
-    final String channelTitle = isGcash
-        ? 'GCash Express / QR Ph'
-        : (isMaya ? 'Maya Digital Wallet' : 'Bank Transfer (InstaPay / PESONet)');
+    final config = widget.platformConfig ?? PlatformConfig.defaults();
+    final currencyCode = widget.business?.currency ?? widget.service?.currency ?? 'USD';
+    final venueFallback = widget.business?.name ?? 'Merchant Account';
+    final channelMeta = config.paymentChannels.cast<PaymentChannelOption?>().firstWhere(
+          (c) => c?.id == _activeMethod,
+          orElse: () => null,
+        );
+    final String channelTitle = channelMeta?.channelTitle ??
+        (isGcash
+            ? 'GCash Express / QR Ph'
+            : (isMaya ? 'Maya Digital Wallet' : 'Bank Transfer'));
     final String accountName = isGcash
-        ? (paymentConfig['gcash_account_name'] as String? ?? 'Clinic Account')
+        ? (paymentConfig['gcash_account_name'] as String? ?? venueFallback)
         : (isMaya
-            ? (paymentConfig['maya_account_name'] as String? ?? 'Clinic Account')
-            : (paymentConfig['bank_account_name'] as String? ?? 'Clinic Account'));
+            ? (paymentConfig['maya_account_name'] as String? ?? venueFallback)
+            : (paymentConfig['bank_account_name'] as String? ?? venueFallback));
     final String accountNumber = isGcash
-        ? (paymentConfig['gcash_number'] as String? ?? '0917-555-0199')
+        ? (paymentConfig['gcash_number'] as String? ?? '')
         : (isMaya
-            ? (paymentConfig['maya_number'] as String? ?? '0918-555-0244')
-            : (paymentConfig['bank_account_number'] as String? ?? '0042-8819-3021'));
-    final String? bankName =
-        _activeMethod == 'bank_transfer' ? (paymentConfig['bank_name'] as String? ?? 'BDO Unibank / BPI') : null;
+            ? (paymentConfig['maya_number'] as String? ?? '')
+            : (paymentConfig['bank_account_number'] as String? ?? ''));
+    final String? bankName = _activeMethod == 'bank_transfer'
+        ? (paymentConfig['bank_name'] as String? ?? '')
+        : null;
     final Color brandColor = isGcash
         ? const Color(0xFF007DFE)
         : (isMaya ? const Color(0xFF00B14F) : accent);
 
     final String qrPayload =
-        'bookit://pay?method=$_activeMethod&acct=$accountNumber&amount=${dueToday.toStringAsFixed(2)}';
+        'bookit://pay?method=$_activeMethod&acct=${accountNumber.isNotEmpty ? accountNumber : venueFallback}&amount=${dueToday.toStringAsFixed(2)}&currency=$currencyCode';
 
     return NeumorphicContainer(
       borderRadius: 18.0,
@@ -623,19 +711,20 @@ class _PaymentCheckoutStepState extends State<PaymentCheckoutStep> {
                   ),
                 ],
               ),
-              TextButton.icon(
-                onPressed: _autoFillDemoDetails,
-                icon: Icon(Icons.bolt_rounded, size: 14, color: brandColor),
-                label: Text(
-                  'Auto-Fill Demo Ref #',
-                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: brandColor),
+              if (SupabaseConfig.isDemoModeEnabled)
+                TextButton.icon(
+                  onPressed: _autoFillDemoDetails,
+                  icon: Icon(Icons.bolt_rounded, size: 14, color: brandColor),
+                  label: Text(
+                    'Auto-Fill Demo Ref #',
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: brandColor),
+                  ),
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
                 ),
-                style: TextButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  minimumSize: Size.zero,
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                ),
-              ),
             ],
           ),
           const SizedBox(height: 12),
@@ -661,7 +750,7 @@ class _PaymentCheckoutStepState extends State<PaymentCheckoutStep> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    if (bankName != null) ...[
+                    if (bankName != null && bankName.isNotEmpty) ...[
                       Text(
                         'Bank: $bankName',
                         style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: textPrimary),
@@ -677,36 +766,37 @@ class _PaymentCheckoutStepState extends State<PaymentCheckoutStep> {
                       children: [
                         Expanded(
                           child: Text(
-                            accountNumber,
+                            accountNumber.isNotEmpty ? accountNumber : 'Receiving details provided at venue',
                             style: TextStyle(
-                              fontSize: 14,
+                              fontSize: accountNumber.isNotEmpty ? 14 : 12,
                               fontWeight: FontWeight.w800,
-                              fontFamily: 'monospace',
+                              fontFamily: accountNumber.isNotEmpty ? 'monospace' : null,
                               color: textPrimary,
                             ),
                           ),
                         ),
-                        IconButton(
-                          icon: Icon(Icons.copy_rounded, size: 16, color: brandColor),
-                          tooltip: 'Copy Account / Mobile Number',
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(),
-                          onPressed: () {
-                            Clipboard.setData(ClipboardData(text: accountNumber));
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('Copied $accountNumber to clipboard'),
-                                backgroundColor: brandColor,
-                                duration: const Duration(seconds: 2),
-                              ),
-                            );
-                          },
-                        ),
+                        if (accountNumber.isNotEmpty)
+                          IconButton(
+                            icon: Icon(Icons.copy_rounded, size: 16, color: brandColor),
+                            tooltip: 'Copy Account / Mobile Number',
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                            onPressed: () {
+                              Clipboard.setData(ClipboardData(text: accountNumber));
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Copied $accountNumber to clipboard'),
+                                  backgroundColor: brandColor,
+                                  duration: const Duration(seconds: 2),
+                                ),
+                              );
+                            },
+                          ),
                       ],
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Send \$${dueToday.toStringAsFixed(2)} and enter your Reference # below.',
+                      'Send ${PlatformConfig.formatCurrency(dueToday, currencyCode: currencyCode, currencies: config.supportedCurrencies)} and enter your Reference # below.',
                       style: TextStyle(fontSize: 11, color: textSecondary),
                     ),
                   ],
@@ -717,22 +807,28 @@ class _PaymentCheckoutStepState extends State<PaymentCheckoutStep> {
           const SizedBox(height: 14),
           NeumorphicTextField(
             controller: _senderController,
-            labelText: isGcash
-                ? 'Your GCash Name / Mobile No.'
-                : (isMaya ? 'Your Maya Name / Mobile No.' : 'Your Sending Bank & Account Name'),
-            hintText: isGcash
-                ? 'e.g. Juan Dela Cruz (0917-XXX-XXXX)'
-                : (isMaya ? 'e.g. Juan Dela Cruz (0918-XXX-XXXX)' : 'e.g. BPI Savings / Juan Dela Cruz'),
+            labelText: channelMeta?.senderLabel ??
+                (isGcash
+                    ? 'Your GCash Name / Mobile No.'
+                    : (isMaya ? 'Your Maya Name / Mobile No.' : 'Your Sending Bank & Account Name')),
+            hintText: channelMeta?.senderHint ??
+                (isGcash
+                    ? 'e.g. Alex Reyes (0917-XXX-XXXX)'
+                    : (isMaya ? 'e.g. Alex Reyes (0918-XXX-XXXX)' : 'e.g. Savings Account / Alex Reyes')),
             onChanged: (val) => widget.onSenderAccountChanged?.call(val),
           ),
           const SizedBox(height: 10),
           NeumorphicTextField(
             controller: _referenceController,
-            labelText: isGcash
-                ? '13-Digit GCash Reference No.'
-                : (isMaya ? 'Maya Reference ID' : 'Bank Transfer Reference No.'),
-            hintText: isGcash ? 'e.g. 9018472615243' : 'Enter transaction reference number',
-            onChanged: (val) => widget.onReferenceNumberChanged?.call(val),
+            labelText: channelMeta?.referenceLabel ??
+                (isGcash
+                    ? '13-Digit GCash Reference No.'
+                    : (isMaya ? 'Maya Reference ID' : 'Bank Transfer Reference No.')),
+            hintText: channelMeta?.referenceHint ?? 'Enter transaction reference number',
+            onChanged: (val) {
+              if (_validationError != null) setState(() => _validationError = null);
+              widget.onReferenceNumberChanged?.call(val);
+            },
           ),
         ],
       ),

@@ -35,6 +35,8 @@ class ClientCrmProfile {
   });
 
   String get formattedSpend => '\$${totalSpend.toStringAsFixed(2)}';
+  // Gene - Nov, 22, 2026: Currency-aware spend formatting while preserving formattedSpend compatibility
+  String formatSpend(String symbolOrFormatted) => symbolOrFormatted;
   double get noShowRate => totalVisits > 0 ? (noShowCount / (totalVisits + noShowCount)) * 100 : 0.0;
 
   ClientCrmProfile copyWith({

@@ -1,12 +1,16 @@
 // Gene - Nov, 05, 2026: Storefront QR Standee Studio widget for generating print-ready counter acrylics and door posters
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+// Gene - Nov, 22, 2026: Added Riverpod + PlatformConfig imports for DB-driven standee presets and branding
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import '../../../../core/theme/neumorphic_colors.dart';
 import '../../../../core/widgets/neumorphic_container.dart';
 import '../../../../core/widgets/neumorphic_button.dart';
 import '../../../../core/widgets/neumorphic_text_field.dart';
 import '../../../../models/business.dart';
+import '../../../../models/platform_config.dart';
+import '../../../../services/platform_config_service.dart';
 
 enum StandeeFormat {
   deskStandee,
@@ -53,24 +57,63 @@ class QrStandeeStudioCard extends StatefulWidget {
 }
 
 class _QrStandeeStudioCardState extends State<QrStandeeStudioCard> {
+  /*
   static const List<String> _headlinePresets = [
     'Scan to Book in 30 Seconds',
     "Walk-Ins Welcome — Check Today's Openings",
     'Reserve Your Spot Now',
   ];
+  */
 
   late String _headline;
   late TextEditingController _customHeadlineController;
   StandeeFormat _format = StandeeFormat.deskStandee;
+  // Gene - Nov, 22, 2026: Track whether initial headline synced from PlatformConfig without breaking Scope-less widget tests
+  bool _didSyncConfigHeadline = false;
 
+  /*
   String get _bookingUrl =>
       'https://bookit.app/book/${widget.business.id}?ref=storefront_qr';
+  */
+  PlatformConfig _platformConfig(BuildContext context) {
+    try {
+      return ProviderScope.containerOf(context, listen: false).read(activePlatformConfigProvider);
+    } catch (_) {
+      return PlatformConfig.defaults();
+    }
+  }
+
+  String _normalizedBaseUrl(StandeePresets presets) {
+    final trimmed = presets.publicBaseUrl.trim().replaceAll(RegExp(r'/+$'), '');
+    return trimmed.isNotEmpty ? trimmed : 'https://bookit.app';
+  }
+
+  String _bookingUrlFor(StandeePresets presets) =>
+      '${_normalizedBaseUrl(presets)}/book/${widget.business.id}?ref=storefront_qr';
+
+  String _displayUrlFor(StandeePresets presets) =>
+      '${_normalizedBaseUrl(presets).replaceFirst(RegExp(r'^https?://'), '')}/book/${widget.business.id}';
 
   @override
   void initState() {
     super.initState();
-    _headline = _headlinePresets.first;
+    // _headline = _headlinePresets.first;
+    _headline = PlatformConfig.defaults().standeePresets.headlines.first;
     _customHeadlineController = TextEditingController(text: _headline);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_didSyncConfigHeadline) {
+      _didSyncConfigHeadline = true;
+      final headlines = _platformConfig(context).standeePresets.headlines;
+      final defaultFirst = PlatformConfig.defaults().standeePresets.headlines.first;
+      if (headlines.isNotEmpty && _headline == defaultFirst && headlines.first != _headline) {
+        _headline = headlines.first;
+        _customHeadlineController.text = _headline;
+      }
+    }
   }
 
   @override
@@ -79,8 +122,10 @@ class _QrStandeeStudioCardState extends State<QrStandeeStudioCard> {
     super.dispose();
   }
 
-  void _copyLink() {
-    Clipboard.setData(ClipboardData(text: _bookingUrl));
+  void _copyLink(String bookingUrl) {
+    // Clipboard.setData(ClipboardData(text: _bookingUrl));
+    // Gene - Nov, 22, 2026: Copy dynamic DB-driven public booking URL
+    Clipboard.setData(ClipboardData(text: bookingUrl));
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('Booking link copied to clipboard!'),
@@ -91,6 +136,11 @@ class _QrStandeeStudioCardState extends State<QrStandeeStudioCard> {
   }
 
   void _showPrintDialog() {
+    // Gene - Nov, 22, 2026: Pass DB-driven standee URL & app branding into printable modal
+    final config = _platformConfig(context);
+    final bookingUrl = _bookingUrlFor(config.standeePresets);
+    final displayUrl = _displayUrlFor(config.standeePresets);
+    final appName = config.branding.appName;
     showDialog(
       context: context,
       builder: (ctx) {
@@ -149,7 +199,12 @@ class _QrStandeeStudioCardState extends State<QrStandeeStudioCard> {
                   ConstrainedBox(
                     constraints: const BoxConstraints(maxHeight: 400),
                     child: SingleChildScrollView(
-                      child: _buildPrintableStandee(isPrintPreview: true),
+                      child: _buildPrintableStandee(
+                        isPrintPreview: true,
+                        bookingUrl: bookingUrl,
+                        displayUrl: displayUrl,
+                        appName: appName,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 20),
@@ -193,6 +248,13 @@ class _QrStandeeStudioCardState extends State<QrStandeeStudioCard> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final textPrimary = isDark ? NeumorphicColors.darkTextPrimary : NeumorphicColors.lightTextPrimary;
     final textSecondary = isDark ? NeumorphicColors.darkTextSecondary : NeumorphicColors.lightTextSecondary;
+    // Gene - Nov, 22, 2026: Resolve DB-driven standee presets, branding, and business terminology
+    final config = _platformConfig(context);
+    final headlinePresets = config.standeePresets.headlines;
+    final bookingUrl = _bookingUrlFor(config.standeePresets);
+    final displayUrl = _displayUrlFor(config.standeePresets);
+    final appName = config.branding.appName;
+    final bookingPlural = '${widget.business.bookingLabel.toLowerCase()}s';
 
     return NeumorphicContainer(
       borderRadius: 20,
@@ -229,7 +291,8 @@ class _QrStandeeStudioCardState extends State<QrStandeeStudioCard> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Turn walk-in foot traffic into confirmed appointments with an acrylic counter standee or door poster with a vector QR code.',
+                      // 'Turn walk-in foot traffic into confirmed appointments with an acrylic counter standee or door poster with a vector QR code.',
+                      'Turn walk-in foot traffic into confirmed $bookingPlural with an acrylic counter standee or door poster with a vector QR code.',
                       style: TextStyle(
                         fontSize: 12,
                         color: textSecondary,
@@ -287,7 +350,8 @@ class _QrStandeeStudioCardState extends State<QrStandeeStudioCard> {
           Wrap(
             spacing: 8,
             runSpacing: 8,
-            children: _headlinePresets.map((preset) {
+            // children: _headlinePresets.map((preset) {
+            children: headlinePresets.map((preset) {
               final isSelected = _headline == preset;
               return GestureDetector(
                 onTap: () {
@@ -332,7 +396,8 @@ class _QrStandeeStudioCardState extends State<QrStandeeStudioCard> {
             prefixIcon: const Icon(Icons.edit_note_rounded, size: 20),
             onChanged: (val) {
               setState(() {
-                _headline = val.trim().isEmpty ? _headlinePresets.first : val;
+                // _headline = val.trim().isEmpty ? _headlinePresets.first : val;
+                _headline = val.trim().isEmpty ? headlinePresets.first : val;
               });
             },
           ),
@@ -341,7 +406,12 @@ class _QrStandeeStudioCardState extends State<QrStandeeStudioCard> {
           // Live Acrylic Standee Preview Centerpiece
           Center(
             child: _buildAcrylicDisplayContainer(
-              child: _buildPrintableStandee(isPrintPreview: false),
+              child: _buildPrintableStandee(
+                isPrintPreview: false,
+                bookingUrl: bookingUrl,
+                displayUrl: displayUrl,
+                appName: appName,
+              ),
             ),
           ),
           const SizedBox(height: 24),
@@ -353,7 +423,8 @@ class _QrStandeeStudioCardState extends State<QrStandeeStudioCard> {
                 child: NeumorphicButton(
                   height: 48,
                   icon: Icons.copy_rounded,
-                  onPressed: _copyLink,
+                  // onPressed: _copyLink,
+                  onPressed: () => _copyLink(bookingUrl),
                   child: const Text('Copy Link'),
                 ),
               ),
@@ -494,7 +565,12 @@ class _QrStandeeStudioCardState extends State<QrStandeeStudioCard> {
   }
 
   /// The printable high-contrast white artwork with QR code, business details, and call-to-action
-  Widget _buildPrintableStandee({required bool isPrintPreview}) {
+  Widget _buildPrintableStandee({
+    required bool isPrintPreview,
+    required String bookingUrl,
+    required String displayUrl,
+    required String appName,
+  }) {
     final qrSize = _format == StandeeFormat.deskStandee ? 150.0 : 170.0;
     final business = widget.business;
 
@@ -593,7 +669,8 @@ class _QrStandeeStudioCardState extends State<QrStandeeStudioCard> {
               ],
             ),
             child: QrImageView(
-              data: _bookingUrl,
+              // data: _bookingUrl,
+              data: bookingUrl,
               version: QrVersions.auto,
               size: qrSize,
               backgroundColor: Colors.white,
@@ -630,7 +707,8 @@ class _QrStandeeStudioCardState extends State<QrStandeeStudioCard> {
           ),
           const SizedBox(height: 6),
           Text(
-            'bookit.app/book/${business.id}',
+            // 'bookit.app/book/${business.id}',
+            displayUrl,
             style: const TextStyle(
               fontSize: 10,
               fontFamily: 'monospace',
@@ -646,16 +724,18 @@ class _QrStandeeStudioCardState extends State<QrStandeeStudioCard> {
               color: const Color(0xFFF8FAFC),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: const FittedBox(
+            child: FittedBox(
               fit: BoxFit.scaleDown,
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.verified_outlined, size: 12, color: NeumorphicColors.tealPrimary),
-                  SizedBox(width: 4),
+                  const Icon(Icons.verified_outlined, size: 12, color: NeumorphicColors.tealPrimary),
+                  const SizedBox(width: 4),
                   Text(
-                    'Powered by BookIt',
-                    style: TextStyle(
+                    // 'Powered by BookIt',
+                    // Gene - Nov, 22, 2026: Dynamic app branding from PlatformConfig
+                    'Powered by $appName',
+                    style: const TextStyle(
                       fontSize: 9,
                       fontWeight: FontWeight.w600,
                       color: Color(0xFF64748B),

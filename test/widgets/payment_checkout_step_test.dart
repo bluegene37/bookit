@@ -185,7 +185,9 @@ void main() {
 
       // Verify Payment Status Badges
       expect(find.textContaining('Deposit Paid: \$30.00'), findsOneWidget);
-      expect(find.textContaining('Balance Due at Clinic: \$120.00'), findsOneWidget);
+      // expect(find.textContaining('Balance Due at Clinic: \$120.00'), findsOneWidget);
+      // Gene - Nov, 22, 2026: Universal industry-neutral Balance Due at Venue wording
+      expect(find.textContaining('Balance Due at Venue: \$120.00'), findsOneWidget);
 
       // Verify Download PDF Invoice button
       expect(find.text('Download PDF Invoice'), findsOneWidget);

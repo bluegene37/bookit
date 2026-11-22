@@ -21,6 +21,9 @@ import '../../../services/business_service.dart';
 import '../../../services/supabase_service.dart';
 // Gene - Nov, 14, 2026: Added auth_service import for unified release-mode demo gating
 import '../../../services/auth_service.dart';
+// Gene - Nov, 22, 2026: Added PlatformConfig and SupabaseConfig for multi-currency display and unauthenticated empty states
+import '../../../core/constants/supabase_config.dart';
+import '../../../models/platform_config.dart';
 
 class ClientBookingsScreen extends ConsumerStatefulWidget {
   const ClientBookingsScreen({super.key});
@@ -39,18 +42,18 @@ class _ClientBookingsScreenState extends ConsumerState<ClientBookingsScreen> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text('Cancel Appointment'),
+          title: const Text('Cancel Booking'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Are you sure you want to cancel your appointment with ${booking.businessName}?'),
+              Text('Are you sure you want to cancel your booking with ${booking.businessName}?'),
               const SizedBox(height: 14),
               TextField(
                 controller: reasonController,
                 decoration: const InputDecoration(
                   labelText: 'Reason for cancellation',
-                  hintText: 'e.g., Scheduling conflict, ill...',
+                  hintText: 'e.g., Scheduling conflict, personal plans...',
                   border: OutlineInputBorder(),
                 ),
               ),
@@ -59,14 +62,14 @@ class _ClientBookingsScreenState extends ConsumerState<ClientBookingsScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Keep Appointment'),
+              child: const Text('Keep Booking'),
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(backgroundColor: NeumorphicColors.error),
               onPressed: () {
                 ref.read(bookingsProvider.notifier).cancelBooking(
                   booking.id,
-                  reasonController.text.isNotEmpty ? reasonController.text : 'Patient requested cancellation',
+                  reasonController.text.isNotEmpty ? reasonController.text : 'Client requested cancellation',
                 );
                 Navigator.pop(context);
               },
@@ -213,7 +216,45 @@ class _ClientBookingsScreenState extends ConsumerState<ClientBookingsScreen> {
 
             // Bookings List
             Expanded(
-              child: displayedList.isEmpty
+              child: (SupabaseService.client != null || !SupabaseConfig.isDemoModeEnabled) &&
+                      ref.watch(authProvider).user == null
+                  ? Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.lock_outline_rounded, size: 48, color: accent),
+                            const SizedBox(height: 12),
+                            Text(
+                              'Sign In to View Your Bookings',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                                color: textPrimary,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Sign in to view upcoming schedules, digital QR passes, and payment receipts.',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: isDark ? Colors.white60 : Colors.black54,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            ElevatedButton.icon(
+                              onPressed: () => context.push('/login'),
+                              icon: const Icon(Icons.login_rounded, size: 18),
+                              label: const Text('Sign In'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    )
+                  : displayedList.isEmpty
                   ? Center(
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -231,7 +272,7 @@ class _ClientBookingsScreenState extends ConsumerState<ClientBookingsScreen> {
                           const SizedBox(height: 16),
                           OutlinedButton(
                             onPressed: () => context.go('/'),
-                            child: const Text('Browse Clinics & Services'),
+                            child: const Text('Browse Businesses & Services'),
                           ),
                         ],
                       ),
@@ -357,8 +398,12 @@ class _ClientBookingsScreenState extends ConsumerState<ClientBookingsScreen> {
                                     alignment: WrapAlignment.spaceBetween,
                                     crossAxisAlignment: WrapCrossAlignment.center,
                                     children: [
+                                      // Gene - Nov, 22, 2026: Use dynamic booking currency symbol in My Bookings price pill
                                       Text(
-                                        '\$${booking.totalPrice.toStringAsFixed(2)}',
+                                        PlatformConfig.formatCurrency(
+                                          booking.totalPrice,
+                                          currencyCode: booking.currency,
+                                        ),
                                         style: TextStyle(
                                           fontSize: 16,
                                           fontWeight: FontWeight.w800,

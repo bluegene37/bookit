@@ -104,10 +104,12 @@ class _AdminWalkInBookingDialogState extends ConsumerState<AdminWalkInBookingDia
         ? now.add(Duration(minutes: service.durationMinutes))
         : (slot?.endTime ?? _selectedDate.add(Duration(minutes: service.durationMinutes)));
 
+    // Gene - Nov, 22, 2026: Store empty clientId (mapped to NULL SQL client_id) + walkinClientName + business.currency & try/catch error banner
     final booking = Booking(
       id: const Uuid().v4(),
       businessId: widget.business.id,
-      clientId: 'walkin-${clientName.toLowerCase().replaceAll(' ', '-')}-${now.millisecondsSinceEpoch}',
+      clientId: '',
+      walkinClientName: clientName,
       serviceId: service.id,
       staffId: staff?.id,
       bookingModel: widget.business.bookingModel.toDbString(),
@@ -119,6 +121,7 @@ class _AdminWalkInBookingDialogState extends ConsumerState<AdminWalkInBookingDia
       paymentStatus: 'unpaid',
       amountPaid: 0.0,
       amountDue: service.price,
+      currency: widget.business.currency,
       clientNotes: _notesCtrl.text.trim().isNotEmpty ? _notesCtrl.text.trim() : 'Reception walk-in / phone booking',
       createdAt: now,
       businessName: widget.business.name,
@@ -127,21 +130,32 @@ class _AdminWalkInBookingDialogState extends ConsumerState<AdminWalkInBookingDia
       clientName: clientName,
     );
 
-    await ref.read(bookingsProvider.notifier).createBooking(booking);
-    ref.invalidate(businessClientsProvider(widget.business.id));
+    try {
+      await ref.read(bookingsProvider.notifier).createBooking(booking);
+      ref.invalidate(businessClientsProvider(widget.business.id));
 
-    if (mounted) {
-      Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            _isWalkInNow
-                ? 'Checked in $clientName into the Waiting Room!'
-                : 'Scheduled appointment for $clientName!',
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              _isWalkInNow
+                  ? 'Checked in $clientName into Reception!'
+                  : 'Scheduled ${widget.business.bookingLabel.toLowerCase()} for $clientName!',
+            ),
+            backgroundColor: NeumorphicColors.success,
           ),
-          backgroundColor: NeumorphicColors.success,
-        ),
-      );
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to create booking: ${e.toString().replaceFirst('Exception: ', '')}'),
+            backgroundColor: NeumorphicColors.error,
+          ),
+        );
+      }
     }
   }
 
@@ -149,8 +163,8 @@ class _AdminWalkInBookingDialogState extends ConsumerState<AdminWalkInBookingDia
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final accent = isDark ? NeumorphicColors.tealLight : NeumorphicColors.tealPrimary;
-    final services = ref.watch(businessServicesProvider(widget.business.id)).value ?? [];
-    final staffList = ref.watch(businessStaffProvider(widget.business.id)).value ?? [];
+    final services = ref.watch(businessServicesProvider(widget.business.id)).valueOrNull ?? [];
+    final staffList = ref.watch(businessStaffProvider(widget.business.id)).valueOrNull ?? [];
     final existingBookings = ref.watch(adminBookingsProvider(widget.business.id));
 
     final activeService = _selectedService ?? services.firstOrNull;
@@ -173,9 +187,9 @@ class _AdminWalkInBookingDialogState extends ConsumerState<AdminWalkInBookingDia
         : availableSlots.where((s) => s.isAvailable).firstOrNull;
 
     return AlertDialog(
-      title: const Text(
-        'New Walk-In / Appointment',
-        style: TextStyle(fontWeight: FontWeight.w800),
+      title: Text(
+        'New Walk-In / ${widget.business.bookingLabel}',
+        style: const TextStyle(fontWeight: FontWeight.w800),
       ),
       content: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 460),
@@ -211,10 +225,10 @@ class _AdminWalkInBookingDialogState extends ConsumerState<AdminWalkInBookingDia
               TextField(
                 controller: _clientNameCtrl,
                 onChanged: (_) => setState(() {}),
-                decoration: const InputDecoration(
-                  labelText: 'Patient / Client Full Name *',
+                decoration: InputDecoration(
+                  labelText: '${widget.business.clientLabel} Full Name *',
                   hintText: 'e.g. Jordan Taylor',
-                  border: OutlineInputBorder(),
+                  border: const OutlineInputBorder(),
                 ),
               ),
               const SizedBox(height: 12),

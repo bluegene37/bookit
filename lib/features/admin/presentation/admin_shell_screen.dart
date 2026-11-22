@@ -285,19 +285,32 @@ class _AdminShellScreenState extends ConsumerState<AdminShellScreen> {
           return _buildZeroStateScreen(context, isDark, accent);
         }
 
-        // Gene - Nov, 14, 2026: Multi-tenant clinic isolation (CWE-285 / CWE-639)
+        // Gene - Nov, 22, 2026: Query live staff business assignments via staffAssignedBusinessIdsProvider while preserving demo mock matching offline
         late final List<Business> accessibleBusinesses;
         if (currentUser.role == 'admin') {
           accessibleBusinesses = businesses;
         } else if (isStaffRole) {
-          final Iterable<BusinessStaff> matchedStaff = SupabaseService.mockStaff.where(
-            (s) => s.userId == currentUser.id || s.name.toLowerCase() == currentUser.fullName.toLowerCase(),
-          );
-          final assignedIds = matchedStaff.map((s) => s.businessId).toSet();
-          if (assignedIds.isEmpty && AuthNotifier.isDemoModeEnabled) {
+          final liveAssigned = ref
+              .watch(staffAssignedBusinessIdsProvider(currentUser.id))
+              .valueOrNull;
+          final Iterable<BusinessStaff> matchedStaff = SupabaseService.client == null
+              ? SupabaseService.mockStaff.where(
+                  (s) =>
+                      s.userId == currentUser.id ||
+                      s.name.toLowerCase() == currentUser.fullName.toLowerCase(),
+                )
+              : const <BusinessStaff>[];
+          final assignedIds = <String>{
+            ...?liveAssigned,
+            ...matchedStaff.map((s) => s.businessId),
+          };
+          if (assignedIds.isEmpty &&
+              AuthNotifier.isDemoModeEnabled &&
+              SupabaseService.client == null) {
             assignedIds.add('11111111-1111-1111-1111-111111111111');
           }
-          accessibleBusinesses = businesses.where((b) => assignedIds.contains(b.id)).toList();
+          accessibleBusinesses =
+              businesses.where((b) => assignedIds.contains(b.id)).toList();
         } else {
           final owned = businesses.where((b) => b.ownerId == currentUser.id).toList();
           if (owned.isEmpty &&
@@ -1016,7 +1029,8 @@ class _AdminShellScreenState extends ConsumerState<AdminShellScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      currentUser?.fullName ?? 'Dr. Alexander Vance',
+                      // Gene - Nov, 22, 2026: Neutral admin fallback name
+                      currentUser?.fullName ?? 'Workspace Admin',
                       style: TextStyle(
                         fontWeight: FontWeight.w700,
                         color: isDark ? NeumorphicColors.darkTextPrimary : NeumorphicColors.lightTextPrimary,
@@ -1080,7 +1094,7 @@ class _AdminShellScreenState extends ConsumerState<AdminShellScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        currentUser?.fullName ?? 'Dr. Alexander Vance',
+                        currentUser?.fullName ?? 'Workspace Admin',
                         style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
                       ),
                       Text(
@@ -1423,7 +1437,7 @@ class _AdminShellScreenState extends ConsumerState<AdminShellScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  currentUser?.fullName ?? 'Dr. Alexander Vance',
+                                  currentUser?.fullName ?? 'Workspace Admin',
                                   style: TextStyle(
                                     fontWeight: FontWeight.w700,
                                     color: isDark ? NeumorphicColors.darkTextPrimary : NeumorphicColors.lightTextPrimary,
@@ -1488,12 +1502,12 @@ class _AdminShellScreenState extends ConsumerState<AdminShellScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    currentUser?.fullName ?? 'Dr. Alexander Vance',
+                                    currentUser?.fullName ?? 'Workspace Admin',
                                     style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
                                   ),
                                   Text(
-                                    // 'Administrator ▾',
-                                    currentUser?.role == 'staff' ? 'Clinic Staff ▾' : 'Administrator ▾',
+                                    // Gene - Nov, 22, 2026: Universal role subtitle
+                                    currentUser?.role == 'staff' ? 'Staff Member ▾' : 'Administrator ▾',
                                     style: TextStyle(
                                       fontSize: 11,
                                       color: isDark ? NeumorphicColors.darkTextSecondary : NeumorphicColors.lightTextSecondary,
@@ -1566,7 +1580,8 @@ class _AdminShellScreenState extends ConsumerState<AdminShellScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const SizedBox(height: 20),
-                  _buildSidebarSectionHeader('CLINIC WORKSPACE', isDark),
+                  // Gene - Nov, 22, 2026: Dynamic DB-driven sidebar header & universal entity labels
+                  _buildSidebarSectionHeader('${business.venueLabel.toUpperCase()} WORKSPACE', isDark),
                   const SizedBox(height: 6),
           /*
           // Gene - Nov, 04, 2026: Previous sidebar navigation items without Live Reception Queue
@@ -1597,13 +1612,13 @@ class _AdminShellScreenState extends ConsumerState<AdminShellScreen> {
           _buildSidebarItem(6, 'Template & Settings', Icons.tune_rounded, accent, isDark, isDrawer: isDrawer),
           */
 
-          // Gene - Nov 06, 2026: Added Patients & Clients (CRM) item to sidebar navigation at index 3
+          // Gene - Nov, 22, 2026: Industry-universal sidebar labels driven by business ui_config
           _buildSidebarItem(0, 'Dashboard Overview', Icons.dashboard_rounded, accent, isDark, isDrawer: isDrawer, activeIndex: activeIndex),
           _buildSidebarItem(1, 'Live Reception Queue', Icons.people_alt_outlined, accent, isDark, isDrawer: isDrawer, activeIndex: activeIndex),
-          _buildSidebarItem(2, 'Appointments Calendar', Icons.calendar_month_rounded, accent, isDark, isDrawer: isDrawer, activeIndex: activeIndex),
-          _buildSidebarItem(3, 'Patients & Clients (CRM)', Icons.assignment_ind_rounded, accent, isDark, isDrawer: isDrawer, activeIndex: activeIndex),
+          _buildSidebarItem(2, '${business.bookingLabel}s Calendar', Icons.calendar_month_rounded, accent, isDark, isDrawer: isDrawer, activeIndex: activeIndex),
+          _buildSidebarItem(3, '${business.clientLabel}s (CRM)', Icons.assignment_ind_rounded, accent, isDark, isDrawer: isDrawer, activeIndex: activeIndex),
           _buildSidebarItem(4, 'Services & Pricing', Icons.medical_services_rounded, accent, isDark, isDrawer: isDrawer, activeIndex: activeIndex),
-          _buildSidebarItem(5, 'Doctors & Specialists', Icons.people_alt_rounded, accent, isDark, isDrawer: isDrawer, activeIndex: activeIndex),
+          _buildSidebarItem(5, 'Team & Specialists', Icons.people_alt_rounded, accent, isDark, isDrawer: isDrawer, activeIndex: activeIndex),
           if (!isStaffRole) ...[
             _buildSidebarItem(6, 'Payments & Invoices', Icons.receipt_long_rounded, accent, isDark, isDrawer: isDrawer, activeIndex: activeIndex),
 

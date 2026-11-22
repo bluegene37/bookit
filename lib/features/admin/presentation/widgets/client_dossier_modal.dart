@@ -7,6 +7,10 @@ import '../../../../core/widgets/neumorphic_container.dart';
 import '../../../../core/widgets/neumorphic_button.dart';
 import '../../../../core/widgets/status_badge.dart';
 import '../../../../models/client_crm_profile.dart';
+// Gene - Nov, 22, 2026: Added BusinessService, PlatformConfig, and PlatformConfigService for DB-driven CRM flags & multi-currency spend
+import '../../../../models/platform_config.dart';
+import '../../../../services/business_service.dart';
+import '../../../../services/platform_config_service.dart';
 import '../../../../services/crm_service.dart';
 
 class ClientDossierModal extends ConsumerStatefulWidget {
@@ -32,17 +36,15 @@ class _ClientDossierModalState extends ConsumerState<ClientDossierModal> {
     _profile = widget.client;
   }
 
-  // Gene - Nov 07, 2026: Added interactive dialog to attach clinical/medical flags with common presets and custom text
+  // Gene - Nov, 22, 2026: Load flag presets & flag section title dynamically from Business ui_config or PlatformConfig category presets
   void _showAddFlagDialog() {
     final flagController = TextEditingController();
-    const presets = [
-      'Penicillin Allergy',
-      'Latex Sensitivity',
-      'Blood Thinners',
-      'High Dental Anxiety',
-      'Lidocaine Sensitivity',
-      'Pregnancy / Nursing',
-    ];
+    final business = ref.read(businessDetailProvider(widget.businessId)).valueOrNull;
+    final platformConfig = ref.read(activePlatformConfigProvider);
+    final flagLabel = business?.crmFlagLabel ?? 'Client Alerts & Flags';
+    final presets = (business != null && business.crmFlagPresets.isNotEmpty)
+        ? business.crmFlagPresets
+        : platformConfig.crmFlagPresetsForCategory(business?.category);
 
     void addFlagValue(String rawFlag, BuildContext dialogCtx) {
       final text = rawFlag.trim();
@@ -51,10 +53,6 @@ class _ClientDossierModalState extends ConsumerState<ClientDossierModal> {
         Navigator.pop(dialogCtx);
         return;
       }
-      /*
-      ref.read(crmServiceProvider).addMedicalFlag(_profile.id, text);
-      */
-      // Gene - Nov 07, 2026: Pass businessId to persist medical flag in Supabase `client_crm_dossiers`
       ref.read(crmServiceProvider).addMedicalFlag(_profile.id, text, businessId: widget.businessId);
       setState(() {
         _profile = _profile.copyWith(
@@ -65,7 +63,7 @@ class _ClientDossierModalState extends ConsumerState<ClientDossierModal> {
       Navigator.pop(dialogCtx);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Medical flag "$text" added to patient record.'),
+          content: Text('Flag "$text" added to ${business?.clientLabel.toLowerCase() ?? 'client'} record.'),
           backgroundColor: NeumorphicColors.error,
         ),
       );
@@ -74,7 +72,7 @@ class _ClientDossierModalState extends ConsumerState<ClientDossierModal> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Add Medical / Clinical Flag'),
+        title: Text('Add $flagLabel'),
         content: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 420),
           child: Column(
@@ -140,12 +138,15 @@ class _ClientDossierModalState extends ConsumerState<ClientDossierModal> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Add Clinical / Internal Note'),
+        // title: const Text('Add Clinical / Internal Note'),
+        // Gene - Nov, 22, 2026: Industry-neutral staff note dialog title & placeholder
+        title: const Text('Add Staff / Internal Note'),
         content: TextField(
           controller: noteController,
           maxLines: 3,
           decoration: const InputDecoration(
-            hintText: 'e.g. Prefers morning appointments, sensitive to numbing agents, advised on post-op care...',
+            // hintText: 'e.g. Prefers morning appointments, sensitive to numbing agents, advised on post-op care...',
+            hintText: 'e.g. Prefers morning bookings, VIP requests, special accommodation notes...',
             border: OutlineInputBorder(),
           ),
         ),
@@ -168,8 +169,11 @@ class _ClientDossierModalState extends ConsumerState<ClientDossierModal> {
                 });
                 ref.invalidate(businessClientsProvider(widget.businessId));
                 Navigator.pop(ctx);
+                // final msg = 'Clinical note added to patient record!';
+                // Gene - Nov, 22, 2026: Use business clientLabel in confirmation message
+                final msgLabel = (ref.read(businessDetailProvider(widget.businessId)).valueOrNull?.clientLabel ?? 'client').toLowerCase();
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Clinical note added to patient record!')),
+                  SnackBar(content: Text('Staff note added to $msgLabel record!')),
                 );
               }
             },
@@ -184,6 +188,11 @@ class _ClientDossierModalState extends ConsumerState<ClientDossierModal> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final accent = isDark ? NeumorphicColors.tealLight : NeumorphicColors.tealPrimary;
+    // Gene - Nov, 22, 2026: Resolve dynamic business labels and currency from businessDetailProvider
+    final business = ref.watch(businessDetailProvider(widget.businessId)).valueOrNull;
+    final currencyCode = business?.currency ?? 'USD';
+    final flagLabel = business?.crmFlagLabel ?? 'Client Alerts & Flags';
+    final clientLabel = business?.clientLabel ?? 'Client';
 
     return Dialog(
       backgroundColor: Colors.transparent,
@@ -204,7 +213,9 @@ class _ClientDossierModalState extends ConsumerState<ClientDossierModal> {
                     radius: 28,
                     backgroundColor: accent.withValues(alpha: 0.15),
                     child: Text(
-                      _profile.name.isNotEmpty ? _profile.name[0].toUpperCase() : 'P',
+                      // _profile.name.isNotEmpty ? _profile.name[0].toUpperCase() : 'P',
+                      // Gene - Nov, 22, 2026: Industry-neutral fallback initial
+                      _profile.name.isNotEmpty ? _profile.name[0].toUpperCase() : 'C',
                       style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: accent),
                     ),
                   ),
@@ -253,7 +264,16 @@ class _ClientDossierModalState extends ConsumerState<ClientDossierModal> {
               // KPI Summary Metrics Bar
               Row(
                 children: [
-                  Expanded(child: _KpiMiniTile(title: 'Lifetime Spend', value: _profile.formattedSpend, color: accent)),
+                  Expanded(
+                    child: _KpiMiniTile(
+                      title: 'Lifetime Spend',
+                      value: PlatformConfig.formatCurrency(
+                        _profile.totalSpend,
+                        currencyCode: currencyCode,
+                      ),
+                      color: accent,
+                    ),
+                  ),
                   const SizedBox(width: 10),
                   Expanded(child: _KpiMiniTile(title: 'Total Visits', value: '${_profile.totalVisits}', color: Colors.blueAccent)),
                   const SizedBox(width: 10),
@@ -316,12 +336,12 @@ class _ClientDossierModalState extends ConsumerState<ClientDossierModal> {
                       const SizedBox(height: 18),
                     ],
                     */
-                    // Gene - Nov 07, 2026: Always show Medical & Clinical Flags header with '+ Add Flag' action and removable alert chips
+                    // Gene - Nov, 22, 2026: Dynamic DB-driven crmFlagLabel & neutral empty copy
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          'Medical & Clinical Flags',
+                          flagLabel,
                           style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w700,
@@ -345,7 +365,7 @@ class _ClientDossierModalState extends ConsumerState<ClientDossierModal> {
                     const SizedBox(height: 6),
                     if (_profile.medicalFlags.isEmpty)
                       Text(
-                        'No medical allergies or clinical flags on file.',
+                        'No $flagLabel recorded on file.',
                         style: TextStyle(fontSize: 12, color: isDark ? Colors.white38 : Colors.black38),
                       )
                     else
@@ -390,7 +410,7 @@ class _ClientDossierModalState extends ConsumerState<ClientDossierModal> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          'Staff & Clinical Notes',
+                          'Staff Notes',
                           style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w700,
@@ -407,7 +427,7 @@ class _ClientDossierModalState extends ConsumerState<ClientDossierModal> {
                     const SizedBox(height: 6),
                     if (_profile.internalStaffNotes.isEmpty)
                       Text(
-                        'No internal notes recorded for this patient.',
+                        'No internal notes recorded for this ${clientLabel.toLowerCase()}.',
                         style: TextStyle(fontSize: 12, color: isDark ? Colors.white38 : Colors.black38),
                       )
                     else
@@ -505,7 +525,10 @@ class _ClientDossierModalState extends ConsumerState<ClientDossierModal> {
                                 crossAxisAlignment: CrossAxisAlignment.end,
                                 children: [
                                   Text(
-                                    '\$${appt.totalPrice.toStringAsFixed(2)}',
+                                    PlatformConfig.formatCurrency(
+                                      appt.totalPrice,
+                                      currencyCode: appt.currency,
+                                    ),
                                     style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: accent),
                                   ),
                                   const SizedBox(height: 4),

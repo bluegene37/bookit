@@ -1,10 +1,13 @@
 // Gene - Nov, 03, 2026: Services and Procedures Manager Tab for Admin Web
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+// Gene - Nov, 22, 2026: Added Uuid and PlatformConfig imports for UUID v4 generation & dynamic multi-currency labels
+import 'package:uuid/uuid.dart';
 import '../../../../core/theme/neumorphic_colors.dart';
 import '../../../../core/widgets/neumorphic_container.dart';
 import '../../../../core/widgets/neumorphic_button.dart';
 import '../../../../models/business.dart';
+import '../../../../models/platform_config.dart';
 import '../../../../models/service_item.dart';
 import '../../../../services/business_service.dart';
 // Gene - Nov 07, 2026: Commented out unused direct supabase_service import since persistence is delegated to BusinessService
@@ -244,14 +247,20 @@ class ServicesManagerTab extends ConsumerWidget {
     final depositCtrl = TextEditingController(
       text: existingService != null ? existingService.depositAmount.toStringAsFixed(0) : '20',
     );
+    // Gene - Nov, 22, 2026: Support free_consultation, deposit_required, dynamic currency symbols, universal serviceLabel, and UUID v4 generation
     String paymentPolicy = existingService?.paymentPolicy == 'deposit_required'
         ? 'deposit'
         : (existingService?.paymentPolicy ?? 'full_upfront');
-    if (paymentPolicy != 'full_upfront' && paymentPolicy != 'deposit' && paymentPolicy != 'pay_at_venue') {
+    if (paymentPolicy != 'full_upfront' &&
+        paymentPolicy != 'deposit' &&
+        paymentPolicy != 'pay_at_venue' &&
+        paymentPolicy != 'free_consultation') {
       paymentPolicy = 'pay_at_venue';
     }
     String depositType = existingService?.depositType ?? 'percentage';
     bool isActive = existingService?.isActive ?? true;
+    final currSymbol = PlatformConfig.symbolFor(business.currency);
+    final srvLabel = business.serviceLabel;
 
     showDialog(
       context: context,
@@ -259,7 +268,7 @@ class ServicesManagerTab extends ConsumerWidget {
         return StatefulBuilder(
           builder: (dialogCtx, setDialogState) {
             return AlertDialog(
-              title: Text(isEditing ? 'Edit Clinical Service / Procedure' : 'Add Clinical Service / Procedure'),
+              title: Text(isEditing ? 'Edit $srvLabel' : 'Add $srvLabel'),
               content: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -267,7 +276,7 @@ class ServicesManagerTab extends ConsumerWidget {
                   children: [
                     TextField(
                       controller: nameCtrl,
-                      decoration: const InputDecoration(labelText: 'Procedure Name'),
+                      decoration: InputDecoration(labelText: '$srvLabel Name'),
                     ),
                     const SizedBox(height: 10),
                     TextField(
@@ -279,7 +288,7 @@ class ServicesManagerTab extends ConsumerWidget {
                     TextField(
                       controller: priceCtrl,
                       keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(labelText: 'Price (\$)'),
+                      decoration: InputDecoration(labelText: 'Price ($currSymbol)'),
                     ),
                     const SizedBox(height: 10),
                     TextField(
@@ -313,6 +322,10 @@ class ServicesManagerTab extends ConsumerWidget {
                         DropdownMenuItem(
                           value: 'pay_at_venue',
                           child: Text('Pay at Venue'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'free_consultation',
+                          child: Text('Free Session / Consultation'),
                         ),
                       ],
                       onChanged: (val) {
@@ -379,9 +392,9 @@ class ServicesManagerTab extends ConsumerWidget {
                         decoration: InputDecoration(
                           labelText: depositType == 'percentage'
                               ? 'Deposit Percentage (%)'
-                              : 'Deposit Amount (\$)',
+                              : 'Deposit Amount ($currSymbol)',
                           border: const OutlineInputBorder(),
-                          prefixText: depositType == 'fixed' ? '\$ ' : null,
+                          prefixText: depositType == 'fixed' ? '$currSymbol ' : null,
                           suffixText: depositType == 'percentage' ? '%' : null,
                         ),
                       ),
@@ -405,7 +418,7 @@ class ServicesManagerTab extends ConsumerWidget {
                 ),
                 ElevatedButton(
                   onPressed: () async {
-                    final parsedName = nameCtrl.text.trim().isEmpty ? 'Clinical Procedure' : nameCtrl.text.trim();
+                    final parsedName = nameCtrl.text.trim().isEmpty ? srvLabel : nameCtrl.text.trim();
                     final parsedDesc = descCtrl.text.trim().isEmpty ? null : descCtrl.text.trim();
                     final parsedDuration = int.tryParse(durationCtrl.text.trim()) ?? 30;
                     final parsedPrice = double.tryParse(priceCtrl.text.trim()) ?? 50.0;
@@ -417,6 +430,7 @@ class ServicesManagerTab extends ConsumerWidget {
                         description: parsedDesc,
                         durationMinutes: parsedDuration,
                         price: parsedPrice,
+                        currency: business.currency,
                         paymentPolicy: paymentPolicy,
                         depositType: depositType,
                         depositAmount: parsedDeposit,
@@ -425,12 +439,13 @@ class ServicesManagerTab extends ConsumerWidget {
                       await ref.read(businessServiceProvider).updateService(updated);
                     } else {
                       final newService = ServiceItem(
-                        id: 'srv-${DateTime.now().millisecondsSinceEpoch}',
+                        id: const Uuid().v4(),
                         businessId: business.id,
                         name: parsedName,
                         description: parsedDesc,
                         durationMinutes: parsedDuration,
                         price: parsedPrice,
+                        currency: business.currency,
                         paymentPolicy: paymentPolicy,
                         depositType: depositType,
                         depositAmount: parsedDeposit,
@@ -541,7 +556,7 @@ class ServicesManagerTab extends ConsumerWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Manage your treatment menu and prices',
+                      'Manage your ${business.serviceLabel.toLowerCase()} catalog and pricing',
                       style: TextStyle(fontSize: 13, color: isDark ? Colors.white60 : Colors.black54),
                     ),
                   ],
@@ -553,7 +568,7 @@ class ServicesManagerTab extends ConsumerWidget {
                 height: 44,
                 icon: Icons.add,
                 onPressed: () => _showServiceFormDialog(context, ref),
-                child: const Text('New Procedure'),
+                child: Text('New ${business.serviceLabel}'),
               ),
             ],
           ),
@@ -564,7 +579,7 @@ class ServicesManagerTab extends ConsumerWidget {
             error: (e, _) => Center(child: Text('Error: $e')),
             data: (services) {
               if (services.isEmpty) {
-                return const Center(child: Text('No procedures registered.'));
+                return Center(child: Text('No ${business.serviceLabel.toLowerCase()}s registered.'));
               }
 
               return ListView.builder(
@@ -653,8 +668,10 @@ class ServicesManagerTab extends ConsumerWidget {
                                         (s.paymentPolicy == 'deposit' || s.paymentPolicy == 'deposit_required')
                                             ? (s.depositType == 'percentage'
                                                 ? '${s.depositAmount.toInt()}% Deposit'
-                                                : '\$${s.depositAmount.toStringAsFixed(0)} Deposit')
-                                            : (s.paymentPolicy == 'pay_at_venue' ? 'Pay at Venue' : 'Full Upfront'),
+                                                : '${PlatformConfig.formatCurrency(s.depositAmount, currencyCode: s.currency, decimals: 0)} Deposit')
+                                            : (s.paymentPolicy == 'free_consultation'
+                                                ? 'Free Session'
+                                                : (s.paymentPolicy == 'pay_at_venue' ? 'Pay at Venue' : 'Full Upfront')),
                                         style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: accent),
                                       ),
                                     ),

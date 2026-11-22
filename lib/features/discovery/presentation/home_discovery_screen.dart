@@ -11,6 +11,8 @@ import '../../../core/widgets/neumorphic_chip.dart';
 import '../../../services/business_service.dart';
 import '../../../services/notification_service.dart';
 import '../../../services/auth_service.dart';
+// Gene - Nov, 22, 2026: Added PlatformConfigService import for DB-driven marketplace branding & placeholders
+import '../../../services/platform_config_service.dart';
 // Gene - Nov, 05, 2026: Added demo_persona_switcher and safe_network_image imports
 import '../../../core/widgets/demo_persona_switcher.dart';
 import '../../../core/widgets/safe_network_image.dart';
@@ -19,17 +21,48 @@ import 'widgets/discovery_map_view.dart';
 // Gene - Nov, 08, 2026: Added BookItLogo import for minimalist Geometric 'B' + Checkmark brand mark
 import '../../../core/widgets/bookit_logo.dart';
 
+/*
 class HomeDiscoveryScreen extends ConsumerWidget {
+  const HomeDiscoveryScreen({super.key});
+  ...
+*/
+
+// Gene - Nov, 22, 2026: Converted to ConsumerStatefulWidget to keep Search TextEditingController synchronized on Clear/Reset Filters & consume DB branding config
+class HomeDiscoveryScreen extends ConsumerStatefulWidget {
   const HomeDiscoveryScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<HomeDiscoveryScreen> createState() => _HomeDiscoveryScreenState();
+}
+
+class _HomeDiscoveryScreenState extends ConsumerState<HomeDiscoveryScreen> {
+  late final TextEditingController _searchController;
+
+  @override
+  void initState() {
+    super.initState();
+    _searchController = TextEditingController(text: ref.read(searchQueryProvider));
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     // Gene - Nov, 03, 2026: Watch authProvider for profile icon and state reactivity
     final authState = ref.watch(authProvider);
     final businessesAsync = ref.watch(businessListProvider);
     final selectedCategory = ref.watch(selectedCategoryProvider);
     // Gene - Nov, 7, 2026: Watch searchQueryProvider to render an interactive clear search button and filter reset state
     final searchQuery = ref.watch(searchQueryProvider);
+    if (_searchController.text != searchQuery && searchQuery.isEmpty) {
+      _searchController.clear();
+    }
+    final platformConfig = ref.watch(activePlatformConfigProvider);
+    final branding = platformConfig.branding;
     final unreadCount = ref.watch(unreadNotificationCountProvider);
     final isMapView = ref.watch(isDiscoveryMapViewProvider);
     // final themeMode = ref.watch(themeModeProvider);
@@ -77,7 +110,7 @@ class HomeDiscoveryScreen extends ConsumerWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'BookIt',
+                            branding.appName,
                             // Gene - Nov, 14, 2026: Added ellipsis overflow guard for narrow 320px @ 1.5x viewports
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -89,7 +122,7 @@ class HomeDiscoveryScreen extends ConsumerWidget {
                             ),
                           ),
                           Text(
-                            'Find clinics, doctors & services',
+                            branding.discoverySubtitle,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
@@ -259,15 +292,17 @@ class HomeDiscoveryScreen extends ConsumerWidget {
                   },
                 ),
                 */
-                // Gene - Nov, 7, 2026: Added clear button suffixIcon when searchQuery is non-empty
+                // Gene - Nov, 22, 2026: Bind _searchController + DB branding searchPlaceholder so Clear/Reset Filters wipes visible text field cleanly
                 child: NeumorphicTextField(
-                  hintText: 'Search clinic, procedure (e.g. Dental Cleaning)...',
+                  controller: _searchController,
+                  hintText: branding.searchPlaceholder,
                   prefixIcon: Icon(Icons.search, color: isDark ? Colors.white54 : Colors.black45),
                   suffixIcon: searchQuery.isNotEmpty
                       ? IconButton(
                           tooltip: 'Clear search',
                           icon: Icon(Icons.clear_rounded, size: 18, color: isDark ? Colors.white54 : Colors.black45),
                           onPressed: () {
+                            _searchController.clear();
                             ref.read(searchQueryProvider.notifier).state = '';
                           },
                         )
@@ -394,8 +429,9 @@ class HomeDiscoveryScreen extends ConsumerWidget {
                       constraints: BoxConstraints(
                         maxWidth: (MediaQuery.sizeOf(context).width - 170).clamp(120.0, 600.0),
                       ),
+                      // Gene - Nov, 22, 2026: Universal industry-neutral discovery section header
                       child: Text(
-                        'Available Clinics & Services',
+                        'Available Businesses & Services',
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w700,
@@ -527,7 +563,7 @@ class HomeDiscoveryScreen extends ConsumerWidget {
                             Icon(Icons.search_off_rounded, size: 48, color: isDark ? Colors.white24 : Colors.black26),
                             const SizedBox(height: 12),
                             const Text(
-                              'No clinics matching your search criteria.',
+                              'No matching businesses found.',
                               textAlign: TextAlign.center,
                               style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
                             ),
@@ -542,6 +578,7 @@ class HomeDiscoveryScreen extends ConsumerWidget {
                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                                 ),
                                 onPressed: () {
+                                  _searchController.clear();
                                   ref.read(searchQueryProvider.notifier).state = '';
                                   ref.read(selectedCategoryProvider.notifier).state = 'All';
                                 },
@@ -604,13 +641,13 @@ class HomeDiscoveryScreen extends ConsumerWidget {
                                           ),
                                         ),
                                         */
-                                        // Gene - Nov, 05, 2026: SafeNetworkImage with fallback icon
+                                        // Gene - Nov, 22, 2026: Universal storefront fallback icon
                                         SafeNetworkImage(
                                           imageUrl: business.bannerUrl,
                                           height: 150,
                                           width: double.infinity,
                                           fit: BoxFit.cover,
-                                          fallbackIcon: Icons.local_hospital_rounded,
+                                          fallbackIcon: Icons.storefront_rounded,
                                         ),
                                         Positioned(
                                           top: 12,

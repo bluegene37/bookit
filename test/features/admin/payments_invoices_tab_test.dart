@@ -35,7 +35,9 @@ void main() {
     );
 
     expect(find.text('Gross Volume'), findsOneWidget);
-    expect(find.text('\$100.00'), findsOneWidget);
+    // expect(find.text('\$100.00'), findsOneWidget);
+    // Gene - Nov, 22, 2026: Currency helper formats KPI + ledger Total + Paid consistently to '$100.00'
+    expect(find.text('\$100.00'), findsWidgets);
   });
 
   testWidgets('PaymentsInvoicesTab renders Stripe Express dashboard button when connected', (tester) async {
@@ -65,7 +67,9 @@ void main() {
 
     expect(find.text('Open Stripe Express Dashboard'), findsOneWidget);
     expect(find.text('Net Payouts'), findsOneWidget);
-    expect(find.text('Balances Due at Clinic'), findsOneWidget);
+    // expect(find.text('Balances Due at Clinic'), findsOneWidget);
+    // Gene - Nov, 22, 2026: Universal DB-driven venueLabel defaults to Venue
+    expect(find.text('Balances Due at Venue'), findsOneWidget);
     expect(find.text('Refunds'), findsOneWidget);
   });
 
@@ -173,11 +177,15 @@ void main() {
       ),
     );
 
-    // Click 'New Procedure' button to open dialog
-    await tester.tap(find.text('New Procedure'));
+    // Click 'New Service' button to open dialog (universal default serviceLabel)
+    // await tester.tap(find.text('New Procedure'));
+    // Gene - Nov, 22, 2026: ServicesManagerTab uses business.serviceLabel ('Service' default)
+    await tester.tap(find.text('New Service'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Add Clinical Service / Procedure'), findsOneWidget);
+    // expect(find.text('Add Clinical Service / Procedure'), findsOneWidget);
+    // Gene - Nov, 22, 2026: Both dialog header and submit CTA show 'Add Service' when default serviceLabel is used
+    expect(find.text('Add Service'), findsWidgets);
     expect(find.text('Payment Policy'), findsOneWidget);
     expect(find.text('Full Upfront'), findsOneWidget);
 

@@ -238,7 +238,9 @@ class _CalendarAgendaTabState extends ConsumerState<CalendarAgendaTab> {
                               runSpacing: 4,
                               children: [
                                 Text(
-                                  b.clientName ?? 'Patient',
+                                  // b.clientName ?? 'Patient',
+                                  // Gene - Nov, 22, 2026: Dynamic client terminology from Business ui_config
+                                  b.clientName ?? widget.business.clientLabel,
                                   style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
                                 ),
                                 StatusBadge(status: b.status),
@@ -246,7 +248,9 @@ class _CalendarAgendaTabState extends ConsumerState<CalendarAgendaTab> {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              b.serviceName ?? 'Consultation',
+                              // b.serviceName ?? 'Consultation',
+                              // Gene - Nov, 22, 2026: Dynamic service fallback label from Business ui_config
+                              b.serviceName ?? widget.business.serviceLabel,
                               style: TextStyle(fontSize: 13, color: isDark ? Colors.white70 : Colors.black87),
                             ),
                             if (b.clientNotes != null) ...[
