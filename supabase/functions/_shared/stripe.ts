@@ -25,9 +25,23 @@ export function isTrustedHostname(hostname: string): boolean {
       // ignore malformed ALLOWED_ORIGIN
     }
   }
+  /*
+  // Gene - Nov, 08, 2026: Initial trusted hostnames before bookit.genexis.dev custom domain
   return (
     hostname === 'localhost' ||
     hostname === '127.0.0.1' ||
+    hostname === 'bookit.app' ||
+    hostname.endsWith('.bookit.app') ||
+    hostname.endsWith('.vercel.app') ||
+    hostname.endsWith('.supabase.co')
+  );
+  */
+  // Gene - Nov, 22, 2026: Trust bookit.genexis.dev and *.genexis.dev origins alongside Vercel & BookIt domains
+  return (
+    hostname === 'localhost' ||
+    hostname === '127.0.0.1' ||
+    hostname === 'bookit.genexis.dev' ||
+    hostname.endsWith('.genexis.dev') ||
     hostname === 'bookit.app' ||
     hostname.endsWith('.bookit.app') ||
     hostname.endsWith('.vercel.app') ||

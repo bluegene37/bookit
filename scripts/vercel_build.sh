@@ -33,6 +33,10 @@ fi
 if [ -n "${FORCE_MOCK_MODE:-}" ]; then
   DART_DEFINES+=("--dart-define=FORCE_MOCK_MODE=${FORCE_MOCK_MODE}")
 fi
+# Gene - Nov, 22, 2026: Forward APP_BASE_URL override to Flutter Web build when set in Vercel
+if [ -n "${APP_BASE_URL:-}" ]; then
+  DART_DEFINES+=("--dart-define=APP_BASE_URL=${APP_BASE_URL}")
+fi
 
 # 4. Build release web bundle into build/web
 echo "==> Running flutter build web --release..."

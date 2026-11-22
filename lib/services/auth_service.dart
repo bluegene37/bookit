@@ -13,6 +13,8 @@ import 'supabase_service.dart';
 // Gene - Nov, 05, 2026: Added DemoData import for multi-persona switching and testing
 import '../core/constants/demo_data.dart';
 
+/*
+// Gene - Nov, 03, 2026: Original AuthState before pendingConfirmationEmail support
 class AuthState {
   final UserProfile? user;
   final bool isLoading;
@@ -43,6 +45,50 @@ class AuthState {
       isLoading: isLoading ?? this.isLoading,
       error: error,
       successMessage: successMessage,
+    );
+  }
+}
+*/
+
+// Gene - Nov, 22, 2026: Added pendingConfirmationEmail and needsEmailConfirmation to AuthState for email verification flow
+class AuthState {
+  final UserProfile? user;
+  final bool isLoading;
+  final String? error;
+  final String? successMessage;
+  final String? pendingConfirmationEmail;
+
+  const AuthState({
+    this.user,
+    this.isLoading = false,
+    this.error,
+    this.successMessage,
+    this.pendingConfirmationEmail,
+  });
+
+  bool get isAuthenticated => user != null;
+  bool get needsEmailConfirmation => pendingConfirmationEmail != null;
+  bool get isBusinessOwner => user?.isBusinessOwner ?? false;
+  // Gene - Nov, 14, 2026: Separate shared admin-workspace entry check from strict owner/admin billing privileges
+  bool get canAccessAdminPortal => user?.canAccessAdminPortal ?? false;
+
+  AuthState copyWith({
+    UserProfile? user,
+    bool? isLoading,
+    String? error,
+    String? successMessage,
+    String? pendingConfirmationEmail,
+    bool clearUser = false,
+    bool clearPendingConfirmation = false,
+  }) {
+    return AuthState(
+      user: clearUser ? null : (user ?? this.user),
+      isLoading: isLoading ?? this.isLoading,
+      error: error,
+      successMessage: successMessage,
+      pendingConfirmationEmail: clearPendingConfirmation
+          ? null
+          : (pendingConfirmationEmail ?? this.pendingConfirmationEmail),
     );
   }
 }
@@ -150,6 +196,13 @@ class AuthNotifier extends StateNotifier<AuthState> {
   void clearError() {
     if (state.error != null) {
       state = state.copyWith(error: null, successMessage: state.successMessage);
+    }
+  }
+
+  // Gene - Nov, 22, 2026: Clear pending email verification state when returning to login or editing signup form
+  void clearPendingConfirmation() {
+    if (state.pendingConfirmationEmail != null || state.error != null) {
+      state = state.copyWith(error: null, clearPendingConfirmation: true);
     }
   }
 
@@ -292,6 +345,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
       final client = SupabaseService.client;
       if (client != null) {
+        /*
+        // Gene - Nov, 03, 2026: SignUp without emailRedirectTo or pending-confirmation session check
         final res = await client.auth.signUp(
           email: normalizedEmail,
           password: password,
@@ -302,6 +357,40 @@ class AuthNotifier extends StateNotifier<AuthState> {
           },
         );
         if (res.user != null) {
+          final newProfile = UserProfile(
+            id: res.user!.id,
+            email: normalizedEmail,
+            fullName: trimmedName,
+            role: role,
+            phone: phone,
+            createdAt: DateTime.now(),
+          );
+          state = AuthState(user: newProfile, successMessage: 'Account created successfully!');
+          return true;
+        }
+        */
+        // Gene - Nov, 22, 2026: Redirect confirmation link to bookit.genexis.dev and enter pending-confirmation state when session is null
+        final res = await client.auth.signUp(
+          email: normalizedEmail,
+          password: password,
+          emailRedirectTo: SupabaseConfig.emailConfirmationRedirectUrl,
+          data: {
+            'full_name': trimmedName,
+            'role': role,
+            'phone': phone,
+          },
+        );
+        if (res.user != null) {
+          if (res.session == null) {
+            state = AuthState(
+              user: null,
+              isLoading: false,
+              pendingConfirmationEmail: normalizedEmail,
+              successMessage:
+                  'We sent a confirmation link to $normalizedEmail. Please check your inbox to activate your account.',
+            );
+            return true;
+          }
           final newProfile = UserProfile(
             id: res.user!.id,
             email: normalizedEmail,
@@ -401,7 +490,15 @@ class AuthNotifier extends StateNotifier<AuthState> {
       }
       final client = SupabaseService.client;
       if (client != null) {
+        /*
+        // Gene - Nov, 03, 2026: Password reset call without explicit redirectTo URL
         await client.auth.resetPasswordForEmail(normalizedEmail);
+        */
+        // Gene - Nov, 22, 2026: Direct password recovery emails to bookit.genexis.dev callback route
+        await client.auth.resetPasswordForEmail(
+          normalizedEmail,
+          redirectTo: SupabaseConfig.passwordResetRedirectUrl,
+        );
       }
       state = state.copyWith(
         isLoading: false,
@@ -420,6 +517,87 @@ class AuthNotifier extends StateNotifier<AuthState> {
       AppErrorLogger.report(
         service: 'AuthNotifier',
         operation: 'resetPassword',
+        error: e,
+        stackTrace: st,
+      );
+      state = state.copyWith(
+        isLoading: false,
+        error: AppErrorFormatter.format(e, context: AppErrorContext.passwordReset),
+      );
+      return false;
+    }
+  }
+
+  // Gene - Nov, 22, 2026: Resend signup email confirmation targeting bookit.genexis.dev callback
+  Future<bool> resendConfirmationEmail(String email) async {
+    final normalizedEmail = email.trim();
+    if (!_emailRegex.hasMatch(normalizedEmail)) {
+      state = state.copyWith(
+        isLoading: false,
+        error: 'Please enter a valid email address.',
+      );
+      return false;
+    }
+
+    state = state.copyWith(isLoading: true, error: null, successMessage: null);
+    try {
+      final client = SupabaseService.client;
+      if (client != null) {
+        await client.auth.resend(
+          type: supa.OtpType.signup,
+          email: normalizedEmail,
+          emailRedirectTo: SupabaseConfig.emailConfirmationRedirectUrl,
+        );
+      }
+      state = state.copyWith(
+        isLoading: false,
+        pendingConfirmationEmail: normalizedEmail,
+        successMessage:
+            'Confirmation email resent to $normalizedEmail. Please check your inbox.',
+      );
+      return true;
+    } catch (e, st) {
+      AppErrorLogger.report(
+        service: 'AuthNotifier',
+        operation: 'resendConfirmationEmail',
+        error: e,
+        stackTrace: st,
+      );
+      state = state.copyWith(
+        isLoading: false,
+        error: AppErrorFormatter.format(e, context: AppErrorContext.signup),
+      );
+      return false;
+    }
+  }
+
+  // Gene - Nov, 22, 2026: Complete password reset flow from /auth/callback?type=recovery
+  Future<bool> updatePassword(String newPassword) async {
+    if (newPassword.length < 6) {
+      state = state.copyWith(
+        isLoading: false,
+        error: 'Password must be at least 6 characters.',
+      );
+      return false;
+    }
+
+    state = state.copyWith(isLoading: true, error: null, successMessage: null);
+    try {
+      final client = SupabaseService.client;
+      if (client != null) {
+        await client.auth.updateUser(
+          supa.UserAttributes(password: newPassword),
+        );
+      }
+      state = state.copyWith(
+        isLoading: false,
+        successMessage: 'Your password has been updated successfully!',
+      );
+      return true;
+    } catch (e, st) {
+      AppErrorLogger.report(
+        service: 'AuthNotifier',
+        operation: 'updatePassword',
         error: e,
         stackTrace: st,
       );

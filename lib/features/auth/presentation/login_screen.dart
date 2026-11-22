@@ -423,6 +423,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               style: TextStyle(color: NeumorphicColors.errorFor(isDark), fontSize: 13),
                             ),
                             */
+                            /*
                             // Gene - Nov, 22, 2026: Added clear error icon alongside friendly inline auth error banner text
                             child: Row(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -442,6 +443,94 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                     ),
                                   ),
                                 ),
+                              ],
+                            ),
+                            */
+                            // Gene - Nov, 22, 2026: Added inline Resend confirmation email CTA when login fails due to unconfirmed email
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Icon(
+                                      Icons.error_outline_rounded,
+                                      size: 18,
+                                      color: NeumorphicColors.errorFor(isDark),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Text(
+                                        authState.error!,
+                                        style: TextStyle(
+                                          color: NeumorphicColors.errorFor(isDark),
+                                          fontSize: 13,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                if (authState.error!
+                                    .toLowerCase()
+                                    .contains('verify your email')) ...[
+                                  const SizedBox(height: 6),
+                                  TextButton.icon(
+                                    style: TextButton.styleFrom(
+                                      foregroundColor: accent,
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 4,
+                                      ),
+                                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                    ),
+                                    icon: const Icon(
+                                      Icons.mark_email_read_outlined,
+                                      size: 16,
+                                    ),
+                                    label: const Text(
+                                      'Resend confirmation email',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                    onPressed: authState.isLoading
+                                        ? null
+                                        : () async {
+                                            final email = _emailController.text.trim();
+                                            final messenger = ScaffoldMessenger.of(context);
+                                            final ok = await ref
+                                                .read(authProvider.notifier)
+                                                .resendConfirmationEmail(email);
+                                            if (!mounted) return;
+                                            messenger.hideCurrentSnackBar();
+                                            final latest = ref.read(authProvider);
+                                            if (ok) {
+                                              messenger.showSnackBar(
+                                                SnackBar(
+                                                  content: Text(
+                                                    latest.successMessage ??
+                                                        'Confirmation email resent to $email. Please check your inbox.',
+                                                  ),
+                                                  backgroundColor: NeumorphicColors.success,
+                                                  behavior: SnackBarBehavior.floating,
+                                                ),
+                                              );
+                                            } else {
+                                              messenger.showSnackBar(
+                                                SnackBar(
+                                                  content: Text(
+                                                    latest.error ??
+                                                        'Please enter your email address first, then tap resend.',
+                                                  ),
+                                                  backgroundColor: NeumorphicColors.errorFor(isDark),
+                                                  behavior: SnackBarBehavior.floating,
+                                                ),
+                                              );
+                                            }
+                                          },
+                                  ),
+                                ],
                               ],
                             ),
                           ),

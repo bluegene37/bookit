@@ -64,6 +64,23 @@ class SupabaseConfig {
   static bool debugSimulateReleaseMode = false;
   static bool get isDemoModeEnabled => !kReleaseMode && !debugSimulateReleaseMode;
 
+  // Gene - Nov, 22, 2026: Canonical public app URL and Supabase Auth callback redirect URLs for bookit.genexis.dev
+  static const String appBaseUrl = String.fromEnvironment(
+    'APP_BASE_URL',
+    defaultValue: 'https://bookit.genexis.dev',
+  );
+
+  static String get normalizedAppBaseUrl {
+    final trimmed = appBaseUrl.trim().replaceAll(RegExp(r'/+$'), '');
+    return trimmed.isNotEmpty ? trimmed : 'https://bookit.genexis.dev';
+  }
+
+  static String get emailConfirmationRedirectUrl =>
+      '$normalizedAppBaseUrl/auth/callback';
+
+  static String get passwordResetRedirectUrl =>
+      '$normalizedAppBaseUrl/auth/callback?type=recovery';
+
   static bool get isSecureUrl =>
       supabaseUrl.startsWith('https://') ||
       supabaseUrl.startsWith('http://localhost') ||

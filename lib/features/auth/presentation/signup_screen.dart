@@ -176,6 +176,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
       );
     }
     */
+    /*
     // Gene - Nov, 22, 2026: Use floating theme-aware error SnackBar and user-friendly fallback message on signup failure
     if (success && mounted) {
       messenger.hideCurrentSnackBar();
@@ -196,6 +197,227 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
           'Unable to create your account right now. Please check your details and try again.';
       showErrorSnack(errorMsg);
     }
+    */
+    // Gene - Nov, 22, 2026: Keep user on SignupScreen to display Check Your Email verification view when confirmation is required
+    if (success && mounted) {
+      final latestState = ref.read(authProvider);
+      messenger.hideCurrentSnackBar();
+      if (latestState.needsEmailConfirmation) {
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text(
+              latestState.successMessage ??
+                  'Confirmation email sent! Please check your inbox.',
+            ),
+            backgroundColor: NeumorphicColors.success,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        return;
+      }
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Account registered! Welcome to BookIt.'),
+          backgroundColor: NeumorphicColors.success,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      if (_selectedRole == 'business_owner') {
+        context.go('/admin');
+      } else {
+        context.go('/');
+      }
+    } else if (mounted) {
+      final errorMsg = ref.read(authProvider).error ??
+          'Unable to create your account right now. Please check your details and try again.';
+      showErrorSnack(errorMsg);
+    }
+  }
+
+  // Gene - Nov, 22, 2026: Trigger confirmation email resend targeting bookit.genexis.dev callback and show SnackBar feedback
+  Future<void> _handleResendConfirmation(String email) async {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final messenger = ScaffoldMessenger.of(context);
+    final ok = await ref.read(authProvider.notifier).resendConfirmationEmail(email);
+    if (!mounted) return;
+    messenger.hideCurrentSnackBar();
+    final latest = ref.read(authProvider);
+    if (ok) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            latest.successMessage ??
+                'Confirmation email resent to $email. Please check your inbox.',
+          ),
+          backgroundColor: NeumorphicColors.success,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } else {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            latest.error ??
+                'Unable to resend confirmation email right now. Please try again.',
+          ),
+          backgroundColor: NeumorphicColors.errorFor(isDark),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
+  // Gene - Nov, 22, 2026: Dedicated pending email verification card showing bookit.genexis.dev confirmation instructions & resend button
+  Widget _buildPendingConfirmationCard(
+    BuildContext context,
+    AuthState authState,
+    bool isDark,
+    Color accent,
+  ) {
+    final pendingEmail = authState.pendingConfirmationEmail ?? '';
+    final textPrimary =
+        isDark ? NeumorphicColors.darkTextPrimary : NeumorphicColors.lightTextPrimary;
+    final textSecondary =
+        isDark ? NeumorphicColors.darkTextSecondary : NeumorphicColors.lightTextSecondary;
+
+    return Column(
+      children: [
+        const BookItLogo(size: 60),
+        const SizedBox(height: 16),
+        NeumorphicContainer(
+          isCircle: true,
+          width: 64,
+          height: 64,
+          child: Icon(Icons.mark_email_read_outlined, color: accent, size: 30),
+        ),
+        const SizedBox(height: 16),
+        Text(
+          'Check your email',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 26,
+            fontWeight: FontWeight.w800,
+            letterSpacing: -0.5,
+            color: textPrimary,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'We sent a confirmation link to $pendingEmail.\nOpen the link to verify your account on bookit.genexis.dev.',
+          textAlign: TextAlign.center,
+          style: TextStyle(fontSize: 13, height: 1.5, color: textSecondary),
+        ),
+        const SizedBox(height: 24),
+        NeumorphicContainer(
+          borderRadius: 24.0,
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (authState.error != null) ...[
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: NeumorphicColors.errorFor(isDark).withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: NeumorphicColors.errorFor(isDark).withValues(alpha: 0.3),
+                    ),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(
+                        Icons.error_outline_rounded,
+                        size: 18,
+                        color: NeumorphicColors.errorFor(isDark),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          authState.error!,
+                          style: TextStyle(
+                            color: NeumorphicColors.errorFor(isDark),
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ] else if (authState.successMessage != null) ...[
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: NeumorphicColors.success.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: NeumorphicColors.success.withValues(alpha: 0.3),
+                    ),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(
+                        Icons.check_circle_outline_rounded,
+                        size: 18,
+                        color: NeumorphicColors.success,
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          authState.successMessage!,
+                          style: TextStyle(color: textPrimary, fontSize: 13),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ],
+              NeumorphicButton(
+                isPrimary: true,
+                onPressed: () {
+                  ref.read(authProvider.notifier).clearPendingConfirmation();
+                  context.go('/login');
+                },
+                child: const Text('Continue to Sign In'),
+              ),
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                icon: const Icon(Icons.refresh_rounded, size: 18),
+                label: const Text('Resend Confirmation Email'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: accent,
+                  side: BorderSide(color: accent.withValues(alpha: 0.45)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  minimumSize: const Size(double.infinity, 48),
+                ),
+                onPressed: authState.isLoading
+                    ? null
+                    : () => _handleResendConfirmation(pendingEmail),
+              ),
+              const SizedBox(height: 8),
+              TextButton(
+                onPressed: () =>
+                    ref.read(authProvider.notifier).clearPendingConfirmation(),
+                child: Text(
+                  'Use a different email',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: textSecondary,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
   }
 
   @override
@@ -233,7 +455,14 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 460),
+              /*
+              // Gene - Nov, 03, 2026: Always rendered signup form without pending email confirmation state
               child: Column(
+              */
+              // Gene - Nov, 22, 2026: Switch to Check Your Email card when signup requires email confirmation
+              child: authState.needsEmailConfirmation
+                  ? _buildPendingConfirmationCard(context, authState, isDark, accent)
+                  : Column(
                 children: [
                   // Gene - Nov, 08, 2026: Added minimalist Geometric 'B' + Checkmark BookItLogo above Join BookIt heading
                   const BookItLogo(size: 60),
@@ -461,10 +690,18 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                       TextButton(
                         onPressed: () => context.push('/login'),
                       */
+                      /*
                       // Gene - Nov, 22, 2026: Clear stale auth error banner before navigating to /login
                       TextButton(
                         onPressed: () {
                           ref.read(authProvider.notifier).clearError();
+                          context.push('/login');
+                        },
+                      */
+                      // Gene - Nov, 22, 2026: Clear both stale auth error and pending confirmation state before navigating to /login
+                      TextButton(
+                        onPressed: () {
+                          ref.read(authProvider.notifier).clearPendingConfirmation();
                           context.push('/login');
                         },
                         child: Text(

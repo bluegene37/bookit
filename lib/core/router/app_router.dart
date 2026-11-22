@@ -10,6 +10,8 @@ import '../../features/admin/presentation/admin_shell_screen.dart';
 import '../../features/auth/presentation/login_screen.dart';
 import '../../features/auth/presentation/signup_screen.dart';
 import '../../features/auth/presentation/profile_screen.dart';
+// Gene - Nov, 22, 2026: Added AuthCallbackScreen import for bookit.genexis.dev email verification redirects
+import '../../features/auth/presentation/auth_callback_screen.dart';
 
 // Gene - Nov, 03, 2026: Android & iOS are strictly Client-only; Web opens into Admin Portal
 final appRouter = GoRouter(
@@ -29,6 +31,20 @@ final appRouter = GoRouter(
     GoRoute(
       path: '/signup',
       builder: (context, state) => const SignupScreen(),
+    ),
+    // Gene - Nov, 22, 2026: Added /auth/callback route for email confirmation & password recovery redirects
+    GoRoute(
+      path: '/auth/callback',
+      builder: (context, state) {
+        final q = state.uri.queryParameters;
+        return AuthCallbackScreen(
+          type: q['type'],
+          code: q['code'],
+          error: q['error'],
+          errorCode: q['error_code'],
+          errorDescription: q['error_description'],
+        );
+      },
     ),
     GoRoute(
       path: '/profile',
