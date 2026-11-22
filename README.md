@@ -35,7 +35,9 @@ It runs seamlessly against a **live Supabase + Stripe Connect backend** or out-o
 
 ### 1. Client Marketplace & Interactive Map Discovery (`/`)
 - **Category & Keyword Filtering:** Browse across 7 core industry verticals (*Healthcare & Clinics, Wellness & Therapy, Beauty & Personal Care, Fitness & Coaching, Professional Consulting, Studios & Space Rentals, Automotive & Detailing*).
-- **Interactive OpenStreetMap View:** Toggle between a Neumorphic card grid and an interactive **CartoDB Voyager / Dark Matter** map with custom clinic pins, rating badges, bounding-box auto-fit, and **Locate Me** GPS centering.
+<!-- Gene - Nov, 22, 2026: Replaced CARTO basemap reference with free zero-key OpenStreetMap tiles -->
+<!-- - **Interactive OpenStreetMap View:** Toggle between a Neumorphic card grid and an interactive **CartoDB Voyager / Dark Matter** map with custom clinic pins, rating badges, bounding-box auto-fit, and **Locate Me** GPS centering. -->
+- **Interactive OpenStreetMap View:** Toggle between a Neumorphic card grid and an interactive **OpenStreetMap** map (with adaptive dark-mode styling, zero API key required) featuring custom clinic pins, rating badges, bounding-box auto-fit, and **Locate Me** GPS centering.
 - **Clinic Storefront (`/business/:id`):** Hero banners, verified patient reviews, staff bios, transparent service pricing with deposit badges, and 1-tap **Google Maps / Apple Maps** turn-by-turn directions.
 
 ### 2. Polymorphic 5-Step Booking Wizard (`/book/:id`)
@@ -85,7 +87,9 @@ flowchart TB
 
     subgraph External["External Integrations"]
         Stripe["Stripe Connect Express API"]
-        OSM["OpenStreetMap Nominatim & CartoDB Tiles"]
+        %% Gene - Nov, 22, 2026: Replaced CARTO Tiles reference with zero-key OpenStreetMap Tiles
+        %% OSM["OpenStreetMap Nominatim & CartoDB Tiles"]
+        OSM["OpenStreetMap Tiles & Nominatim Geocoding"]
         Comms["Resend / SendGrid / Twilio"]
     end
 

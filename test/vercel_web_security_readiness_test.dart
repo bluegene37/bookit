@@ -29,6 +29,9 @@ void main() {
       expect(headerMap.containsKey('Content-Security-Policy'), isTrue);
       expect(headerMap['Content-Security-Policy'], contains("frame-ancestors 'none'"));
       expect(headerMap['Content-Security-Policy'], contains('https://www.gstatic.com'));
+      // Gene - Nov, 22, 2026: Ensure CSP allows free zero-key OpenStreetMap tiles and removes CartoDB
+      expect(headerMap['Content-Security-Policy'], contains('https://tile.openstreetmap.org'));
+      expect(headerMap['Content-Security-Policy'], isNot(contains('basemaps.cartocdn.com')));
       expect(headerMap['Strict-Transport-Security'], contains('max-age=63072000'));
       expect(headerMap['X-Content-Type-Options'], equals('nosniff'));
       expect(headerMap['X-Frame-Options'], equals('DENY'));

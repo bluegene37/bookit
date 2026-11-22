@@ -5,6 +5,8 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart' hide Path;
 import 'package:bookit/core/theme/neumorphic_colors.dart';
 import 'package:bookit/core/widgets/neumorphic_container.dart';
+// Gene - Nov, 22, 2026: Added MapTileConfig import for zero-API-key OpenStreetMap tile layer & attribution
+import 'package:bookit/core/constants/map_tile_config.dart';
 import 'package:bookit/services/location_geocoding_service.dart';
 
 class LocationPinPicker extends ConsumerStatefulWidget {
@@ -118,10 +120,13 @@ class LocationPinPickerState extends ConsumerState<LocationPinPicker> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final accent = isDark ? NeumorphicColors.tealLight : NeumorphicColors.tealPrimary;
 
+    /*
     // CartoDB tiles matching BookIt dark / light palettes
+    // Gene - Nov 06, 2026: CARTO basemaps now return an "API KEY REQUIRED" watermark without a key
     final tileUrl = isDark
         ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png'
         : 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png';
+    */
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -194,6 +199,8 @@ class LocationPinPickerState extends ConsumerState<LocationPinPicker> {
                 // Interactive OpenStreetMap Layer
                 FlutterMap(
                   mapController: _mapController,
+                  /*
+                  // Gene - Nov 06, 2026: Previous MapOptions without theme-matched canvas backgroundColor
                   options: MapOptions(
                     initialCenter: _currentPosition,
                     initialZoom: 15.0,
@@ -204,12 +211,30 @@ class LocationPinPickerState extends ConsumerState<LocationPinPicker> {
                           : InteractiveFlag.none,
                     ),
                   ),
+                  */
+                  // Gene - Nov, 22, 2026: Added theme-aware MapOptions backgroundColor for smooth OSM tile loading
+                  options: MapOptions(
+                    initialCenter: _currentPosition,
+                    initialZoom: 15.0,
+                    backgroundColor: MapTileConfig.backgroundColor(isDark),
+                    onTap: widget.isInteractive ? _onMapTapped : null,
+                    interactionOptions: InteractionOptions(
+                      flags: widget.isInteractive
+                          ? InteractiveFlag.all
+                          : InteractiveFlag.none,
+                    ),
+                  ),
                   children: [
+                    /*
+                    // Gene - Nov 06, 2026: Legacy CARTO TileLayer replaced by free zero-key OpenStreetMap tiles
                     TileLayer(
                       urlTemplate: tileUrl,
                       subdomains: const ['a', 'b', 'c', 'd'],
                       userAgentPackageName: 'com.bookit.app',
                     ),
+                    */
+                    // Gene - Nov, 22, 2026: Switched to zero-API-key OpenStreetMap tiles with dark-mode color filter
+                    MapTileConfig.buildTileLayer(isDark: isDark),
                     MarkerLayer(
                       markers: [
                         Marker(
@@ -220,6 +245,12 @@ class LocationPinPickerState extends ConsumerState<LocationPinPicker> {
                           child: _PinMarker(accent: accent),
                         ),
                       ],
+                    ),
+                    // Gene - Nov, 22, 2026: Render subtle non-interactive OpenStreetMap ODbL attribution badge
+                    MapTileConfig.buildAttribution(
+                      isDark: isDark,
+                      alignment: Alignment.topLeft,
+                      padding: const EdgeInsets.all(8),
                     ),
                   ],
                 ),

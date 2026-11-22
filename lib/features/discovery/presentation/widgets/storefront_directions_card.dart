@@ -7,6 +7,8 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:bookit/core/theme/neumorphic_colors.dart';
 // Gene - Nov, 22, 2026: Added AppErrorFormatter import for user-friendly map navigation error messages
 import 'package:bookit/core/utils/app_error_formatter.dart';
+// Gene - Nov, 22, 2026: Added MapTileConfig import for zero-API-key OpenStreetMap tile layer & attribution
+import 'package:bookit/core/constants/map_tile_config.dart';
 import 'package:bookit/core/widgets/neumorphic_container.dart';
 import 'package:bookit/core/widgets/neumorphic_button.dart';
 import 'package:bookit/models/business.dart';
@@ -74,9 +76,12 @@ class StorefrontDirectionsCard extends StatelessWidget {
     final position = LatLng(lat, lng);
     final fullAddress = '${business.address ?? 'Address on file'}${business.city != null ? ', ${business.city}' : ''}';
 
+    /*
+    // Gene - Nov 06, 2026: CARTO basemaps now return an "API KEY REQUIRED" watermark without a key
     final tileUrl = isDark
         ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png'
         : 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png';
+    */
 
     return NeumorphicContainer(
       borderRadius: 20.0,
@@ -130,6 +135,8 @@ class StorefrontDirectionsCard extends StatelessWidget {
             child: SizedBox(
               height: 170,
               child: FlutterMap(
+                /*
+                // Gene - Nov 06, 2026: Previous MapOptions without theme-matched canvas backgroundColor
                 options: MapOptions(
                   initialCenter: position,
                   initialZoom: 15.0,
@@ -137,12 +144,27 @@ class StorefrontDirectionsCard extends StatelessWidget {
                     flags: InteractiveFlag.pinchZoom | InteractiveFlag.drag,
                   ),
                 ),
+                */
+                // Gene - Nov, 22, 2026: Added theme-aware MapOptions backgroundColor for smooth OSM tile loading
+                options: MapOptions(
+                  initialCenter: position,
+                  initialZoom: 15.0,
+                  backgroundColor: MapTileConfig.backgroundColor(isDark),
+                  interactionOptions: const InteractionOptions(
+                    flags: InteractiveFlag.pinchZoom | InteractiveFlag.drag,
+                  ),
+                ),
                 children: [
+                  /*
+                  // Gene - Nov 06, 2026: Legacy CARTO TileLayer replaced by free zero-key OpenStreetMap tiles
                   TileLayer(
                     urlTemplate: tileUrl,
                     subdomains: const ['a', 'b', 'c', 'd'],
                     userAgentPackageName: 'com.bookit.app',
                   ),
+                  */
+                  // Gene - Nov, 22, 2026: Switched to zero-API-key OpenStreetMap tiles with dark-mode color filter
+                  MapTileConfig.buildTileLayer(isDark: isDark),
                   MarkerLayer(
                     markers: [
                       Marker(
@@ -153,6 +175,12 @@ class StorefrontDirectionsCard extends StatelessWidget {
                         child: _DirectionsPinMarker(accent: accent, businessName: business.name),
                       ),
                     ],
+                  ),
+                  // Gene - Nov, 22, 2026: Render subtle non-interactive OpenStreetMap ODbL attribution badge
+                  MapTileConfig.buildAttribution(
+                    isDark: isDark,
+                    alignment: Alignment.bottomRight,
+                    padding: const EdgeInsets.all(6),
                   ),
                 ],
               ),

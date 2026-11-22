@@ -11,6 +11,8 @@ import 'package:bookit/models/business.dart';
 import 'package:bookit/services/location_geocoding_service.dart';
 // Gene - Nov, 22, 2026: Added PlatformConfigService import for DB-driven default map coordinates
 import 'package:bookit/services/platform_config_service.dart';
+// Gene - Nov, 22, 2026: Added MapTileConfig import for zero-API-key OpenStreetMap tile layer & attribution
+import 'package:bookit/core/constants/map_tile_config.dart';
 
 final isDiscoveryMapViewProvider = StateProvider<bool>((ref) => false);
 final selectedDiscoveryBusinessProvider = StateProvider<Business?>((ref) => null);
@@ -110,9 +112,12 @@ class _DiscoveryMapViewState extends ConsumerState<DiscoveryMapView> {
     final defLat = branding.defaultLatitude;
     final defLng = branding.defaultLongitude;
 
+    /*
+    // Gene - Nov 06, 2026: CARTO basemaps now return an "API KEY REQUIRED" watermark without a key
     final tileUrl = isDark
         ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png'
         : 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png';
+    */
 
     final initialCenter = widget.businesses.isNotEmpty
         ? LatLng(widget.businesses.first.latitude ?? defLat, widget.businesses.first.longitude ?? defLng)
@@ -123,6 +128,8 @@ class _DiscoveryMapViewState extends ConsumerState<DiscoveryMapView> {
         // Full Interactive OpenStreetMap Canvas
         FlutterMap(
           mapController: _mapController,
+          /*
+          // Gene - Nov 06, 2026: Previous MapOptions without theme-matched canvas backgroundColor
           options: MapOptions(
             initialCenter: initialCenter,
             initialZoom: 13.0,
@@ -133,12 +140,30 @@ class _DiscoveryMapViewState extends ConsumerState<DiscoveryMapView> {
               }
             },
           ),
+          */
+          // Gene - Nov, 22, 2026: Added theme-aware MapOptions backgroundColor for smooth OSM tile loading
+          options: MapOptions(
+            initialCenter: initialCenter,
+            initialZoom: 13.0,
+            backgroundColor: MapTileConfig.backgroundColor(isDark),
+            interactionOptions: const InteractionOptions(flags: InteractiveFlag.all),
+            onTap: (tapPos, point) {
+              if (selectedBusiness != null) {
+                ref.read(selectedDiscoveryBusinessProvider.notifier).state = null;
+              }
+            },
+          ),
           children: [
+            /*
+            // Gene - Nov 06, 2026: Legacy CARTO TileLayer replaced by free zero-key OpenStreetMap tiles
             TileLayer(
               urlTemplate: tileUrl,
               subdomains: const ['a', 'b', 'c', 'd'],
               userAgentPackageName: 'com.bookit.app',
             ),
+            */
+            // Gene - Nov, 22, 2026: Switched to zero-API-key OpenStreetMap tiles with dark-mode color filter
+            MapTileConfig.buildTileLayer(isDark: isDark),
             MarkerLayer(
               markers: widget.businesses.map((biz) {
                 final isSelected = selectedBusiness?.id == biz.id;
@@ -161,6 +186,12 @@ class _DiscoveryMapViewState extends ConsumerState<DiscoveryMapView> {
                   ),
                 );
               }).toList(),
+            ),
+            // Gene - Nov, 22, 2026: Render subtle non-interactive OpenStreetMap ODbL attribution badge
+            MapTileConfig.buildAttribution(
+              isDark: isDark,
+              alignment: Alignment.topLeft,
+              padding: const EdgeInsets.all(10),
             ),
           ],
         ),
